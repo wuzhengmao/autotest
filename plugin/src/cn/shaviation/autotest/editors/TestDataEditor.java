@@ -1,86 +1,61 @@
 package cn.shaviation.autotest.editors;
 
-import java.io.ByteArrayInputStream;
-import java.io.InputStreamReader;
-
-import org.eclipse.core.resources.IFile;
-import org.eclipse.core.resources.IResourceChangeEvent;
-import org.eclipse.core.resources.IResourceChangeListener;
-import org.eclipse.core.resources.IResourceDelta;
-import org.eclipse.core.resources.ResourcesPlugin;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IProgressMonitor;
-import org.eclipse.jface.text.DocumentEvent;
-import org.eclipse.jface.text.IDocument;
-import org.eclipse.jface.text.IDocumentListener;
+import org.eclipse.core.runtime.IStatus;
+import org.eclipse.core.runtime.jobs.Job;
+import org.eclipse.jface.dialogs.MessageDialog;
+import org.eclipse.swt.events.ShellEvent;
+import org.eclipse.swt.events.ShellListener;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.ui.IEditorInput;
 import org.eclipse.ui.IEditorSite;
 import org.eclipse.ui.IFileEditorInput;
+import org.eclipse.ui.IPartListener;
 import org.eclipse.ui.IWorkbenchPart;
 import org.eclipse.ui.PartInitException;
-import org.eclipse.ui.editors.text.TextEditor;
 import org.eclipse.ui.forms.editor.FormEditor;
 import org.eclipse.ui.part.EditorPart;
+import org.eclipse.ui.texteditor.IDocumentProvider;
+import org.eclipse.ui.texteditor.IDocumentProviderExtension;
+import org.eclipse.ui.texteditor.IDocumentProviderExtension3;
 
-import cn.shaviation.autotest.model.TestDataDef;
 import cn.shaviation.autotest.util.PartListenerAdapter;
+import cn.shaviation.autotest.util.ShellListenerAdapter;
 import cn.shaviation.autotest.util.Utils;
 
-public class TestDataEditor extends FormEditor implements
-		IResourceChangeListener {
+public class TestDataEditor extends FormEditor {
 
-	private TestDataEditorPage editorPage;
-	private TestDataPreviewPage previewPage;
-	private TextEditor sourcePage;
-	private boolean dirty = false;
+	private TestDataFormPage editorPage;
+	private TestDataSourcePage sourcePage;
+	private long lastConfirmSyncTime;
+	private boolean ignoreCheck = false;
 
-	public TestDataEditor() {
-		super();
-		ResourcesPlugin.getWorkspace().addResourceChangeListener(this);
-	}
+	private ShellListener shellListener = new ShellListenerAdapter() {
+		@Override
+		public void shellActivated(ShellEvent event) {
+			if (TestDataEditor.this.equals(getEditorSite().getWorkbenchWindow()
+					.getActivePage().getActivePart())) {
+				onActive();
+			}
+		}
+	};
+
+	private IPartListener partListener = new PartListenerAdapter() {
+		@Override
+		public void partActivated(IWorkbenchPart part) {
+			if (part.equals(TestDataEditor.this)) {
+				onActive();
+			}
+		}
+	};
 
 	@Override
 	public void dispose() {
-		ResourcesPlugin.getWorkspace().removeResourceChangeListener(this);
+		getEditorSite().getWorkbenchWindow().getPartService()
+				.removePartListener(partListener);
+		getEditorSite().getShell().removeShellListener(shellListener);
 		super.dispose();
-	}
-
-	@Override
-	protected void addPages() {
-		try {
-			editorPage = new TestDataEditorPage(this);
-			addPage(editorPage);
-		} catch (PartInitException e) {
-			Utils.showError(this, "Create visual editor page failed!", e);
-		}
-		try {
-			previewPage = new TestDataPreviewPage(this);
-			addPage(previewPage);
-		} catch (PartInitException e) {
-			Utils.showError(this, "Create preview page failed!", e);
-		}
-		try {
-			sourcePage = new TextEditor();
-			setPageText(addPage(sourcePage, getEditorInput()), "Source");
-			final IDocument document = sourcePage.getDocumentProvider().getDocument(getEditorInput());
-			document.addDocumentListener(new IDocumentListener() {
-				
-				@Override
-				public void documentChanged(DocumentEvent event) {
-					setDirty(true);
-					System.out.println(document.get());
-				}
-				
-				@Override
-				public void documentAboutToBeChanged(DocumentEvent event) {
-					
-				}
-			});
-		} catch (PartInitException e) {
-			Utils.showError(this, "Create source page failed!", e);
-		}
-		loadTestData();
 	}
 
 	@Override
@@ -92,17 +67,18 @@ public class TestDataEditor extends FormEditor implements
 		TestDataEditorInput input = new TestDataEditorInput(
 				(IFileEditorInput) editorInput);
 		super.init(site, input);
-		setPartName(input.getFile().getName());
-		getEditorSite().getWorkbenchWindow().getPartService()
-				.addPartListener(new PartListenerAdapter() {
-					@Override
-					public void partBroughtToTop(IWorkbenchPart part) {
-						if (part.equals(TestDataEditor.this)) {
-							((TestDataFormPage) getActivePageInstance())
-									.checkModel();
-						}
-					}
-				});
+		Display.getDefault().asyncExec(new Runnable() {
+			public void run() {
+				getEditorSite().getWorkbenchWindow().getPartService()
+						.addPartListener(partListener);
+				getEditorSite().getShell().addShellListener(shellListener);
+			}
+		});
+	}
+
+	@Override
+	public void setPartName(String partName) {
+		super.setPartName(partName);
 	}
 
 	@Override
@@ -111,54 +87,147 @@ public class TestDataEditor extends FormEditor implements
 	}
 
 	@Override
-	public void resourceChanged(final IResourceChangeEvent event) {
-		if (event.getType() == IResourceChangeEvent.PRE_CLOSE
-				|| event.getType() == IResourceChangeEvent.PRE_DELETE) {
-			if (getEditorInput().getFile().getProject()
-					.equals(event.getResource())) {
+	protected void addPages() {
+		try {
+			sourcePage = new TestDataSourcePage(this);
+			setPageText(addPage(sourcePage, getEditorInput()), "Source");
+		} catch (PartInitException e) {
+			Utils.showError(this, "Initialize source page failed!", e);
+		}
+		createEditorPage();
+	}
+
+	private void createEditorPage() {
+		try {
+			editorPage = new TestDataFormPage(this);
+			addPage(editorPage);
+		} catch (PartInitException e) {
+			Utils.showError(this, "Initialize visual editor page failed!", e);
+		}
+	}
+
+	@Override
+	protected void pageChange(int newPageIndex) {
+		super.pageChange(newPageIndex);
+		notifyPageActive(newPageIndex);
+	}
+
+	private void onActive() {
+		if (!ignoreCheck && checkDocumentStatus() == null) {
+			if (getEditorInput().getDocumentProvider().isDeleted(
+					getEditorInput())) {
 				Display.getDefault().asyncExec(new Runnable() {
 					public void run() {
-						close(false);
+						confirmRemoveDocument();
 					}
 				});
-			}
-		} else if (event.getType() == IResourceChangeEvent.POST_CHANGE) {
-			final IResourceDelta delta = event.getDelta().findMember(
-					getEditorInput().getFile().getFullPath());
-			if (delta != null) {
+			} else if (!isDocumentSynchronized()
+					&& lastConfirmSyncTime < getEditorInput()
+							.getDocumentProvider().getModificationStamp(
+									getEditorInput())) {
+				lastConfirmSyncTime = getEditorInput().getDocumentProvider()
+						.getModificationStamp(getEditorInput());
 				Display.getDefault().asyncExec(new Runnable() {
 					public void run() {
-						if (delta.getKind() == IResourceDelta.REMOVED) {
-							if (delta.getFlags() == IResourceDelta.MOVED_TO) {
-								IFile newFile = ResourcesPlugin.getWorkspace()
-										.getRoot()
-										.getFile(delta.getMovedToPath());
-								getEditorInput().setFile(newFile);
-							} else {
-								close(false);
-							}
-						} else if (delta.getKind() == IResourceDelta.CHANGED) {
-							reload();
-						}
+						confirmSynchronizeDocument();
 					}
 				});
 			}
 		}
 	}
 
+	private void confirmSynchronizeDocument() {
+		ignoreCheck = true;
+		if (MessageDialog
+				.openQuestion(
+						getEditorSite().getShell(),
+						"File Changed",
+						"The file '"
+								+ getEditorInput().getFile().getFullPath()
+								+ "' has been changed on the file system. Do you want to replace the editor contents with these changes?")) {
+			try {
+				((IDocumentProviderExtension) getEditorInput()
+						.getDocumentProvider()).synchronize(getEditorInput());
+			} catch (CoreException e) {
+				Utils.showError(this, "Synchronize file failed!", e);
+			}
+		}
+		ignoreCheck = false;
+	}
+
+	private void confirmRemoveDocument() {
+		ignoreCheck = true;
+		if (new MessageDialog(
+				getEditorSite().getShell(),
+				"File Not Accessible",
+				null,
+				"The file '"
+						+ getEditorInput().getFile().getFullPath()
+						+ "' has been deleted or is not accessible. Do you want to save your changes or close the editor without saving?",
+				MessageDialog.QUESTION, new String[] { "Save", "Close" }, 0)
+				.open() == 0) {
+			performSave(Job.getJobManager().createProgressGroup());
+		} else {
+			close(false);
+		}
+		ignoreCheck = false;
+	}
+
+	public boolean isDocumentSynchronized() {
+		IDocumentProvider provider = getEditorInput().getDocumentProvider();
+		if (provider instanceof IDocumentProviderExtension3) {
+			return ((IDocumentProviderExtension3) provider)
+					.isSynchronized(getEditorInput());
+		}
+		return true;
+	}
+
+	public IStatus checkDocumentStatus() {
+		if (getEditorInput().getDocumentProvider() instanceof IDocumentProviderExtension) {
+			IDocumentProviderExtension extension = (IDocumentProviderExtension) getEditorInput()
+					.getDocumentProvider();
+			IStatus status = extension.getStatus(getEditorInput());
+			if (status != null && status.getSeverity() == IStatus.ERROR) {
+				return status;
+			}
+		}
+		return null;
+	}
+
+	private void notifyPageActive(int page) {
+		if (page == 0) {
+			sourcePage.onActive();
+		} else {
+			editorPage.onActive();
+		}
+	}
+
 	@Override
 	public void doSave(IProgressMonitor monitor) {
+		if (!isDocumentSynchronized()) {
+			if (!MessageDialog
+					.openQuestion(
+							getEditorSite().getShell(),
+							"Update conflict",
+							"The file '"
+									+ getEditorInput().getFile().getFullPath()
+									+ "' has been changed on the file system. Do you want to overwrite the changes made on the file system?")) {
+				return;
+			}
+		}
+		performSave(monitor);
+	}
+
+	private void performSave(IProgressMonitor monitor) {
 		try {
-			String json = getEditorInput().getObjectMapper()
-					.writeValueAsString(getEditorInput().getTestDataDef());
-			IFile file = getEditorInput().getFile();
-			file.setContents(
-					new ByteArrayInputStream(json.getBytes(getFileCharset())),
-					false, true, monitor);
-			setDirty(false);
+			sourcePage.reloadSource();
+			getEditorInput().getDocumentProvider().saveDocument(monitor,
+					getEditorInput(), getEditorInput().getDocument(), true);
+			if (editorPage == null) {
+				createEditorPage();
+			}
 		} catch (Exception e) {
 			Utils.showError(this, "Save failed!", e);
-			monitor.setCanceled(true);
 		}
 	}
 
@@ -177,50 +246,21 @@ public class TestDataEditor extends FormEditor implements
 				.getActiveEditor());
 	}
 
-	public void reload() {
-		loadTestData();
-		if (isActive()) {
-			((TestDataFormPage) getActivePageInstance()).checkModel();
-		}
-	}
-
-	private void loadTestData() {
-		TestDataDef testDataDef = new TestDataDef();
-		IFile file = getEditorInput().getFile();
-		try {
-			testDataDef = getEditorInput().getObjectMapper().readValue(
-					new InputStreamReader(file.getContents(false),
-							getFileCharset()), TestDataDef.class);
-		} catch (Exception e) {
-			Utils.showError(this, "Load file failed!", e);
-		}
-		getEditorInput().setTestDataDef(testDataDef);
-	}
-
-	private String getFileCharset() {
-		try {
-			return getEditorInput().getFile().getCharset();
-		} catch (CoreException e) {
-		}
-		try {
-			return getEditorInput().getFile().getProject().getDefaultCharset();
-		} catch (CoreException e) {
-		}
-		try {
-			return getEditorInput().getFile().getWorkspace().getRoot()
-					.getDefaultCharset();
-		} catch (CoreException e) {
-			return "UTF-8";
-		}
-	}
-
 	@Override
 	public boolean isDirty() {
-		return dirty;
+		return getEditorInput().getDocumentProvider().canSaveDocument(
+				getEditorInput());
 	}
 
-	protected void setDirty(boolean dirty) {
-		this.dirty = dirty;
+	public void fireDirty() {
 		firePropertyChange(EditorPart.PROP_DIRTY);
+	}
+
+	public TestDataFormPage getEditorPage() {
+		return editorPage;
+	}
+
+	public TestDataSourcePage getSourcePage() {
+		return sourcePage;
 	}
 }

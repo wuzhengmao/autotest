@@ -11,22 +11,22 @@ public class PartListenerAdapter implements IPartListener {
 	}
 
 	@Override
-	public void partBroughtToTop(IWorkbenchPart loadTestData) {
+	public void partBroughtToTop(IWorkbenchPart part) {
 
 	}
 
 	@Override
-	public void partClosed(IWorkbenchPart loadTestData) {
+	public void partClosed(IWorkbenchPart part) {
 
 	}
 
 	@Override
-	public void partDeactivated(IWorkbenchPart loadTestData) {
+	public void partDeactivated(IWorkbenchPart part) {
 
 	}
 
 	@Override
-	public void partOpened(IWorkbenchPart loadTestData) {
+	public void partOpened(IWorkbenchPart part) {
 
 	}
 }

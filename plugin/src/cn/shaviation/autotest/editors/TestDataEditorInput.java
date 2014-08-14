@@ -6,17 +6,18 @@ import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IStorage;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.jface.resource.ImageDescriptor;
+import org.eclipse.jface.text.IDocument;
 import org.eclipse.ui.IFileEditorInput;
 import org.eclipse.ui.IPersistableElement;
-import org.eclipse.ui.part.FileEditorInput;
+import org.eclipse.ui.texteditor.IDocumentProvider;
+
+import cn.shaviation.autotest.model.TestDataDef;
 
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
-
-import cn.shaviation.autotest.model.TestDataDef;
 
 public class TestDataEditorInput implements IFileEditorInput {
 
@@ -30,8 +31,8 @@ public class TestDataEditorInput implements IFileEditorInput {
 			.setDateFormat(new SimpleDateFormat("yyyyMMddHHmmssSSS"));
 
 	private IFileEditorInput fileEditorInput;
+	private IDocumentProvider documentProvider;
 	private TestDataDef testDataDef;
-	private long lastUpdateTime;
 
 	public TestDataEditorInput(IFileEditorInput fileEditorInput) {
 		this.fileEditorInput = fileEditorInput;
@@ -78,10 +79,6 @@ public class TestDataEditorInput implements IFileEditorInput {
 		return fileEditorInput.getFile();
 	}
 
-	/* package */void setFile(IFile file) {
-		fileEditorInput = new FileEditorInput(file);
-	}
-
 	@Override
 	public int hashCode() {
 		return fileEditorInput.hashCode();
@@ -90,6 +87,18 @@ public class TestDataEditorInput implements IFileEditorInput {
 	@Override
 	public boolean equals(Object obj) {
 		return fileEditorInput.equals(obj);
+	}
+
+	public IDocumentProvider getDocumentProvider() {
+		return documentProvider;
+	}
+
+	/* package */void setDocumentProvider(IDocumentProvider documentProvider) {
+		this.documentProvider = documentProvider;
+	}
+
+	public IDocument getDocument() {
+		return documentProvider.getDocument(this);
 	}
 
 	public ObjectMapper getObjectMapper() {
@@ -102,10 +111,9 @@ public class TestDataEditorInput implements IFileEditorInput {
 
 	public void setTestDataDef(TestDataDef testDataDef) {
 		this.testDataDef = testDataDef;
-		lastUpdateTime = System.nanoTime();
 	}
 
-	public long getLastUpdateTime() {
-		return lastUpdateTime;
+	/* package */void setFileEditorInput(IFileEditorInput fileEditorInput) {
+		this.fileEditorInput = fileEditorInput;
 	}
 }

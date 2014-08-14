@@ -77,6 +77,9 @@ public class MultiPageEditorContributor extends MultiPageEditorActionBarContribu
 			actionBars.setGlobalActionHandler(
 				IDEActionFactory.BOOKMARK.getId(),
 				getAction(editor, IDEActionFactory.BOOKMARK.getId()));
+			actionBars.setGlobalActionHandler(
+					ActionFactory.REFRESH.getId(),
+					getAction(editor, ITextEditorActionConstants.REFRESH));
 			actionBars.updateActionBars();
 		}
 	}
