@@ -1,9 +1,10 @@
 package cn.shaviation.autotest.editors;
 
+import java.util.Date;
+
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.IStatus;
-import org.eclipse.core.runtime.jobs.Job;
 import org.eclipse.jface.dialogs.MessageDialog;
 import org.eclipse.swt.events.ShellEvent;
 import org.eclipse.swt.events.ShellListener;
@@ -15,14 +16,14 @@ import org.eclipse.ui.IPartListener;
 import org.eclipse.ui.IWorkbenchPart;
 import org.eclipse.ui.PartInitException;
 import org.eclipse.ui.forms.editor.FormEditor;
-import org.eclipse.ui.part.EditorPart;
 import org.eclipse.ui.texteditor.IDocumentProvider;
 import org.eclipse.ui.texteditor.IDocumentProviderExtension;
+import org.eclipse.ui.texteditor.IDocumentProviderExtension2;
 import org.eclipse.ui.texteditor.IDocumentProviderExtension3;
 
 import cn.shaviation.autotest.util.PartListenerAdapter;
 import cn.shaviation.autotest.util.ShellListenerAdapter;
-import cn.shaviation.autotest.util.Utils;
+import cn.shaviation.autotest.util.UIUtils;
 
 public class TestDataEditor extends FormEditor {
 
@@ -92,9 +93,10 @@ public class TestDataEditor extends FormEditor {
 			sourcePage = new TestDataSourcePage(this);
 			setPageText(addPage(sourcePage, getEditorInput()), "Source");
 		} catch (PartInitException e) {
-			Utils.showError(this, "Initialize source page failed!", e);
+			UIUtils.showError(this, "Initialize source page failed!", e);
 		}
 		createEditorPage();
+		setActivePage(1);
 	}
 
 	private void createEditorPage() {
@@ -102,7 +104,7 @@ public class TestDataEditor extends FormEditor {
 			editorPage = new TestDataFormPage(this);
 			addPage(editorPage);
 		} catch (PartInitException e) {
-			Utils.showError(this, "Initialize visual editor page failed!", e);
+			UIUtils.showError(this, "Initialize visual editor page failed!", e);
 		}
 	}
 
@@ -149,7 +151,7 @@ public class TestDataEditor extends FormEditor {
 				((IDocumentProviderExtension) getEditorInput()
 						.getDocumentProvider()).synchronize(getEditorInput());
 			} catch (CoreException e) {
-				Utils.showError(this, "Synchronize file failed!", e);
+				UIUtils.showError(this, "Synchronize file failed!", e);
 			}
 		}
 		ignoreCheck = false;
@@ -166,7 +168,8 @@ public class TestDataEditor extends FormEditor {
 						+ "' has been deleted or is not accessible. Do you want to save your changes or close the editor without saving?",
 				MessageDialog.QUESTION, new String[] { "Save", "Close" }, 0)
 				.open() == 0) {
-			performSave(Job.getJobManager().createProgressGroup());
+			performSave(((IDocumentProviderExtension2) getEditorInput()
+					.getDocumentProvider()).getProgressMonitor());
 		} else {
 			close(false);
 		}
@@ -219,16 +222,27 @@ public class TestDataEditor extends FormEditor {
 	}
 
 	private void performSave(IProgressMonitor monitor) {
+		if (getActivePage() == 0) {
+			editorPage.onActive();
+		}
+		if (editorPage.isDocumentError()) {
+			MessageDialog.openError(getEditorSite().getShell(), "Error",
+					editorPage.getErrorMessage());
+			return;
+		}
 		try {
-			sourcePage.reloadSource();
+			getEditorInput().getTestDataDef().setLastUpdateTime(new Date());
+			sourcePage.reloadSource(true);
 			getEditorInput().getDocumentProvider().saveDocument(monitor,
 					getEditorInput(), getEditorInput().getDocument(), true);
-			if (editorPage == null) {
-				createEditorPage();
-			}
 		} catch (Exception e) {
-			Utils.showError(this, "Save failed!", e);
+			UIUtils.showError(this, "Save failed!", e);
+			return;
 		}
+		if (getActivePage() == 0) {
+			setActivePage(1);
+		}
+		editorPage.createProblems();
 	}
 
 	@Override
@@ -250,10 +264,6 @@ public class TestDataEditor extends FormEditor {
 	public boolean isDirty() {
 		return getEditorInput().getDocumentProvider().canSaveDocument(
 				getEditorInput());
-	}
-
-	public void fireDirty() {
-		firePropertyChange(EditorPart.PROP_DIRTY);
 	}
 
 	public TestDataFormPage getEditorPage() {

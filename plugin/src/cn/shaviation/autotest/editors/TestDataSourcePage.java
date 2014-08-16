@@ -7,7 +7,7 @@ import org.eclipse.ui.IFileEditorInput;
 import org.eclipse.ui.editors.text.TextEditor;
 import org.eclipse.ui.texteditor.IDocumentProvider;
 
-import cn.shaviation.autotest.util.Utils;
+import cn.shaviation.autotest.util.UIUtils;
 
 public class TestDataSourcePage extends TextEditor {
 
@@ -72,14 +72,14 @@ public class TestDataSourcePage extends TextEditor {
 
 	public void onActive() {
 		try {
-			reloadSource();
+			reloadSource(false);
 		} catch (Exception e) {
-			Utils.showError(this, "Generate source failed!", e);
+			UIUtils.showError(this, "Generate source failed!", e);
 		}
 	}
 
-	public void reloadSource() throws Exception {
-		if (lastSyncTime < editor.getEditorPage().getLastModifyTime()) {
+	public void reloadSource(boolean force) throws Exception {
+		if (force || lastSyncTime < editor.getEditorPage().getLastModifyTime()) {
 			loadSource();
 			lastSyncTime = editor.getEditorPage().getLastModifyTime();
 		}

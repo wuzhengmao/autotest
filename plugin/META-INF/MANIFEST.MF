@@ -18,6 +18,11 @@ Require-Bundle: org.eclipse.ui,
 Bundle-ActivationPolicy: lazy
 Bundle-RequiredExecutionEnvironment: JavaSE-1.6
 Bundle-ClassPath: .,
- lib/jackson-annotations-2.2.3.jar,
  lib/jackson-core-2.2.3.jar,
- lib/jackson-databind-2.2.3.jar
+ lib/jackson-annotations-2.2.3.jar,
+ lib/jackson-databind-2.2.3.jar,
+ lib/validation-api-1.0.0.GA.jar,
+ lib/hibernate-validator-4.2.0.Final.jar,
+ lib/slf4j-api-1.6.1.jar,
+ lib/slf4j-log4j12-1.6.1.jar,
+ lib/log4j-1.2.16.jar

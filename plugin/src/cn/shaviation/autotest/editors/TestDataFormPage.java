@@ -4,15 +4,14 @@ import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 
 import org.eclipse.core.databinding.DataBindingContext;
-import org.eclipse.core.databinding.beans.PojoProperties;
-import org.eclipse.core.databinding.observable.value.IObservableValue;
+import org.eclipse.core.resources.IMarker;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IStatus;
 import org.eclipse.jface.action.Action;
 import org.eclipse.jface.action.IToolBarManager;
-import org.eclipse.jface.databinding.swt.WidgetProperties;
 import org.eclipse.jface.dialogs.IMessageProvider;
 import org.eclipse.jface.text.DocumentEvent;
+import org.eclipse.jface.text.IDocumentExtension4;
 import org.eclipse.jface.text.IDocumentListener;
 import org.eclipse.jface.viewers.ISelectionChangedListener;
 import org.eclipse.jface.viewers.SelectionChangedEvent;
@@ -21,32 +20,40 @@ import org.eclipse.swt.events.ModifyEvent;
 import org.eclipse.swt.events.ModifyListener;
 import org.eclipse.swt.events.SelectionEvent;
 import org.eclipse.swt.events.SelectionListener;
-import org.eclipse.swt.layout.GridData;
-import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.Composite;
+import org.eclipse.swt.widgets.Control;
+import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Text;
 import org.eclipse.ui.forms.IManagedForm;
+import org.eclipse.ui.forms.IMessage;
+import org.eclipse.ui.forms.IMessagePrefixProvider;
 import org.eclipse.ui.forms.editor.FormPage;
 import org.eclipse.ui.forms.widgets.FormToolkit;
 import org.eclipse.ui.forms.widgets.ScrolledForm;
 import org.eclipse.ui.forms.widgets.Section;
+import org.eclipse.ui.forms.widgets.TableWrapData;
 import org.eclipse.ui.texteditor.IDocumentProvider;
 import org.eclipse.ui.texteditor.ITextEditorActionConstants;
 
 import cn.shaviation.autotest.model.TestDataDef;
+import cn.shaviation.autotest.util.Converters;
 import cn.shaviation.autotest.util.DocumentListenerAdapter;
-import cn.shaviation.autotest.util.Utils;
+import cn.shaviation.autotest.util.UIUtils;
 
 public class TestDataFormPage extends FormPage {
 
-	private Text idText;
+	private Text nameText;
+	private Text descText;
+	private Text authorText;
+	private Label modifyTime;
 	private DataBindingContext dataBindingContext;
 
 	private DefaultModifyListener defaultModifyListener = new DefaultModifyListener();
 	private boolean ignoreChange = false;
 	private boolean ignoreReload = false;
 	private boolean needReload = true;
+	private boolean documentError = false;
 	private long lastModifyTime;
 
 	private IDocumentListener documentListener = new DocumentListenerAdapter() {
@@ -55,8 +62,12 @@ public class TestDataFormPage extends FormPage {
 			if (!ignoreReload) {
 				needReload = true;
 				if (isActive() && getEditor().isActive()) {
-					loadTestData();
-					needReload = false;
+					Display.getDefault().asyncExec(new Runnable() {
+						public void run() {
+							loadTestData();
+							needReload = false;
+						}
+					});
 				}
 			}
 		}
@@ -83,50 +94,94 @@ public class TestDataFormPage extends FormPage {
 		ScrolledForm form = managedForm.getForm();
 		form.setText("Test Data Editor");
 		Composite body = form.getBody();
-		GridLayout gridLayout = new GridLayout(2, true);
-		gridLayout.horizontalSpacing = 7;
-		body.setLayout(gridLayout);
-		toolkit.paintBordersFor(body);
-		Composite leftComposite = toolkit.createComposite(body, 0);
+		body.setLayout(UIUtils.createFormTableWrapLayout(true, 2));
+		Composite leftComposite = toolkit.createComposite(body, SWT.NONE);
+		leftComposite.setLayoutData(new TableWrapData(TableWrapData.FILL_GRAB));
 		leftComposite
-				.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
-		GridLayout leftCompositeLayout = new GridLayout();
-		leftCompositeLayout.marginWidth = 0;
-		leftCompositeLayout.marginHeight = 0;
-		leftComposite.setLayout(leftCompositeLayout);
+				.setLayout(UIUtils.createFormPaneTableWrapLayout(false, 1));
 		createGeneralSection(toolkit, leftComposite);
-		toolkit.paintBordersFor(leftComposite);
+		createGroupSection(toolkit, leftComposite);
+		Composite rightComposite = toolkit.createComposite(body, SWT.NONE);
+		rightComposite
+				.setLayoutData(new TableWrapData(TableWrapData.FILL_GRAB));
+		rightComposite.setLayout(UIUtils
+				.createFormPaneTableWrapLayout(false, 1));
+		createDataSection(toolkit, rightComposite);
 		IToolBarManager toolBarManager = form.getToolBarManager();
-		toolBarManager
-				.add(new Action("Refresh", Utils.getImage("refresh.gif")) {
-					public void run() {
-						getEditor().getSourcePage()
-								.getAction(ITextEditorActionConstants.REFRESH)
-								.run();
-					}
-				});
+		toolBarManager.add(new Action("Refresh", UIUtils
+				.getImage("refresh.gif")) {
+			public void run() {
+				getEditor().getSourcePage()
+						.getAction(ITextEditorActionConstants.REFRESH).run();
+			}
+		});
 		form.updateToolBar();
 		toolkit.decorateFormHeading(form.getForm());
+		form.getMessageManager().setMessagePrefixProvider(
+				new IMessagePrefixProvider() {
+					@Override
+					public String getPrefix(Control control) {
+						return null;
+					}
+				});
 	}
 
 	private void createGeneralSection(FormToolkit toolkit, Composite container) {
 		Section section = toolkit.createSection(container, SWT.HORIZONTAL);
-		section.setLayoutData(new GridData(SWT.FILL, SWT.TOP, true, false));
 		section.setText("General Information");
-		Composite composite = toolkit.createComposite(section, SWT.NONE);
-		toolkit.adapt(composite);
-		GridLayout gridLayout = new GridLayout(2, false);
-		gridLayout.marginBottom = 5;
-		gridLayout.marginHeight = 2;
-		gridLayout.marginWidth = 1;
-		composite.setLayout(gridLayout);
-		section.setClient(composite);
-		Label idLabel = toolkit.createLabel(composite, "ID:", SWT.NONE);
-		idLabel.setLayoutData(new GridData(SWT.LEFT, SWT.CENTER, false, false));
-		idText = toolkit.createText(composite, null, SWT.NONE);
-		idText.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
-		idText.addModifyListener(defaultModifyListener);
-		toolkit.paintBordersFor(composite);
+		section.setLayoutData(new TableWrapData(TableWrapData.FILL_GRAB));
+		section.setLayout(UIUtils.createClearTableWrapLayout(false, 1));
+		Composite client = toolkit.createComposite(section);
+		client.setLayout(UIUtils.createSectionClientTableWrapLayout(false, 2));
+		section.setClient(client);
+		toolkit.createLabel(client, "Name:").setLayoutData(
+				new TableWrapData(TableWrapData.LEFT, TableWrapData.MIDDLE));
+		nameText = toolkit.createText(client, null, SWT.NONE);
+		nameText.setLayoutData(new TableWrapData(TableWrapData.FILL_GRAB,
+				TableWrapData.MIDDLE));
+		nameText.addModifyListener(defaultModifyListener);
+		toolkit.createLabel(client, "Description:").setLayoutData(
+				new TableWrapData(TableWrapData.LEFT, TableWrapData.MIDDLE));
+		descText = toolkit.createText(client, null, SWT.MULTI);
+		TableWrapData td = new TableWrapData(TableWrapData.FILL_GRAB,
+				TableWrapData.MIDDLE);
+		td.heightHint = 72;
+		descText.setLayoutData(td);
+		descText.addModifyListener(defaultModifyListener);
+		toolkit.createLabel(client, "Author:").setLayoutData(
+				new TableWrapData(TableWrapData.LEFT, TableWrapData.MIDDLE));
+		authorText = toolkit.createText(client, null, SWT.NONE);
+		authorText.setLayoutData(new TableWrapData(TableWrapData.FILL_GRAB,
+				TableWrapData.MIDDLE));
+		authorText.addModifyListener(defaultModifyListener);
+		toolkit.createLabel(client, "Last modified:").setLayoutData(
+				new TableWrapData(TableWrapData.LEFT, TableWrapData.MIDDLE));
+		modifyTime = toolkit.createLabel(client, null);
+		modifyTime.setLayoutData(new TableWrapData(TableWrapData.FILL_GRAB,
+				TableWrapData.MIDDLE));
+		toolkit.paintBordersFor(client);
+	}
+
+	private void createGroupSection(FormToolkit toolkit, Composite container) {
+		Section section = toolkit.createSection(container, SWT.HORIZONTAL);
+		section.setText("Test Data Groups");
+		section.setLayoutData(new TableWrapData(TableWrapData.FILL_GRAB));
+		section.setLayout(UIUtils.createClearTableWrapLayout(false, 1));
+		Composite client = toolkit.createComposite(section);
+		client.setLayout(UIUtils.createSectionClientTableWrapLayout(false, 2));
+		section.setClient(client);
+		toolkit.paintBordersFor(client);
+	}
+
+	private void createDataSection(FormToolkit toolkit, Composite container) {
+		Section section = toolkit.createSection(container, SWT.HORIZONTAL);
+		section.setText("Test Data Details");
+		section.setLayoutData(new TableWrapData(TableWrapData.FILL_GRAB));
+		section.setLayout(UIUtils.createClearTableWrapLayout(false, 1));
+		Composite client = toolkit.createComposite(section);
+		client.setLayout(UIUtils.createSectionClientTableWrapLayout(false, 2));
+		section.setClient(client);
+		toolkit.paintBordersFor(client);
 	}
 
 	public void onDocumentProviderChange(IDocumentProvider documentProvider) {
@@ -150,64 +205,127 @@ public class TestDataFormPage extends FormPage {
 	}
 
 	private void loadTestData() {
+		unbindControls();
+		boolean dirty = getEditor().isDirty();
 		TestDataDef testDataDef = new TestDataDef();
 		IStatus status = getEditor().checkDocumentStatus();
 		if (status != null) {
 			setErrorMessage(status.getMessage(), IMessageProvider.WARNING);
+			documentError = true;
 		} else {
 			try {
 				String json = getEditorInput().getDocument().get();
 				if (json != null && !json.isEmpty()) {
 					testDataDef = getEditorInput().getObjectMapper().readValue(
 							json, TestDataDef.class);
+				} else {
+					testDataDef.setAuthor(System.getProperty("user.name"));
+					setErrorMessage("No content", IMessageProvider.WARNING);
 				}
 				clearErrorMessage();
+				documentError = false;
 			} catch (Exception e) {
 				setErrorMessage(e.getMessage(), IMessageProvider.ERROR);
-				Utils.setReadonly((Composite) getPartControl(), true);
+				documentError = true;
 			}
 		}
 		getEditorInput().setTestDataDef(testDataDef);
-		unbindControls();
-		ignoreChange = true;
-		bindControls();
-		ignoreChange = false;
-		boolean readonly = isError();
+		boolean readonly = documentError;
 		if (!readonly) {
 			try {
 				readonly = getEditorInput().getStorage().isReadOnly();
 			} catch (CoreException e) {
 			}
 		}
-		Utils.setReadonly((Composite) getPartControl(), readonly);
+		UIUtils.setReadonly((Composite) getPartControl(), readonly);
+		if (!documentError) {
+			ignoreChange = true;
+			bindControls();
+			ignoreChange = false;
+		}
 		lastModifyTime = 0;
+		if (!dirty) {
+			createProblems();
+		}
 	}
 
-	private boolean isError() {
-		return getManagedForm().getForm().getMessageType() == IMessageProvider.ERROR
-				|| getManagedForm().getForm().getMessageType() == IMessageProvider.WARNING;
+	public void createProblems() {
+		UIUtils.deleteProblems(getEditorInput().getFile());
+		int severity = toProblemSeverity(getManagedForm().getForm().getForm()
+				.getMessageType());
+		if (severity > 0) {
+			IMessage[] messages = getManagedForm().getForm().getForm()
+					.getChildrenMessages();
+			if (messages != null && messages.length > 0) {
+				for (IMessage message : messages) {
+					int sev = toProblemSeverity(message.getMessageType());
+					if (sev > 0) {
+						UIUtils.addProblem(
+								getEditorInput().getFile(),
+								getManagedForm().getMessageManager()
+										.createSummary(
+												new IMessage[] { message }),
+								sev);
+					}
+				}
+			} else {
+				UIUtils.addProblem(getEditorInput().getFile(), getManagedForm()
+						.getForm().getForm().getMessage(), severity);
+			}
+		}
+	}
+
+	private int toProblemSeverity(int messageType) {
+		switch (messageType) {
+		case IMessageProvider.ERROR:
+			return IMarker.SEVERITY_ERROR;
+		case IMessageProvider.WARNING:
+			return IMarker.SEVERITY_WARNING;
+		case IMessageProvider.INFORMATION:
+			return IMarker.SEVERITY_INFO;
+		default:
+			return -1;
+		}
+	}
+
+	public String getErrorMessage() {
+		if (getManagedForm().getForm().getMessageType() == IMessageProvider.ERROR
+				|| getManagedForm().getForm().getMessageType() == IMessageProvider.WARNING) {
+			String error = getManagedForm().getMessageManager().createSummary(
+					getManagedForm().getForm().getForm().getChildrenMessages());
+			if (error == null || error.isEmpty()) {
+				error = getManagedForm().getForm().getMessage();
+			}
+			return error;
+		}
+		return null;
 	}
 
 	private void clearErrorMessage() {
-		Utils.setMessage(getManagedForm().getForm(), null,
+		UIUtils.setMessage(getManagedForm().getForm(), null,
 				IMessageProvider.NONE);
 	}
 
 	private void setErrorMessage(final String msg, int severity) {
 		if ((getPartControl() != null) && (!getPartControl().isDisposed())) {
 			if (!getManagedForm().getForm().isDisposed()) {
-				Utils.setMessage(getManagedForm().getForm(), msg, severity);
+				UIUtils.setMessage(getManagedForm().getForm(), msg, severity);
 			}
 		}
 	}
 
 	private void bindControls() {
+		IManagedForm managedForm = getManagedForm();
+		TestDataDef testDataDef = getEditorInput().getTestDataDef();
 		dataBindingContext = new DataBindingContext();
-		IObservableValue observeWidget = WidgetProperties.text(SWT.Modify)
-				.observe(idText);
-		IObservableValue observeValue = PojoProperties.value("id").observe(
-				getEditorInput().getTestDataDef());
-		dataBindingContext.bindValue(observeWidget, observeValue);
+		UIUtils.bindText(dataBindingContext, managedForm, nameText,
+				testDataDef, "name", Converters.TRIM, Converters.TRIM);
+		UIUtils.bindText(dataBindingContext, managedForm, descText,
+				testDataDef, "description", Converters.TRIM, Converters.TRIM);
+		UIUtils.bindText(dataBindingContext, managedForm, authorText,
+				testDataDef, "author", Converters.TRIM, Converters.TRIM);
+		UIUtils.bindText(dataBindingContext, managedForm, modifyTime,
+				testDataDef, "lastUpdateTime", null, Converters.DATESTAMP);
 	}
 
 	private void unbindControls() {
@@ -215,6 +333,7 @@ public class TestDataFormPage extends FormPage {
 			dataBindingContext.dispose();
 			dataBindingContext = null;
 		}
+		getManagedForm().getMessageManager().removeAllMessages();
 	}
 
 	private void onFormChange() {
@@ -222,12 +341,21 @@ public class TestDataFormPage extends FormPage {
 			lastModifyTime = System.nanoTime();
 			if (!getEditor().isDirty()) {
 				ignoreReload = true;
-				getEditorInput().getDocument().set(
-						getEditorInput().getDocument().get());
+				try {
+					((IDocumentExtension4) getEditorInput().getDocument())
+							.replace(0, 0, "", System.currentTimeMillis());
+				} catch (Exception e) {
+					getEditorInput().getDocument().set(
+							getEditorInput().getDocument().get());
+				}
 				ignoreReload = false;
-				getEditor().fireDirty();
+				getEditor().editorDirtyStateChanged();
 			}
 		}
+	}
+
+	public boolean isDocumentError() {
+		return documentError;
 	}
 
 	public long getLastModifyTime() {

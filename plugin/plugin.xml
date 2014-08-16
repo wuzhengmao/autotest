@@ -7,7 +7,7 @@
       <editor
             name="Test Data Definition Editor"
             extensions="tdf"
-            icon="icons/sample.gif"
+            icon="icons/testdata.png"
             contributorClass="cn.shaviation.autotest.editors.MultiPageEditorContributor"
             class="cn.shaviation.autotest.editors.TestDataEditor"
             id="cn.shaviation.autotest.editors.TestDataEditor">
@@ -21,7 +21,7 @@
       </category>
       <wizard
             name="Multi-page Editor file"
-            icon="icons/sample.gif"
+            icon="icons/testdata.png"
             category="cn.shaviation.autotest"
             class="cn.shaviation.autotest.wizards.SampleNewWizard"
             id="cn.shaviation.autotest.wizards.SampleNewWizard">

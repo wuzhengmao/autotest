@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<!DOCTYPE log4j:configuration SYSTEM "log4j.dtd">
+
+<log4j:configuration xmlns:log4j="http://jakarta.apache.org/log4j/"
+	threshold="null" debug="true">
+
+	<!-- All appender -->
+	<appender name="Console" class="org.apache.log4j.ConsoleAppender">
+		<param name="Follow" value="true" />
+		<layout class="org.apache.log4j.PatternLayout">
+			<param name="ConversionPattern" value="%-d{yyyy-MM-dd HH:mm:ss} [%t]-[%p]-[%l] %m%n" />
+		</layout>
+	</appender>
+
+	<!-- Root -->
+	<root>
+		<level class="org.apache.log4j.Level" value="error" />
+		<appender-ref ref="Console" />
+	</root>
+
+	<category name="cn.shaviation.autotest" additivity="false">
+		<level class="org.apache.log4j.Level" value="debug" />
+		<appender-ref ref="Console" />
+	</category>
+
+</log4j:configuration>

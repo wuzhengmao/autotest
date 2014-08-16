@@ -3,29 +3,20 @@ package cn.shaviation.autotest.model;
 import java.util.Date;
 import java.util.List;
 
+import org.hibernate.validator.constraints.NotBlank;
+
 public class TestDataDef {
 
-	private String id;
-	
+	@NotBlank(message = "{testDataDef.name.NotBlank}")
 	private String name;
-	
+
 	private String description;
-	
+
 	private String author;
-	
-	private Date creationTime;
-	
+
 	private Date lastUpdateTime;
-	
+
 	private List<TestData> dataList;
-
-	public String getId() {
-		return id;
-	}
-
-	public void setId(String id) {
-		this.id = id;
-	}
 
 	public String getName() {
 		return name;
@@ -49,14 +40,6 @@ public class TestDataDef {
 
 	public void setAuthor(String author) {
 		this.author = author;
-	}
-
-	public Date getCreationTime() {
-		return creationTime;
-	}
-
-	public void setCreationTime(Date creationTime) {
-		this.creationTime = creationTime;
 	}
 
 	public Date getLastUpdateTime() {

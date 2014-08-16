@@ -27,12 +27,10 @@ public class JsonTest {
 				new TestDataEntry("c", "300") });
 		data2.setIndex(2);
 		TestDataDef def = new TestDataDef();
-		def.setId("test");
 		def.setName("测试");
-		def.setDataList(Arrays.asList(new TestData[] {data1, data2}));
+		def.setDataList(Arrays.asList(new TestData[] { data1, data2 }));
 		def.setAuthor("Mingy");
-		def.setCreationTime(new Date());
-		def.setLastUpdateTime(def.getCreationTime());
+		def.setLastUpdateTime(new Date());
 		ObjectMapper mapper = new ObjectMapper();
 		mapper.enable(SerializationFeature.INDENT_OUTPUT);
 		mapper.setSerializationInclusion(Include.NON_EMPTY);
