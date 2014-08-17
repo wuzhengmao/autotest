@@ -20,6 +20,7 @@ import org.eclipse.jface.resource.ImageDescriptor;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.CCombo;
 import org.eclipse.swt.custom.StyledText;
+import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Combo;
 import org.eclipse.swt.widgets.Composite;
@@ -53,7 +54,9 @@ public abstract class UIUtils {
 		if (composite != null) {
 			for (Control control : composite.getChildren()) {
 				if ((control instanceof Text)) {
-					((Text) control).setEditable(!readonly);
+					if ((control.getStyle() & SWT.BORDER) != 0) {
+						((Text) control).setEditable(!readonly);
+					}
 				} else if ((control instanceof Combo)) {
 					((Combo) control).setEnabled(!readonly);
 				} else if ((control instanceof CCombo)) {
@@ -168,6 +171,77 @@ public abstract class UIUtils {
 		layout.verticalSpacing = 5;
 		layout.makeColumnsEqualWidth = makeColumnsEqualWidth;
 		layout.numColumns = numColumns;
+		return layout;
+	}
+
+	public static GridLayout createFormGridLayout(
+			boolean makeColumnsEqualWidth, int numColumns) {
+		GridLayout layout = new GridLayout();
+		layout.marginHeight = 0;
+		layout.marginWidth = 0;
+		layout.marginTop = 12;
+		layout.marginBottom = 12;
+		layout.marginLeft = 6;
+		layout.marginRight = 6;
+		layout.horizontalSpacing = 20;
+		layout.verticalSpacing = 17;
+		layout.makeColumnsEqualWidth = makeColumnsEqualWidth;
+		layout.numColumns = numColumns;
+		return layout;
+	}
+
+	public static GridLayout createFormPaneGridLayout(
+			boolean makeColumnsEqualWidth, int numColumns) {
+		GridLayout layout = new GridLayout();
+		layout.marginHeight = 0;
+		layout.marginWidth = 0;
+		layout.marginTop = 0;
+		layout.marginBottom = 0;
+		layout.marginLeft = 0;
+		layout.marginRight = 0;
+		layout.horizontalSpacing = 20;
+		layout.verticalSpacing = 17;
+		layout.makeColumnsEqualWidth = makeColumnsEqualWidth;
+		layout.numColumns = numColumns;
+		return layout;
+	}
+
+	public static GridLayout createClearGridLayout(
+			boolean makeColumnsEqualWidth, int numColumns) {
+		GridLayout layout = new GridLayout();
+		layout.marginHeight = 0;
+		layout.marginWidth = 0;
+		layout.marginTop = 2;
+		layout.marginBottom = 2;
+		layout.marginLeft = 2;
+		layout.marginRight = 2;
+		layout.horizontalSpacing = 0;
+		layout.verticalSpacing = 0;
+		layout.makeColumnsEqualWidth = makeColumnsEqualWidth;
+		layout.numColumns = numColumns;
+		return layout;
+	}
+
+	public static GridLayout createSectionClientGridLayout(
+			boolean makeColumnsEqualWidth, int numColumns) {
+		GridLayout layout = new GridLayout();
+		layout.marginHeight = 0;
+		layout.marginWidth = 0;
+		layout.marginTop = 5;
+		layout.marginBottom = 5;
+		layout.marginLeft = 2;
+		layout.marginRight = 2;
+		layout.horizontalSpacing = 5;
+		layout.verticalSpacing = 5;
+		layout.makeColumnsEqualWidth = makeColumnsEqualWidth;
+		layout.numColumns = numColumns;
+		return layout;
+	}
+
+	public static GridLayout createButtonsGridLayout() {
+		GridLayout layout = new GridLayout();
+		layout.marginHeight = 0;
+		layout.marginWidth = 0;
 		return layout;
 	}
 

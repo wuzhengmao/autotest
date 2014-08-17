@@ -1,21 +1,27 @@
 package cn.shaviation.autotest.model;
 
+import javax.validation.constraints.NotNull;
+
+import org.hibernate.validator.constraints.NotBlank;
+
 public class TestDataEntry {
-	
+
 	public enum Type {
 		Input, Output
 	}
 
+	@NotBlank(message = "{testDataEntry.key.NotBlank}")
 	private String key;
-	
+
 	private String value;
-	
+
+	@NotNull(message = "{testDataEntry.type.NotNull}")
 	private Type type = Type.Input;
-	
+
 	private String memo;
 
 	public TestDataEntry() {
-		
+
 	}
 
 	public TestDataEntry(String key, String value) {

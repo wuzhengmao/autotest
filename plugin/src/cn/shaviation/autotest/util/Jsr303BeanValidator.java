@@ -29,12 +29,18 @@ public class Jsr303BeanValidator implements IValidator {
 		this.control = control;
 	}
 
-	@SuppressWarnings("unchecked")
 	@Override
 	public IStatus validate(Object value) {
+		validate(value, null);
+		return ValidationStatus.ok();
+	}
+
+	@SuppressWarnings("unchecked")
+	public void validate(Object value, String suffix) {
 		String errorText = UIUtils.getErrorMessage(Validators.validateValue(
 				clazz, propName, value));
-		String key = clazz.getName() + "#" + propName;
+		String key = clazz.getName() + "#" + propName
+				+ (suffix != null ? "#" + suffix : "");
 		IMessageManager messageManager = managedForm.getMessageManager();
 		if (errorText != null) {
 			if (control != null) {
@@ -51,6 +57,5 @@ public class Jsr303BeanValidator implements IValidator {
 				messageManager.removeMessage(key);
 			}
 		}
-		return ValidationStatus.ok();
 	}
 }

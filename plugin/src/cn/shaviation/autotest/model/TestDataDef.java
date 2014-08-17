@@ -16,7 +16,7 @@ public class TestDataDef {
 
 	private Date lastUpdateTime;
 
-	private List<TestData> dataList;
+	private List<TestDataGroup> dataList;
 
 	public String getName() {
 		return name;
@@ -50,11 +50,11 @@ public class TestDataDef {
 		this.lastUpdateTime = lastUpdateTime;
 	}
 
-	public List<TestData> getDataList() {
+	public List<TestDataGroup> getDataList() {
 		return dataList;
 	}
 
-	public void setDataList(List<TestData> dataList) {
+	public void setDataList(List<TestDataGroup> dataList) {
 		this.dataList = dataList;
 	}
 }
