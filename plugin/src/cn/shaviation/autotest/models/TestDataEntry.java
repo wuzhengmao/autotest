@@ -1,4 +1,4 @@
-package cn.shaviation.autotest.model;
+package cn.shaviation.autotest.models;
 
 import javax.validation.constraints.NotNull;
 

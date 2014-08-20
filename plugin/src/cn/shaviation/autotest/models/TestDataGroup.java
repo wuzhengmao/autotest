@@ -1,4 +1,4 @@
-package cn.shaviation.autotest.model;
+package cn.shaviation.autotest.models;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -6,11 +6,14 @@ import java.util.List;
 
 import org.hibernate.validator.constraints.NotBlank;
 
+import cn.shaviation.autotest.util.Unique;
+
 public class TestDataGroup {
 
 	@NotBlank(message = "{testDataGroup.name.NotBlank}")
 	private String name;
 
+	@Unique(property = "key", message = "{testDataEntry.key.Unique}")
 	private List<TestDataEntry> entries;
 
 	public TestDataGroup() {

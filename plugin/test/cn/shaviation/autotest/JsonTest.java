@@ -6,9 +6,9 @@ import java.util.Date;
 
 import org.junit.Test;
 
-import cn.shaviation.autotest.model.TestDataGroup;
-import cn.shaviation.autotest.model.TestDataDef;
-import cn.shaviation.autotest.model.TestDataEntry;
+import cn.shaviation.autotest.models.TestDataDef;
+import cn.shaviation.autotest.models.TestDataEntry;
+import cn.shaviation.autotest.models.TestDataGroup;
 
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.databind.ObjectMapper;

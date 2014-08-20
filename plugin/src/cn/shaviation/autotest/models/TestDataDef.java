@@ -1,9 +1,11 @@
-package cn.shaviation.autotest.model;
+package cn.shaviation.autotest.models;
 
 import java.util.Date;
 import java.util.List;
 
 import org.hibernate.validator.constraints.NotBlank;
+
+import cn.shaviation.autotest.util.Unique;
 
 public class TestDataDef {
 
@@ -16,6 +18,7 @@ public class TestDataDef {
 
 	private Date lastUpdateTime;
 
+	@Unique(property = "name", message = "{testDataGroup.name.Unique}")
 	private List<TestDataGroup> dataList;
 
 	public String getName() {

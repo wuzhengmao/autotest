@@ -5,21 +5,24 @@ import java.beans.PropertyChangeListener;
 
 import org.eclipse.core.databinding.DataBindingContext;
 import org.eclipse.core.databinding.beans.PojoObservables;
-import org.eclipse.core.databinding.observable.ChangeEvent;
-import org.eclipse.core.databinding.observable.IChangeListener;
+import org.eclipse.core.databinding.observable.list.IListChangeListener;
+import org.eclipse.core.databinding.observable.list.ListChangeEvent;
+import org.eclipse.core.databinding.observable.list.ListDiffVisitor;
 import org.eclipse.core.databinding.observable.list.WritableList;
-import org.eclipse.core.resources.IMarker;
+import org.eclipse.core.databinding.observable.map.IObservableMap;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IStatus;
 import org.eclipse.jface.action.Action;
 import org.eclipse.jface.action.IToolBarManager;
 import org.eclipse.jface.databinding.viewers.ObservableListContentProvider;
-import org.eclipse.jface.databinding.viewers.ObservableMapCellLabelProvider;
+import org.eclipse.jface.databinding.viewers.ObservableMapLabelProvider;
 import org.eclipse.jface.dialogs.IMessageProvider;
 import org.eclipse.jface.text.DocumentEvent;
 import org.eclipse.jface.text.IDocumentExtension4;
 import org.eclipse.jface.text.IDocumentListener;
 import org.eclipse.jface.viewers.CellEditor;
+import org.eclipse.jface.viewers.ComboBoxCellEditor;
+import org.eclipse.jface.viewers.ComboBoxViewerCellEditor;
 import org.eclipse.jface.viewers.ICellModifier;
 import org.eclipse.jface.viewers.ISelection;
 import org.eclipse.jface.viewers.ISelectionChangedListener;
@@ -27,14 +30,18 @@ import org.eclipse.jface.viewers.IStructuredSelection;
 import org.eclipse.jface.viewers.SelectionChangedEvent;
 import org.eclipse.jface.viewers.StructuredSelection;
 import org.eclipse.jface.viewers.TableViewer;
+import org.eclipse.jface.viewers.TableViewerColumn;
 import org.eclipse.jface.viewers.TextCellEditor;
-import org.eclipse.jface.viewers.ViewerCell;
+import org.eclipse.jface.viewers.Viewer;
 import org.eclipse.swt.SWT;
+import org.eclipse.swt.events.ControlAdapter;
+import org.eclipse.swt.events.ControlEvent;
 import org.eclipse.swt.events.ModifyEvent;
 import org.eclipse.swt.events.ModifyListener;
 import org.eclipse.swt.events.SelectionAdapter;
 import org.eclipse.swt.events.SelectionEvent;
 import org.eclipse.swt.events.SelectionListener;
+import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Composite;
@@ -42,12 +49,10 @@ import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Item;
 import org.eclipse.swt.widgets.Label;
-import org.eclipse.swt.widgets.TableItem;
 import org.eclipse.swt.widgets.Text;
 import org.eclipse.ui.IEditorInput;
 import org.eclipse.ui.IEditorSite;
 import org.eclipse.ui.forms.IManagedForm;
-import org.eclipse.ui.forms.IMessage;
 import org.eclipse.ui.forms.IMessagePrefixProvider;
 import org.eclipse.ui.forms.editor.FormPage;
 import org.eclipse.ui.forms.widgets.FormToolkit;
@@ -57,14 +62,15 @@ import org.eclipse.ui.forms.widgets.TableWrapData;
 import org.eclipse.ui.texteditor.IDocumentProvider;
 import org.eclipse.ui.texteditor.ITextEditorActionConstants;
 
-import cn.shaviation.autotest.model.TestDataDef;
-import cn.shaviation.autotest.model.TestDataEntry;
-import cn.shaviation.autotest.model.TestDataGroup;
+import cn.shaviation.autotest.models.TestDataDef;
+import cn.shaviation.autotest.models.TestDataEntry;
+import cn.shaviation.autotest.models.TestDataGroup;
+import cn.shaviation.autotest.models.TestDataHelper;
 import cn.shaviation.autotest.util.Converters;
 import cn.shaviation.autotest.util.DocumentListenerAdapter;
-import cn.shaviation.autotest.util.Jsr303BeanValidator;
 import cn.shaviation.autotest.util.Strings;
 import cn.shaviation.autotest.util.UIUtils;
+import cn.shaviation.autotest.util.Validators;
 
 public class TestDataFormPage extends FormPage {
 
@@ -175,7 +181,7 @@ public class TestDataFormPage extends FormPage {
 		Section section = toolkit.createSection(container, SWT.HORIZONTAL
 				| Section.DESCRIPTION);
 		section.setText("General Information");
-		section.setDescription("This section describes general information about this definition file.");
+		section.setDescription("This section describes general information about this file.");
 		section.setLayoutData(new GridData(GridData.FILL_HORIZONTAL));
 		section.setLayout(UIUtils.createClearGridLayout(false, 1));
 		Composite client = toolkit.createComposite(section);
@@ -235,6 +241,8 @@ public class TestDataFormPage extends FormPage {
 				if (!Strings.equals(group.getName(), value)) {
 					group.setName((String) value);
 					groupTable.update(group, new String[] { "name" });
+					validate(group, false);
+					validateGroups();
 					onFormChange();
 				}
 			}
@@ -249,32 +257,33 @@ public class TestDataFormPage extends FormPage {
 				return true;
 			}
 		});
-		final Jsr303BeanValidator validator = new Jsr303BeanValidator(
-				TestDataGroup.class, "name", getManagedForm(),
-				groupTable.getTable());
 		ObservableListContentProvider contentProvider = new ObservableListContentProvider();
 		groupTable.setContentProvider(contentProvider);
-		groupTable.setLabelProvider(new ObservableMapCellLabelProvider(
+		groupTable.setLabelProvider(new ObservableMapLabelProvider(
 				PojoObservables.observeMap(contentProvider.getKnownElements(),
-						TestDataGroup.class, "name")) {
-			@Override
-			public void update(ViewerCell cell) {
-				super.update(cell);
-				validator.validate(
-						cell.getText(),
-						String.valueOf(groupTable.getTable().indexOf(
-								(TableItem) cell.getItem())));
-			}
-		});
+						TestDataGroup.class, "name")));
 		final WritableList groupTableInput = (WritableList) getEditorInput()
 				.getTestDataDef().getDataList();
-		groupTable.setInput(groupTableInput);
-		groupTableInput.addChangeListener(new IChangeListener() {
+		groupTableInput.addListChangeListener(new IListChangeListener() {
 			@Override
-			public void handleChange(ChangeEvent event) {
+			public void handleListChange(ListChangeEvent event) {
+				event.diff.accept(new ListDiffVisitor() {
+
+					@Override
+					public void handleAdd(int index, Object element) {
+						validate((TestDataGroup) element, true);
+					}
+
+					@Override
+					public void handleRemove(int index, Object element) {
+						clearError((TestDataGroup) element, true);
+					}
+				});
+				validateGroups();
 				onFormChange();
 			}
 		});
+		groupTable.setInput(groupTableInput);
 		Composite buttons = toolkit.createComposite(client);
 		buttons.setLayoutData(new GridData(GridData.FILL_VERTICAL));
 		buttons.setLayout(UIUtils.createButtonsGridLayout());
@@ -300,8 +309,8 @@ public class TestDataFormPage extends FormPage {
 		removeGroupButton.addSelectionListener(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent event) {
-				groupTableInput.remove(((IStructuredSelection) groupTable
-						.getSelection()).getFirstElement());
+				int sel = groupTable.getTable().getSelectionIndex();
+				groupTableInput.remove(sel);
 			}
 		});
 		moveGroupUpButton = toolkit.createButton(buttons, "Up", SWT.PUSH);
@@ -312,10 +321,7 @@ public class TestDataFormPage extends FormPage {
 			public void widgetSelected(SelectionEvent event) {
 				ISelection selection = groupTable.getSelection();
 				int sel = groupTable.getTable().getSelectionIndex();
-				TestDataGroup group = (TestDataGroup) groupTable
-						.getElementAt(sel);
-				groupTableInput.remove(group);
-				groupTableInput.add(sel - 1, group);
+				groupTableInput.add(sel - 1, groupTableInput.remove(sel));
 				groupTable.setSelection(selection, true);
 			}
 		});
@@ -327,10 +333,7 @@ public class TestDataFormPage extends FormPage {
 			public void widgetSelected(SelectionEvent event) {
 				ISelection selection = groupTable.getSelection();
 				int sel = groupTable.getTable().getSelectionIndex();
-				TestDataGroup group = (TestDataGroup) groupTable
-						.getElementAt(sel + 1);
-				groupTableInput.remove(group);
-				groupTableInput.add(sel, group);
+				groupTableInput.add(sel, groupTableInput.remove(sel + 1));
 				groupTable.setSelection(selection, true);
 			}
 		});
@@ -357,6 +360,15 @@ public class TestDataFormPage extends FormPage {
 			@Override
 			public void selectionChanged(SelectionChangedEvent event) {
 				setGroupTableButtonStates();
+				setEntryTableButtonStates();
+				if (!event.getSelection().isEmpty()) {
+					TestDataGroup group = (TestDataGroup) ((IStructuredSelection) groupTable
+							.getSelection()).getFirstElement();
+					entryTable.setInput(group.getEntries());
+				} else {
+					entryTable.setInput(WritableList
+							.withElementType(TestDataEntry.class));
+				}
 			}
 		});
 	}
@@ -370,6 +382,62 @@ public class TestDataFormPage extends FormPage {
 		cloneGroupButton.setEnabled(sel >= 0);
 	}
 
+	private void validate(TestDataGroup group, boolean withChildren) {
+		setError("groupTable#" + group.hashCode(),
+				UIUtils.getErrorMessage(Validators.validateProperty(group,
+						"name")));
+		if (withChildren) {
+			if (group.getEntries() != null) {
+				validateEntries(group);
+				for (TestDataEntry entry : group.getEntries()) {
+					validate(entry);
+				}
+			}
+		}
+	}
+
+	private void validate(TestDataEntry entry) {
+		setError("entryTable#" + entry.hashCode(),
+				UIUtils.getErrorMessage(Validators.validate(entry)));
+	}
+
+	private void clearError(TestDataGroup group, boolean withChildren) {
+		setError("groupTable#" + group.hashCode(), null);
+		if (withChildren) {
+			if (group.getEntries() != null) {
+				setError("testDataEntries#" + group.hashCode(), null);
+				for (TestDataEntry entry : group.getEntries()) {
+					clearError(entry);
+				}
+			}
+		}
+	}
+
+	private void clearError(TestDataEntry entry) {
+		setError("entryTable#" + entry.hashCode(), null);
+	}
+
+	private void validateGroups() {
+		setError("testDataGroups",
+				UIUtils.getErrorMessage(Validators.validateProperty(
+						getEditorInput().getTestDataDef(), "dataList")));
+	}
+
+	private void validateEntries(TestDataGroup group) {
+		setError("testDataEntries#" + group.hashCode(),
+				UIUtils.getErrorMessage(Validators.validateProperty(group,
+						"entries")));
+	}
+
+	private void setError(String key, String error) {
+		if (error != null) {
+			getManagedForm().getMessageManager().addMessage(key, error, null,
+					IMessageProvider.ERROR);
+		} else {
+			getManagedForm().getMessageManager().removeMessage(key);
+		}
+	}
+
 	private void createDataSection(FormToolkit toolkit, Composite container) {
 		Section section = toolkit.createSection(container, SWT.HORIZONTAL
 				| Section.DESCRIPTION);
@@ -380,13 +448,147 @@ public class TestDataFormPage extends FormPage {
 		Composite client = toolkit.createComposite(section);
 		client.setLayout(UIUtils.createSectionClientGridLayout(false, 2));
 		section.setClient(client);
-		entryTable = new TableViewer(client, SWT.FULL_SELECTION | SWT.V_SCROLL
-				| toolkit.getBorderStyle());
+		entryTable = new TableViewer(client, SWT.HIDE_SELECTION
+				| SWT.FULL_SELECTION | SWT.V_SCROLL | toolkit.getBorderStyle());
 		entryTable.getTable().setLayoutData(new GridData(GridData.FILL_BOTH));
 		entryTable.getTable().setHeaderVisible(true);
 		entryTable.getTable().setLinesVisible(true);
-
 		toolkit.adapt(entryTable.getTable(), false, false);
+		final TableViewerColumn tvc1 = new TableViewerColumn(entryTable,
+				SWT.LEFT);
+		tvc1.getColumn().setWidth(60);
+		tvc1.getColumn().setText("Key");
+		final TableViewerColumn tvc2 = new TableViewerColumn(entryTable,
+				SWT.LEFT);
+		tvc2.getColumn().setWidth(120);
+		tvc2.getColumn().setText("Value");
+		final TableViewerColumn tvc3 = new TableViewerColumn(entryTable,
+				SWT.LEFT);
+		tvc3.getColumn().setWidth(60);
+		tvc3.getColumn().setText("Type");
+		final TableViewerColumn tvc4 = new TableViewerColumn(entryTable,
+				SWT.LEFT);
+		tvc4.getColumn().setText("Memo");
+		entryTable.getTable().addControlListener(new ControlAdapter() {
+			@Override
+			public void controlResized(ControlEvent event) {
+				Point size = ((Control) event.getSource()).getSize();
+				int w = size.x - 66;
+				int t = w / 5;
+				if (t > 60) {
+					tvc1.getColumn().setWidth(t);
+					tvc2.getColumn().setWidth(t * 2);
+					tvc4.getColumn().setWidth(w - t * 3);
+				} else {
+					tvc1.getColumn().setWidth(60);
+					tvc2.getColumn().setWidth(120);
+					tvc4.getColumn().setWidth(120);
+				}
+			}
+		});
+		final IListChangeListener listChangeListener = new IListChangeListener() {
+			@Override
+			public void handleListChange(ListChangeEvent event) {
+				event.diff.accept(new ListDiffVisitor() {
+
+					@Override
+					public void handleAdd(int index, Object element) {
+						validate((TestDataEntry) element);
+					}
+
+					@Override
+					public void handleRemove(int index, Object element) {
+						clearError((TestDataEntry) element);
+					}
+				});
+				validateEntries((TestDataGroup) groupTable
+						.getElementAt(groupTable.getTable().getSelectionIndex()));
+				onFormChange();
+			}
+		};
+		ObservableListContentProvider contentProvider = new ObservableListContentProvider() {
+			@Override
+			public void inputChanged(Viewer viewer, Object oldInput,
+					Object newInput) {
+				super.inputChanged(viewer, oldInput, newInput);
+				if (oldInput != null) {
+					((WritableList) oldInput)
+							.removeListChangeListener(listChangeListener);
+				}
+				if (newInput != null) {
+					((WritableList) newInput)
+							.addListChangeListener(listChangeListener);
+				}
+			}
+		};
+		entryTable.setContentProvider(contentProvider);
+		final String[] propertyNames = new String[] { "key", "value", "type",
+				"memo" };
+		final IObservableMap[] observableMaps = PojoObservables.observeMaps(
+				contentProvider.getKnownElements(), TestDataEntry.class,
+				propertyNames);
+		entryTable.setLabelProvider(new ObservableMapLabelProvider(
+				observableMaps));
+		final TestDataEntry.Type[] types = TestDataEntry.Type.values();
+		String[] typeNames = new String[types.length];
+		for (int i = 0; i < types.length; i++) {
+			typeNames[i] = types[i].name();
+		}
+		ComboBoxCellEditor cbce = new ComboBoxCellEditor(entryTable.getTable(),
+				typeNames, SWT.LEFT | SWT.READ_ONLY);
+		cbce.setActivationStyle(ComboBoxViewerCellEditor.DROP_DOWN_ON_MOUSE_ACTIVATION
+				| ComboBoxViewerCellEditor.DROP_DOWN_ON_PROGRAMMATIC_ACTIVATION);
+		entryTable.setCellEditors(new CellEditor[] {
+				new TextCellEditor(entryTable.getTable(), SWT.LEFT),
+				new TextCellEditor(entryTable.getTable(), SWT.LEFT), cbce,
+				new TextCellEditor(entryTable.getTable(), SWT.LEFT) });
+		entryTable.setColumnProperties(propertyNames);
+		entryTable.setCellModifier(new ICellModifier() {
+
+			@Override
+			public void modify(Object element, String property, Object value) {
+				TestDataEntry entry = (TestDataEntry) ((Item) element)
+						.getData();
+				Object oldValue = observableMaps[getIndex(property)].get(entry);
+				if ("type".equals(property)) {
+					value = types[(Integer) value];
+				}
+				if (!Strings.equals(oldValue, value)) {
+					observableMaps[getIndex(property)].put(entry, value);
+					entryTable.update(entry, new String[] { property });
+					validate(entry);
+					validateEntries((TestDataGroup) groupTable
+							.getElementAt(groupTable.getTable()
+									.getSelectionIndex()));
+					onFormChange();
+				}
+			}
+
+			@Override
+			public Object getValue(Object element, String property) {
+				Object value = observableMaps[getIndex(property)].get(element);
+				if ("type".equals(property)) {
+					return value != null ? ((TestDataEntry.Type) value)
+							.ordinal() : -1;
+				} else {
+					return Strings.objToString(value);
+				}
+			}
+
+			private int getIndex(String property) {
+				for (int i = 0; i < propertyNames.length; i++) {
+					if (property.equals(propertyNames[i])) {
+						return i;
+					}
+				}
+				return -1;
+			}
+
+			@Override
+			public boolean canModify(Object element, String property) {
+				return true;
+			}
+		});
 		Composite buttons = toolkit.createComposite(client);
 		buttons.setLayoutData(new GridData(GridData.FILL_VERTICAL));
 		buttons.setLayout(UIUtils.createButtonsGridLayout());
@@ -408,9 +610,8 @@ public class TestDataFormPage extends FormPage {
 		removeEntryButton.addSelectionListener(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent event) {
-				((WritableList) entryTable.getInput())
-						.remove(((IStructuredSelection) entryTable
-								.getSelection()).getFirstElement());
+				int sel = entryTable.getTable().getSelectionIndex();
+				((WritableList) entryTable.getInput()).remove(sel);
 			}
 		});
 		moveEntryUpButton = toolkit.createButton(buttons, "Up", SWT.PUSH);
@@ -421,10 +622,8 @@ public class TestDataFormPage extends FormPage {
 			public void widgetSelected(SelectionEvent event) {
 				ISelection selection = entryTable.getSelection();
 				int sel = entryTable.getTable().getSelectionIndex();
-				TestDataEntry entry = (TestDataEntry) entryTable
-						.getElementAt(sel);
-				((WritableList) entryTable.getInput()).remove(entry);
-				((WritableList) entryTable.getInput()).add(sel - 1, entry);
+				((WritableList) entryTable.getInput()).add(sel - 1,
+						((WritableList) entryTable.getInput()).remove(sel));
 				entryTable.setSelection(selection, true);
 			}
 		});
@@ -436,10 +635,8 @@ public class TestDataFormPage extends FormPage {
 			public void widgetSelected(SelectionEvent event) {
 				ISelection selection = entryTable.getSelection();
 				int sel = entryTable.getTable().getSelectionIndex();
-				TestDataEntry entry = (TestDataEntry) entryTable
-						.getElementAt(sel + 1);
-				((WritableList) entryTable.getInput()).remove(entry);
-				((WritableList) entryTable.getInput()).add(sel, entry);
+				((WritableList) entryTable.getInput()).add(sel,
+						((WritableList) entryTable.getInput()).remove(sel + 1));
 				entryTable.setSelection(selection, true);
 			}
 		});
@@ -453,10 +650,12 @@ public class TestDataFormPage extends FormPage {
 	}
 
 	private void setEntryTableButtonStates() {
+		boolean gsel = !groupTable.getSelection().isEmpty();
 		int sel = entryTable.getTable().getSelectionIndex();
-		removeEntryButton.setEnabled(sel >= 0);
-		moveEntryUpButton.setEnabled(sel > 0);
-		moveEntryDownButton.setEnabled(sel >= 0
+		newEntryButton.setEnabled(gsel);
+		removeEntryButton.setEnabled(gsel && sel >= 0);
+		moveEntryUpButton.setEnabled(gsel && sel > 0);
+		moveEntryDownButton.setEnabled(gsel && sel >= 0
 				&& sel < groupTable.getTable().getItemCount() - 1);
 	}
 
@@ -482,7 +681,6 @@ public class TestDataFormPage extends FormPage {
 
 	private void loadTestData() {
 		unbindControls();
-		boolean dirty = getEditor().isDirty();
 		TestDataDef testDataDef = new TestDataDef();
 		IStatus status = getEditor().checkDocumentStatus();
 		if (status != null) {
@@ -492,11 +690,9 @@ public class TestDataFormPage extends FormPage {
 			try {
 				String json = getEditorInput().getDocument().get();
 				if (json != null && !json.isEmpty()) {
-					testDataDef = getEditorInput().getObjectMapper().readValue(
-							json, TestDataDef.class);
+					testDataDef = TestDataHelper.parse(json);
 				} else {
 					testDataDef.setAuthor(System.getProperty("user.name"));
-					setErrorMessage("No content", IMessageProvider.WARNING);
 				}
 				clearErrorMessage();
 				documentError = false;
@@ -524,9 +720,6 @@ public class TestDataFormPage extends FormPage {
 			setGroupTableButtonStates();
 			setEntryTableButtonStates();
 		}
-		if (!dirty) {
-			createProblems();
-		}
 	}
 
 	@SuppressWarnings("unchecked")
@@ -544,10 +737,13 @@ public class TestDataFormPage extends FormPage {
 					group = new TestDataGroup();
 					group.setEntries(WritableList
 							.withElementType(TestDataEntry.class));
-					target.getDataList().add(group);
 				}
 				merge(source.getDataList().get(i), group);
-				target.getDataList().set(i, group);
+				if (target.getDataList().size() > i) {
+					target.getDataList().set(i, group);
+				} else {
+					target.getDataList().add(group);
+				}
 			}
 			while (target.getDataList().size() > source.getDataList().size()) {
 				target.getDataList().remove(target.getDataList().size() - 1);
@@ -566,58 +762,23 @@ public class TestDataFormPage extends FormPage {
 					entry = target.getEntries().get(i);
 				} else {
 					entry = new TestDataEntry();
-					target.getEntries().add(entry);
 				}
 				TestDataEntry e = source.getEntries().get(i);
 				entry.setKey(e.getKey());
 				entry.setValue(e.getValue());
 				entry.setType(e.getType());
 				entry.setMemo(e.getMemo());
+				if (target.getEntries().size() > i) {
+					target.getEntries().set(i, entry);
+				} else {
+					target.getEntries().add(entry);
+				}
 			}
 			while (target.getEntries().size() > source.getEntries().size()) {
 				target.getEntries().remove(target.getEntries().size() - 1);
 			}
 		} else {
 			target.getEntries().clear();
-		}
-	}
-
-	public void createProblems() {
-		UIUtils.deleteProblems(getEditorInput().getFile());
-		int severity = toProblemSeverity(getManagedForm().getForm().getForm()
-				.getMessageType());
-		if (severity > 0) {
-			IMessage[] messages = getManagedForm().getForm().getForm()
-					.getChildrenMessages();
-			if (messages != null && messages.length > 0) {
-				for (IMessage message : messages) {
-					int sev = toProblemSeverity(message.getMessageType());
-					if (sev > 0) {
-						UIUtils.addProblem(
-								getEditorInput().getFile(),
-								getManagedForm().getMessageManager()
-										.createSummary(
-												new IMessage[] { message }),
-								sev);
-					}
-				}
-			} else {
-				UIUtils.addProblem(getEditorInput().getFile(), getManagedForm()
-						.getForm().getForm().getMessage(), severity);
-			}
-		}
-	}
-
-	private int toProblemSeverity(int messageType) {
-		switch (messageType) {
-		case IMessageProvider.ERROR:
-			return IMarker.SEVERITY_ERROR;
-		case IMessageProvider.WARNING:
-			return IMarker.SEVERITY_WARNING;
-		case IMessageProvider.INFORMATION:
-			return IMarker.SEVERITY_INFO;
-		default:
-			return -1;
 		}
 	}
 

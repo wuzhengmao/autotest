@@ -7,6 +7,7 @@ import org.eclipse.ui.IFileEditorInput;
 import org.eclipse.ui.editors.text.TextEditor;
 import org.eclipse.ui.texteditor.IDocumentProvider;
 
+import cn.shaviation.autotest.models.TestDataHelper;
 import cn.shaviation.autotest.util.UIUtils;
 
 public class TestDataSourcePage extends TextEditor {
@@ -86,8 +87,8 @@ public class TestDataSourcePage extends TextEditor {
 	}
 
 	private void loadSource() throws Exception {
-		String json = getEditorInput().getObjectMapper().writeValueAsString(
-				getEditorInput().getTestDataDef());
+		String json = TestDataHelper.serialize(getEditorInput()
+				.getTestDataDef());
 		getEditorInput().getDocument().set(json);
 	}
 }

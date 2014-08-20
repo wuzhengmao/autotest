@@ -10,9 +10,6 @@ import org.eclipse.core.databinding.UpdateValueStrategy;
 import org.eclipse.core.databinding.beans.PojoProperties;
 import org.eclipse.core.databinding.conversion.Converter;
 import org.eclipse.core.databinding.observable.value.IObservableValue;
-import org.eclipse.core.resources.IMarker;
-import org.eclipse.core.resources.IResource;
-import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.Status;
 import org.eclipse.jface.databinding.swt.WidgetProperties;
 import org.eclipse.jface.dialogs.ErrorDialog;
@@ -37,7 +34,7 @@ public abstract class UIUtils {
 
 	public static ImageDescriptor getImage(String name) {
 		return AutoTestPlugin.imageDescriptorFromPlugin(
-				AutoTestPlugin.PLUGIN_ID, "icons/" + name);
+				AutoTestPlugin.ID, "icons/" + name);
 	}
 
 	public static void showError(IEditorPart editorPart, String message,
@@ -46,7 +43,7 @@ public abstract class UIUtils {
 				editorPart.getSite().getShell(),
 				"Error",
 				message,
-				new Status(Status.ERROR, AutoTestPlugin.PLUGIN_ID, t
+				new Status(Status.ERROR, AutoTestPlugin.ID, t
 						.getMessage(), t));
 	}
 
@@ -99,23 +96,6 @@ public abstract class UIUtils {
 			return sb.toString();
 		}
 		return null;
-	}
-
-	public static void deleteProblems(IResource resource) {
-		try {
-			resource.deleteMarkers(IMarker.PROBLEM, false, IResource.DEPTH_ZERO);
-		} catch (CoreException e) {
-		}
-	}
-
-	public static void addProblem(IResource resource, String message,
-			int severity) {
-		try {
-			IMarker marker = resource.createMarker(IMarker.PROBLEM);
-			marker.setAttribute(IMarker.MESSAGE, message);
-			marker.setAttribute(IMarker.SEVERITY, severity);
-		} catch (CoreException e) {
-		}
 	}
 
 	public static TableWrapLayout createFormTableWrapLayout(

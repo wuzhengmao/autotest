@@ -1,31 +1,68 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <?eclipse version="3.4"?>
 <plugin>
+   <extension
+         id="nature"
+         name="Automatic Testing Project Nature"
+         point="org.eclipse.core.resources.natures">
+      <runtime>
+         <run class="cn.shaviation.autotest.natures.AutoTestProjectNature" />
+      </runtime>
+      <builder id="cn.shaviation.autotest.builder" />
+   </extension>
+   <extension
+         point="org.eclipse.ui.ide.projectNatureImages">
+      <image
+            icon="icons/nature.gif"
+            id="cn.shaviation.autotest.project.ico"
+            natureId="cn.shaviation.autotest.nature">
+      </image>
+   </extension>
+   <extension
+         id="builder"
+         name="Automatic Testing Project Builder"
+         point="org.eclipse.core.resources.builders">
+      <builder
+            hasNature="true"
+            isConfigurable="true">
+         <run class="cn.shaviation.autotest.builders.AutoTestProjectBuilder" />
+      </builder>
+   </extension>
+   <extension
+         id="problemmarker"
+         name="Test Data Problem"
+         point="org.eclipse.core.resources.markers">
+      <persistent value="true" />
+      <super type="org.eclipse.core.resources.problemmarker" />
+   </extension>
 
    <extension
          point="org.eclipse.ui.editors">
       <editor
-            name="Test Data Definition Editor"
-            extensions="tdf"
+            name="Test Data Editor"
+            extensions="tdd"
             icon="icons/testdata.png"
-            contributorClass="cn.shaviation.autotest.editors.MultiPageEditorContributor"
+            contributorClass="cn.shaviation.autotest.editors.TestDataEditorContributor"
             class="cn.shaviation.autotest.editors.TestDataEditor"
             id="cn.shaviation.autotest.editors.TestDataEditor">
       </editor>
    </extension>
+   
+   <!--
    <extension
          point="org.eclipse.ui.newWizards">
       <category
-            name="Sample Wizards"
-            id="cn.shaviation.autotest">
+            name="Automatic Testing Wizards"
+            id="cn.shaviation.autotest.wizards">
       </category>
       <wizard
-            name="Multi-page Editor file"
+            name="Automatic Testing Project"
             icon="icons/testdata.png"
-            category="cn.shaviation.autotest"
-            class="cn.shaviation.autotest.wizards.SampleNewWizard"
-            id="cn.shaviation.autotest.wizards.SampleNewWizard">
+            category="cn.shaviation.autotest.wizards"
+            class="cn.shaviation.autotest.wizards.NewProjectWizard"
+            id="cn.shaviation.autotest.wizards.NewProjectWizard"
+            project="true">
       </wizard>
-   </extension>
+   </extension> -->
 
 </plugin>

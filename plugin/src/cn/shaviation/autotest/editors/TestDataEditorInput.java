@@ -1,7 +1,5 @@
 package cn.shaviation.autotest.editors;
 
-import java.text.SimpleDateFormat;
-
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IStorage;
 import org.eclipse.core.runtime.CoreException;
@@ -11,24 +9,9 @@ import org.eclipse.ui.IFileEditorInput;
 import org.eclipse.ui.IPersistableElement;
 import org.eclipse.ui.texteditor.IDocumentProvider;
 
-import cn.shaviation.autotest.model.TestDataDef;
-
-import com.fasterxml.jackson.annotation.JsonInclude.Include;
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
+import cn.shaviation.autotest.models.TestDataDef;
 
 public class TestDataEditorInput implements IFileEditorInput {
-
-	private ObjectMapper objectMapper = new ObjectMapper()
-			.enable(DeserializationFeature.ACCEPT_EMPTY_STRING_AS_NULL_OBJECT)
-			.configure(JsonParser.Feature.ALLOW_SINGLE_QUOTES, true)
-			.configure(JsonParser.Feature.ALLOW_UNQUOTED_FIELD_NAMES, true)
-			.enable(SerializationFeature.INDENT_OUTPUT)
-			.setSerializationInclusion(Include.NON_EMPTY)
-			.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
-			.setDateFormat(new SimpleDateFormat("yyyyMMddHHmmssSSS"));
 
 	private IFileEditorInput fileEditorInput;
 	private IDocumentProvider documentProvider;
@@ -99,10 +82,6 @@ public class TestDataEditorInput implements IFileEditorInput {
 
 	public IDocument getDocument() {
 		return documentProvider.getDocument(this);
-	}
-
-	public ObjectMapper getObjectMapper() {
-		return objectMapper;
 	}
 
 	public TestDataDef getTestDataDef() {

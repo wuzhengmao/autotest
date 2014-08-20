@@ -242,7 +242,6 @@ public class TestDataEditor extends FormEditor {
 		if (getActivePage() == 0) {
 			setActivePage(1);
 		}
-		editorPage.createProblems();
 	}
 
 	@Override

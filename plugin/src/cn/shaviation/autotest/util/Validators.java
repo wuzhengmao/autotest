@@ -32,15 +32,16 @@ public abstract class Validators {
 		return factory;
 	}
 
-	public static <T> Set<ConstraintViolation<T>> validate(T bean) {
+	public static <T> Set<ConstraintViolation<T>> validate(T bean,
+			Class<?>... classes) {
 		Validator validator = getValidatorFactory().getValidator();
-		return validator.validate(bean);
+		return validator.validate(bean, classes);
 	}
 
 	public static <T> Set<ConstraintViolation<T>> validateProperty(T bean,
-			String propName) {
+			String propName, Class<?>... classes) {
 		Validator validator = getValidatorFactory().getValidator();
-		return validator.validateProperty(bean, propName);
+		return validator.validateProperty(bean, propName, classes);
 	}
 
 	public static <T> Set<ConstraintViolation<T>> validateValue(Class<T> clazz,
