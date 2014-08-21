@@ -33,6 +33,7 @@ public class TestDataSourcePage extends TextEditor {
 			input = getEditorInput();
 		}
 		super.doSetInput(input);
+		editor.setInput(input);
 	}
 
 	@Override

@@ -22,6 +22,7 @@ import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Combo;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
+import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.Text;
 import org.eclipse.ui.IEditorPart;
 import org.eclipse.ui.forms.IManagedForm;
@@ -33,18 +34,19 @@ import cn.shaviation.autotest.AutoTestPlugin;
 public abstract class UIUtils {
 
 	public static ImageDescriptor getImage(String name) {
-		return AutoTestPlugin.imageDescriptorFromPlugin(
-				AutoTestPlugin.ID, "icons/" + name);
+		return AutoTestPlugin.imageDescriptorFromPlugin(AutoTestPlugin.ID,
+				"icons/" + name);
 	}
 
 	public static void showError(IEditorPart editorPart, String message,
 			Throwable t) {
-		ErrorDialog.openError(
-				editorPart.getSite().getShell(),
-				"Error",
-				message,
-				new Status(Status.ERROR, AutoTestPlugin.ID, t
-						.getMessage(), t));
+		showError(editorPart.getSite().getShell(), "Error", message, t);
+	}
+
+	public static void showError(Shell shell, String title, String message,
+			Throwable t) {
+		ErrorDialog.openError(shell, title, message, new Status(Status.ERROR,
+				AutoTestPlugin.ID, t.getMessage(), t));
 	}
 
 	public static void setReadonly(Composite composite, boolean readonly) {

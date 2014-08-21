@@ -27,6 +27,9 @@ import cn.shaviation.autotest.util.UIUtils;
 
 public class TestDataEditor extends FormEditor {
 
+	public static final String ID = "cn.shaviation.autotest.editors.TestDataEditor";
+	public static final String FILE_EXTENSION = "tdd";
+
 	private TestDataFormPage editorPage;
 	private TestDataSourcePage sourcePage;
 	private long lastConfirmSyncTime;
@@ -80,6 +83,12 @@ public class TestDataEditor extends FormEditor {
 	@Override
 	public void setPartName(String partName) {
 		super.setPartName(partName);
+	}
+
+	@Override
+	public void setInput(IEditorInput input) {
+		super.setInput(input);
+		super.firePropertyChange(PROP_TITLE);
 	}
 
 	@Override

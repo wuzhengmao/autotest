@@ -1,7 +1,6 @@
 package cn.shaviation.autotest.natures;
 
 import org.eclipse.core.resources.IProject;
-import org.eclipse.core.resources.IProjectDescription;
 import org.eclipse.core.resources.IProjectNature;
 import org.eclipse.core.runtime.CoreException;
 
@@ -16,16 +15,14 @@ public class AutoTestProjectNature implements IProjectNature {
 
 	@Override
 	public void configure() throws CoreException {
-		IProjectDescription description = project.getDescription();
-		ProjectUtils.addBuilders(description, AutoTestProjectBuilder.ID);
-		project.setDescription(description, null);
+		ProjectUtils.addBuilders(project,
+				new String[] { AutoTestProjectBuilder.ID }, null);
 	}
 
 	@Override
 	public void deconfigure() throws CoreException {
-		IProjectDescription description = project.getDescription();
-		ProjectUtils.removeBuilders(description, AutoTestProjectBuilder.ID);
-		project.setDescription(description, null);
+		ProjectUtils.removeBuilders(project,
+				new String[] { AutoTestProjectBuilder.ID }, null);
 	}
 
 	@Override

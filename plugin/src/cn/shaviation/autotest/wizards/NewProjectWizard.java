@@ -1,122 +1,184 @@
 package cn.shaviation.autotest.wizards;
 
 import java.lang.reflect.InvocationTargetException;
-import java.net.URI;
 
 import org.eclipse.core.resources.IProject;
-import org.eclipse.core.resources.IProjectDescription;
 import org.eclipse.core.resources.IResource;
-import org.eclipse.core.resources.IWorkspace;
+import org.eclipse.core.resources.IWorkspaceRunnable;
 import org.eclipse.core.resources.ResourcesPlugin;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IConfigurationElement;
 import org.eclipse.core.runtime.IExecutableExtension;
 import org.eclipse.core.runtime.IProgressMonitor;
-import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.OperationCanceledException;
-import org.eclipse.core.runtime.Status;
 import org.eclipse.core.runtime.SubProgressMonitor;
-import org.eclipse.jface.dialogs.MessageDialog;
+import org.eclipse.core.runtime.jobs.ISchedulingRule;
+import org.eclipse.core.runtime.jobs.Job;
+import org.eclipse.jdt.core.IJavaProject;
+import org.eclipse.jdt.ui.wizards.NewJavaProjectWizardPageOne;
+import org.eclipse.jdt.ui.wizards.NewJavaProjectWizardPageTwo;
+import org.eclipse.jface.operation.IRunnableWithProgress;
 import org.eclipse.jface.viewers.IStructuredSelection;
 import org.eclipse.jface.wizard.Wizard;
+import org.eclipse.swt.widgets.Shell;
 import org.eclipse.ui.INewWizard;
 import org.eclipse.ui.IWorkbench;
-import org.eclipse.ui.actions.WorkspaceModifyOperation;
-import org.eclipse.ui.dialogs.WizardNewProjectCreationPage;
+import org.eclipse.ui.IWorkbenchPage;
+import org.eclipse.ui.IWorkbenchPart;
+import org.eclipse.ui.IWorkbenchWindow;
+import org.eclipse.ui.IWorkingSet;
+import org.eclipse.ui.PlatformUI;
 import org.eclipse.ui.wizards.newresource.BasicNewProjectResourceWizard;
+import org.eclipse.ui.wizards.newresource.BasicNewResourceWizard;
 
 import cn.shaviation.autotest.AutoTestPlugin;
 import cn.shaviation.autotest.natures.AutoTestProjectNature;
 import cn.shaviation.autotest.util.ProjectUtils;
+import cn.shaviation.autotest.util.UIUtils;
+import cn.shaviation.autotest.util.WorkbenchRunnableAdapter;
 
 public class NewProjectWizard extends Wizard implements INewWizard,
 		IExecutableExtension {
 
-	private WizardNewProjectCreationPage wizardPage;
-	private IConfigurationElement config;
-	private IWorkbench workbench;
-	private IProject project;
+	private IWorkbench fWorkbench;
+	private IStructuredSelection fSelection;
+	private NewJavaProjectWizardPageOne fFirstPage;
+	private NewJavaProjectWizardPageTwo fSecondPage;
+	private IConfigurationElement fConfigElement;
 
 	public NewProjectWizard() {
 		super();
+		setNeedsProgressMonitor(true);
+		setDefaultPageImageDescriptor(UIUtils.getImage("newjprj_wiz.png"));
+		setDialogSettings(AutoTestPlugin.getDefault().getDialogSettings());
 		setWindowTitle("New Automatic Testing Project");
 	}
 
 	@Override
-	public void init(IWorkbench workbench, IStructuredSelection selection) {
-		this.workbench = workbench;
+	public void init(IWorkbench workbench, IStructuredSelection currentSelection) {
+		this.fWorkbench = workbench;
+		this.fSelection = currentSelection;
 	}
 
 	@Override
 	public void addPages() {
-		wizardPage = new WizardNewProjectCreationPage("NewAutoTestProject");
-		wizardPage.setTitle("Create an Automatic Testing Project");
-		addPage(wizardPage);
+		this.fFirstPage = new NewJavaProjectWizardPageOne();
+		addPage(this.fFirstPage);
+		this.fSecondPage = new NewJavaProjectWizardPageTwo(this.fFirstPage);
+		addPage(this.fSecondPage);
+		this.fFirstPage.init(this.fSelection, getActivePart());
 	}
 
 	@Override
 	public boolean performFinish() {
-		if (project != null) {
-			return true;
-		}
-		final IProject projectHandle = wizardPage.getProjectHandle();
-		if (projectHandle == null) {
-			return false;
-		}
-		URI projectURI = (!wizardPage.useDefaults()) ? wizardPage
-				.getLocationURI() : null;
-		IWorkspace workspace = ResourcesPlugin.getWorkspace();
-		final IProjectDescription description = workspace
-				.newProjectDescription(projectHandle.getName());
-		description.setLocationURI(projectURI);
-		ProjectUtils.addNatures(description, "org.eclipse.jdt.core.javanature",
-				AutoTestProjectNature.ID);
-		WorkspaceModifyOperation op = new WorkspaceModifyOperation() {
-			protected void execute(IProgressMonitor monitor)
-					throws CoreException {
-				createProject(description, projectHandle, monitor);
+		boolean res = doCreationJob();
+		if (res) {
+			IJavaProject javaProject = getCreatedProject();
+			IWorkingSet[] workingSets = this.fFirstPage.getWorkingSets();
+			if (workingSets.length > 0) {
+				PlatformUI.getWorkbench().getWorkingSetManager()
+						.addToWorkingSets(javaProject, workingSets);
 			}
-		};
-		try {
-			getContainer().run(true, true, op);
-		} catch (InterruptedException e) {
-			return false;
-		} catch (InvocationTargetException e) {
-			Throwable realException = e.getTargetException();
-			MessageDialog.openError(getShell(), "Error",
-					realException.getMessage());
-			return false;
+			BasicNewProjectResourceWizard
+					.updatePerspective(this.fConfigElement);
+			selectAndReveal(javaProject.getProject());
 		}
-		project = projectHandle;
-		BasicNewProjectResourceWizard.updatePerspective(config);
-		BasicNewProjectResourceWizard.selectAndReveal(project,
-				workbench.getActiveWorkbenchWindow());
-		return true;
+		return res;
 	}
 
-	@Override
-	public void setInitializationData(IConfigurationElement config,
-			String propertyName, Object data) throws CoreException {
-		this.config = config;
-	}
-
-	private void createProject(IProjectDescription description,
-			IProject project, IProgressMonitor monitor) throws CoreException,
-			OperationCanceledException {
+	protected void finishPage(IProgressMonitor monitor)
+			throws InterruptedException, CoreException {
 		try {
-			monitor.beginTask("", 2000);
-			project.create(description, new SubProgressMonitor(monitor, 1000));
-			if (monitor.isCanceled()) {
-				throw new OperationCanceledException();
+			monitor.beginTask("Creating...", 3);
+			this.fSecondPage.performFinish(new SubProgressMonitor(monitor, 2));
+			IProject project = getCreatedProject().getProject();
+			if (!project.hasNature(AutoTestProjectNature.ID)) {
+				ProjectUtils.addNature(project, AutoTestProjectNature.ID,
+						new SubProgressMonitor(monitor, 1));
 			}
-			project.open(IResource.BACKGROUND_REFRESH, new SubProgressMonitor(
-					monitor, 1000));
-		} catch (Exception e) {
-			IStatus status = new Status(IStatus.ERROR, AutoTestPlugin.ID,
-					IStatus.OK, e.getMessage(), e);
-			throw new CoreException(status);
 		} finally {
 			monitor.done();
 		}
+	}
+
+	protected void selectAndReveal(IResource newResource) {
+		BasicNewResourceWizard.selectAndReveal(newResource,
+				this.fWorkbench.getActiveWorkbenchWindow());
+	}
+
+	private boolean doCreationJob() {
+		IWorkspaceRunnable op = new IWorkspaceRunnable() {
+			public void run(IProgressMonitor monitor) throws CoreException,
+					OperationCanceledException {
+				try {
+					finishPage(monitor);
+				} catch (InterruptedException e) {
+					throw new OperationCanceledException(e.getMessage());
+				}
+			}
+		};
+		try {
+			ISchedulingRule rule = null;
+			Job job = Job.getJobManager().currentJob();
+			if (job != null)
+				rule = job.getRule();
+			IRunnableWithProgress runnable = null;
+			if (rule != null)
+				runnable = new WorkbenchRunnableAdapter(op, rule, true);
+			else
+				runnable = new WorkbenchRunnableAdapter(op, getSchedulingRule());
+			getContainer().run(canRunForked(), true, runnable);
+		} catch (InvocationTargetException e) {
+			handleFinishException(getShell(), e);
+			return false;
+		} catch (InterruptedException localInterruptedException) {
+			return false;
+		}
+		return true;
+	}
+
+	protected ISchedulingRule getSchedulingRule() {
+		return ResourcesPlugin.getWorkspace().getRoot();
+	}
+
+	protected boolean canRunForked() {
+		return true;
+	}
+
+	private IWorkbenchPart getActivePart() {
+		IWorkbenchWindow activeWindow = this.fWorkbench
+				.getActiveWorkbenchWindow();
+		if (activeWindow != null) {
+			IWorkbenchPage activePage = activeWindow.getActivePage();
+			if (activePage != null) {
+				return activePage.getActivePart();
+			}
+		}
+		return null;
+	}
+
+	protected void handleFinishException(Shell shell,
+			InvocationTargetException e) {
+		UIUtils.showError(
+				shell,
+				"Error Creating Automatic Testing Project",
+				"An error occurred while creating the Automatic Testing project.",
+				e);
+	}
+
+	@Override
+	public void setInitializationData(IConfigurationElement cfig,
+			String propertyName, Object data) {
+		this.fConfigElement = cfig;
+	}
+
+	@Override
+	public boolean performCancel() {
+		this.fSecondPage.performCancel();
+		return super.performCancel();
+	}
+
+	public IJavaProject getCreatedProject() {
+		return this.fSecondPage.getJavaProject();
 	}
 }

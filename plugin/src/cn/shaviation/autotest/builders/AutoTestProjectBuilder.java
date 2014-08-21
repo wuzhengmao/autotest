@@ -1,6 +1,8 @@
 package cn.shaviation.autotest.builders;
 
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IMarker;
@@ -11,12 +13,19 @@ import org.eclipse.core.resources.IResourceDeltaVisitor;
 import org.eclipse.core.resources.IResourceVisitor;
 import org.eclipse.core.resources.IncrementalProjectBuilder;
 import org.eclipse.core.runtime.CoreException;
+import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.IStatus;
+import org.eclipse.jdt.core.IClasspathEntry;
+import org.eclipse.jdt.core.IJavaProject;
+import org.eclipse.jdt.core.JavaCore;
+import org.eclipse.jdt.core.JavaModelException;
 
+import cn.shaviation.autotest.editors.TestDataEditor;
 import cn.shaviation.autotest.models.TestDataDef;
 import cn.shaviation.autotest.models.TestDataHelper;
 import cn.shaviation.autotest.util.IOUtils;
+import cn.shaviation.autotest.util.Logs;
 
 public class AutoTestProjectBuilder extends IncrementalProjectBuilder {
 
@@ -24,11 +33,34 @@ public class AutoTestProjectBuilder extends IncrementalProjectBuilder {
 	public static final String MARKER = "cn.shaviation.autotest.problemmarker";
 
 	private IProject project;
+	private IPath[] outputPaths;
 
 	@Override
 	protected void startupOnInitialize() {
 		super.startupOnInitialize();
 		project = getProject();
+		try {
+			if (project.hasNature(JavaCore.NATURE_ID)) {
+				IJavaProject javaProject = JavaCore.create(project);
+				Set<IPath> paths = new HashSet<IPath>();
+				try {
+					if (javaProject.getOutputLocation() != null) {
+						paths.add(javaProject.getOutputLocation());
+					}
+					for (IClasspathEntry entry : javaProject.getRawClasspath()) {
+						if (entry.getOutputLocation() != null) {
+							paths.add(entry.getOutputLocation());
+						}
+					}
+				} catch (JavaModelException e) {
+					Logs.e(e);
+				}
+				outputPaths = paths.toArray(new IPath[paths.size()]);
+			}
+		} catch (CoreException e) {
+			outputPaths = null;
+			Logs.e(e);
+		}
 	}
 
 	@SuppressWarnings("rawtypes")
@@ -52,14 +84,11 @@ public class AutoTestProjectBuilder extends IncrementalProjectBuilder {
 	}
 
 	private void fullBuild(IProgressMonitor monitor) throws CoreException {
-		getProject().deleteMarkers(MARKER, true, IResource.DEPTH_INFINITE);
-		getProject().accept(new IResourceVisitor() {
+		project.deleteMarkers(MARKER, true, IResource.DEPTH_INFINITE);
+		project.accept(new IResourceVisitor() {
 			@Override
 			public boolean visit(IResource resource) throws CoreException {
-				if (resource instanceof IFile
-						&& "tdd".equals(resource.getFileExtension())) {
-					validateTestDataDef(resource);
-				}
+				validate(resource);
 				return true;
 			}
 		});
@@ -73,16 +102,10 @@ public class AutoTestProjectBuilder extends IncrementalProjectBuilder {
 				IResource resource = delta.getResource();
 				switch (delta.getKind()) {
 				case IResourceDelta.ADDED:
-					if (resource instanceof IFile
-							&& "tdd".equals(resource.getFileExtension())) {
-						validateTestDataDef(resource);
-					}
+					validate(resource);
 					break;
 				case IResourceDelta.CHANGED:
-					if (resource instanceof IFile
-							&& "tdd".equals(resource.getFileExtension())) {
-						validateTestDataDef(resource);
-					}
+					validate(resource);
 					break;
 				default:
 					break;
@@ -92,10 +115,30 @@ public class AutoTestProjectBuilder extends IncrementalProjectBuilder {
 		});
 	}
 
+	private void validate(IResource resource) {
+		if (resource instanceof IFile
+				&& TestDataEditor.FILE_EXTENSION.equals(resource
+						.getFileExtension()) && !ignore(resource)) {
+			validateTestDataDef(resource);
+		}
+	}
+
+	private boolean ignore(IResource resource) {
+		if (outputPaths != null) {
+			for (IPath path : outputPaths) {
+				if (path.isPrefixOf(resource.getFullPath())) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
 	private void validateTestDataDef(IResource resource) {
 		deleteProblems(resource);
 		try {
-			String json = IOUtils.toString(((IFile) resource).getContents(true),
+			String json = IOUtils.toString(
+					((IFile) resource).getContents(true),
 					((IFile) resource).getCharset());
 			if (json != null && !json.isEmpty()) {
 				TestDataDef testDataDef = TestDataHelper.parse(json);

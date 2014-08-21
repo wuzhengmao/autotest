@@ -2,6 +2,7 @@ package cn.shaviation.autotest.models;
 
 import java.io.IOException;
 import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
@@ -35,6 +36,14 @@ public abstract class TestDataHelper {
 		return objectMapper.writeValueAsString(testDataDef);
 	}
 
+	public static TestDataDef createDefault() {
+		TestDataDef testDataDef = new TestDataDef();
+		testDataDef.setName("New Test Data");
+		testDataDef.setAuthor(System.getProperty("user.name"));
+		testDataDef.setLastUpdateTime(new Date());
+		return testDataDef;
+	}
+
 	public static String validate(TestDataDef testDataDef) {
 		Set<String> messages = new LinkedHashSet<String>();
 		addMessages(messages, Validators.validate(testDataDef));
@@ -57,5 +66,4 @@ public abstract class TestDataHelper {
 			messages.add(violation.getMessage());
 		}
 	}
-
 }

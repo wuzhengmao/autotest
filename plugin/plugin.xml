@@ -24,7 +24,7 @@
          point="org.eclipse.core.resources.builders">
       <builder
             hasNature="true"
-            isConfigurable="true">
+            isConfigurable="false">
          <run class="cn.shaviation.autotest.builders.AutoTestProjectBuilder" />
       </builder>
    </extension>
@@ -48,7 +48,6 @@
       </editor>
    </extension>
    
-   <!--
    <extension
          point="org.eclipse.ui.newWizards">
       <category
@@ -57,12 +56,19 @@
       </category>
       <wizard
             name="Automatic Testing Project"
-            icon="icons/testdata.png"
+            icon="icons/newjprj_wiz.gif"
             category="cn.shaviation.autotest.wizards"
             class="cn.shaviation.autotest.wizards.NewProjectWizard"
             id="cn.shaviation.autotest.wizards.NewProjectWizard"
             project="true">
       </wizard>
-   </extension> -->
+      <wizard
+            name="Test Data Definition file"
+            icon="icons/testdata.png"
+            category="cn.shaviation.autotest.wizards"
+            class="cn.shaviation.autotest.wizards.NewTestDataWizard"
+            id="cn.shaviation.autotest.wizards.NewTestDataWizard">
+      </wizard>
+   </extension>
 
 </plugin>
