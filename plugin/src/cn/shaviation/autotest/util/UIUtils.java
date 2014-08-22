@@ -43,6 +43,11 @@ public abstract class UIUtils {
 		showError(editorPart.getSite().getShell(), "Error", message, t);
 	}
 
+	public static void showError(Shell shell, String title, String message) {
+		ErrorDialog.openError(shell, title, message, new Status(Status.ERROR,
+				AutoTestPlugin.ID, message));
+	}
+
 	public static void showError(Shell shell, String title, String message,
 			Throwable t) {
 		ErrorDialog.openError(shell, title, message, new Status(Status.ERROR,

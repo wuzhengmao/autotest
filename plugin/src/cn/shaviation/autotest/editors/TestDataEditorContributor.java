@@ -1,13 +1,24 @@
 package cn.shaviation.autotest.editors;
 
+import org.eclipse.core.resources.IProject;
+import org.eclipse.jface.action.Action;
 import org.eclipse.jface.action.IAction;
+import org.eclipse.jface.action.IToolBarManager;
+import org.eclipse.jface.action.Separator;
+import org.eclipse.jface.window.Window;
 import org.eclipse.ui.IActionBars;
 import org.eclipse.ui.IEditorPart;
+import org.eclipse.ui.PlatformUI;
 import org.eclipse.ui.actions.ActionFactory;
+import org.eclipse.ui.ide.IDE;
 import org.eclipse.ui.ide.IDEActionFactory;
 import org.eclipse.ui.part.MultiPageEditorActionBarContributor;
 import org.eclipse.ui.texteditor.ITextEditor;
 import org.eclipse.ui.texteditor.ITextEditorActionConstants;
+
+import cn.shaviation.autotest.dialogs.TestMethodSelectionDialog;
+import cn.shaviation.autotest.util.JavaUtils;
+import cn.shaviation.autotest.util.Logs;
 
 public class TestDataEditorContributor extends
 		MultiPageEditorActionBarContributor {
@@ -50,5 +61,27 @@ public class TestDataEditorContributor extends
 					getAction(editor, ITextEditorActionConstants.REFRESH));
 			actionBars.updateActionBars();
 		}
+	}
+
+	@Override
+	public void contributeToToolBar(IToolBarManager manager) {
+		Action action = new Action() {
+			public void run() {
+				IProject project = ((TestDataEditorInput) activeEditorPart
+						.getEditorInput()).getFile().getProject();
+				TestMethodSelectionDialog dialog = new TestMethodSelectionDialog(
+						activeEditorPart.getSite().getShell(),
+						JavaUtils.getJavaProject(project));
+				if (dialog.open() == Window.OK) {
+					Logs.i(dialog.getResult()[0].toString());
+				}
+			}
+		};
+		action.setText("Sample Action");
+		action.setToolTipText("Sample Action tool tip");
+		action.setImageDescriptor(PlatformUI.getWorkbench().getSharedImages()
+				.getImageDescriptor(IDE.SharedImages.IMG_OBJS_TASK_TSK));
+		manager.add(new Separator());
+		manager.add(action);
 	}
 }
