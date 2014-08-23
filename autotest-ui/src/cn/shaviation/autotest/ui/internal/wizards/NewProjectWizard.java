@@ -1,5 +1,6 @@
 package cn.shaviation.autotest.ui.internal.wizards;
 
+import java.io.File;
 import java.lang.reflect.InvocationTargetException;
 
 import org.eclipse.core.resources.IProject;
@@ -9,12 +10,17 @@ import org.eclipse.core.resources.ResourcesPlugin;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IConfigurationElement;
 import org.eclipse.core.runtime.IExecutableExtension;
+import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.OperationCanceledException;
+import org.eclipse.core.runtime.Path;
 import org.eclipse.core.runtime.SubProgressMonitor;
 import org.eclipse.core.runtime.jobs.ISchedulingRule;
 import org.eclipse.core.runtime.jobs.Job;
+import org.eclipse.jdt.core.IAccessRule;
+import org.eclipse.jdt.core.IClasspathEntry;
 import org.eclipse.jdt.core.IJavaProject;
+import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.ui.wizards.NewJavaProjectWizardPageOne;
 import org.eclipse.jdt.ui.wizards.NewJavaProjectWizardPageTwo;
 import org.eclipse.jface.operation.IRunnableWithProgress;
@@ -32,6 +38,8 @@ import org.eclipse.ui.wizards.newresource.BasicNewProjectResourceWizard;
 import org.eclipse.ui.wizards.newresource.BasicNewResourceWizard;
 
 import cn.shaviation.autotest.core.AutoTestCore;
+import cn.shaviation.autotest.core.util.JavaUtils;
+import cn.shaviation.autotest.core.util.Logs;
 import cn.shaviation.autotest.core.util.Projects;
 import cn.shaviation.autotest.ui.AutoTestUI;
 import cn.shaviation.autotest.ui.internal.util.UIUtils;
@@ -40,16 +48,23 @@ import cn.shaviation.autotest.ui.internal.util.WorkbenchRunnableAdapter;
 public class NewProjectWizard extends Wizard implements INewWizard,
 		IExecutableExtension {
 
+	private static final String[] ALLOW_PACKAGES;
+
 	private IWorkbench fWorkbench;
 	private IStructuredSelection fSelection;
 	private NewJavaProjectWizardPageOne fFirstPage;
 	private NewJavaProjectWizardPageTwo fSecondPage;
 	private IConfigurationElement fConfigElement;
 
+	static {
+		ALLOW_PACKAGES = new String[] { "cn/shaviation/autotest/core/annotation/*" };
+	}
+
 	public NewProjectWizard() {
 		super();
 		setNeedsProgressMonitor(true);
-		setDefaultPageImageDescriptor(UIUtils.getImageDescriptor("newjprj_wiz.png"));
+		setDefaultPageImageDescriptor(UIUtils
+				.getImageDescriptor("newjprj_wiz.png"));
 		setDialogSettings(AutoTestUI.getDefault().getDialogSettings());
 		setWindowTitle("New Automatic Testing Project");
 	}
@@ -89,9 +104,54 @@ public class NewProjectWizard extends Wizard implements INewWizard,
 	protected void finishPage(IProgressMonitor monitor)
 			throws InterruptedException, CoreException {
 		try {
-			monitor.beginTask("Creating...", 3);
+			monitor.beginTask("Creating...", 4);
 			this.fSecondPage.performFinish(new SubProgressMonitor(monitor, 2));
-			IProject project = getCreatedProject().getProject();
+			monitor.subTask("Add autotest-core to class path");
+			IJavaProject javaProject = getCreatedProject();
+			try {
+				String location = AutoTestCore.getDefault().getBundle()
+						.getLocation();
+				int index = location.indexOf("file:/");
+				if (index >= 0) {
+					IClasspathEntry classpathEntry = null;
+					File path = new File(location.substring(index + 6));
+					if (path.isDirectory()) {
+						path = new File(path, "bin");
+					}
+					if (path.exists()) {
+						String lib = path.getCanonicalPath();
+						for (String name : JavaCore.getClasspathVariableNames()) {
+							IPath vp = JavaCore.getClasspathVariable(name);
+							if (vp != null && !vp.isEmpty()) {
+								String var = vp.toFile().getCanonicalPath();
+								if (lib.startsWith(var)) {
+									lib = lib.substring(var.length());
+									if (!lib.startsWith("/")
+											&& !lib.startsWith("\\")) {
+										lib = "/" + lib;
+									}
+									classpathEntry = JavaCore.newVariableEntry(
+											new Path(name + lib), null, null,
+											createAccessRules(), null, false);
+									break;
+								}
+							}
+						}
+						if (classpathEntry == null) {
+							classpathEntry = JavaCore.newLibraryEntry(new Path(
+									lib), null, null, createAccessRules(),
+									null, false);
+						}
+						JavaUtils.addClasspathEntries(javaProject,
+								new IClasspathEntry[] { classpathEntry }, null);
+					}
+				}
+			} catch (Exception e) {
+				Logs.e(e);
+			} finally {
+				monitor.worked(1);
+			}
+			IProject project = javaProject.getProject();
 			if (!project.hasNature(AutoTestCore.NATURE_ID)) {
 				Projects.addNature(project, AutoTestCore.NATURE_ID,
 						new SubProgressMonitor(monitor, 1));
@@ -99,6 +159,17 @@ public class NewProjectWizard extends Wizard implements INewWizard,
 		} finally {
 			monitor.done();
 		}
+	}
+
+	private IAccessRule[] createAccessRules() {
+		IAccessRule[] rules = new IAccessRule[ALLOW_PACKAGES.length + 1];
+		for (int i = 0; i < ALLOW_PACKAGES.length; i++) {
+			rules[i] = JavaCore.newAccessRule(new Path(ALLOW_PACKAGES[i]),
+					IAccessRule.K_ACCESSIBLE);
+		}
+		rules[ALLOW_PACKAGES.length] = JavaCore.newAccessRule(new Path("**/*"),
+				IAccessRule.K_NON_ACCESSIBLE);
+		return rules;
 	}
 
 	protected void selectAndReveal(IResource newResource) {

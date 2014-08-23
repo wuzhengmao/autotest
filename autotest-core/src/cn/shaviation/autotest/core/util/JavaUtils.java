@@ -3,6 +3,7 @@ package cn.shaviation.autotest.core.util;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IPath;
+import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.jdt.core.IClasspathEntry;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.IPackageFragmentRoot;
@@ -21,6 +22,18 @@ public abstract class JavaUtils {
 		return null;
 	}
 
+	public static void addClasspathEntries(IJavaProject project,
+			IClasspathEntry[] classpathEntries, IProgressMonitor monitor)
+			throws JavaModelException {
+		IClasspathEntry[] entries = project.getRawClasspath();
+		IClasspathEntry[] newEntries = new IClasspathEntry[entries.length
+				+ classpathEntries.length];
+		System.arraycopy(entries, 0, newEntries, 0, entries.length);
+		System.arraycopy(classpathEntries, 0, newEntries, entries.length,
+				classpathEntries.length);
+		project.setRawClasspath(newEntries, monitor);
+	}
+
 	public static IClasspathEntry getClasspathEntry(IPackageFragmentRoot root)
 			throws JavaModelException {
 		IClasspathEntry rawEntry = root.getRawClasspathEntry();
@@ -29,7 +42,8 @@ public abstract class JavaUtils {
 		case IClasspathEntry.CPE_LIBRARY:
 		case IClasspathEntry.CPE_VARIABLE:
 		case IClasspathEntry.CPE_CONTAINER:
-			if ((root.isArchive()) && (root.getKind() == 2)) {
+			if ((root.isArchive())
+					&& (root.getKind() == IPackageFragmentRoot.K_BINARY)) {
 				IClasspathEntry resolvedEntry = root
 						.getResolvedClasspathEntry();
 				if (resolvedEntry.getReferencingEntry() != null) {
@@ -97,7 +111,7 @@ public abstract class JavaUtils {
 			IPackageFragmentRoot root) {
 		try {
 			IClasspathEntry rawEntry = root.getRawClasspathEntry();
-			if (rawEntry.getEntryKind() == 4) {
+			if (rawEntry.getEntryKind() == IClasspathEntry.CPE_VARIABLE) {
 				IClasspathEntry entry = getClasspathEntry(root);
 				if (entry.getReferencingEntry() != null) {
 					return false;
