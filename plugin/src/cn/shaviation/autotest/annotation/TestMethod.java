@@ -9,7 +9,7 @@ import java.lang.annotation.Target;
 @Target({ ElementType.METHOD })
 public @interface TestMethod {
 
-	String value();
+	String value() default "";
 
 	String description() default "";
 
