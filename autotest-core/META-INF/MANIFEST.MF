@@ -1,0 +1,24 @@
+Manifest-Version: 1.0
+Bundle-ManifestVersion: 2
+Bundle-Name: Automatic Testing Core
+Bundle-SymbolicName: cn.shaviation.autotest.core;singleton:=true
+Bundle-Version: 1.0.0.qualifier
+Bundle-Activator: cn.shaviation.autotest.core.AutoTestCore
+Require-Bundle: org.eclipse.core.runtime,
+ org.eclipse.core.resources,
+ org.eclipse.jdt.core
+Bundle-ActivationPolicy: lazy
+Bundle-RequiredExecutionEnvironment: JavaSE-1.6
+Export-Package: cn.shaviation.autotest.core,
+ cn.shaviation.autotest.core.annotation,
+ cn.shaviation.autotest.core.model,
+ cn.shaviation.autotest.core.util
+Bundle-ClassPath: .,
+ lib/slf4j-api-1.6.1.jar,
+ lib/slf4j-log4j12-1.6.1.jar,
+ lib/log4j-1.2.16.jar,
+ lib/validation-api-1.0.0.GA.jar,
+ lib/hibernate-validator-4.2.0.Final.jar,
+ lib/jackson-core-2.2.3.jar,
+ lib/jackson-annotations-2.2.3.jar,
+ lib/jackson-databind-2.2.3.jar

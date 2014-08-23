@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?eclipse version="3.4"?>
+<plugin>
+
+   <extension
+         point="org.eclipse.ui.editors">
+      <editor
+            name="Test Data Editor"
+            extensions="tdd"
+            icon="icons/testdata.png"
+            contributorClass="cn.shaviation.autotest.ui.internal.editors.TestDataEditorContributor"
+            class="cn.shaviation.autotest.ui.internal.editors.TestDataEditor"
+            id="cn.shaviation.autotest.ui.editors.TestDataEditor">
+      </editor>
+   </extension>
+   
+   <extension
+         point="org.eclipse.ui.newWizards">
+      <category
+            name="Automatic Testing Wizards"
+            id="cn.shaviation.autotest.ui.wizards">
+      </category>
+      <wizard
+            name="Automatic Testing Project"
+            icon="icons/newjprj_wiz.gif"
+            category="cn.shaviation.autotest.ui.wizards"
+            class="cn.shaviation.autotest.ui.internal.wizards.NewProjectWizard"
+            id="cn.shaviation.autotest.ui.wizards.NewProjectWizard"
+            project="true">
+      </wizard>
+      <wizard
+            name="Test Data Definition file"
+            icon="icons/testdata.png"
+            category="cn.shaviation.autotest.ui.wizards"
+            class="cn.shaviation.autotest.ui.internal.wizards.NewTestDataWizard"
+            id="cn.shaviation.autotest.ui.wizards.NewTestDataWizard">
+      </wizard>
+   </extension>
+
+</plugin>

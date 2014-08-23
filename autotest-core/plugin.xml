@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?eclipse version="3.4"?>
+<plugin>
+
+   <extension
+         id="nature"
+         name="Automatic Testing Project Nature"
+         point="org.eclipse.core.resources.natures">
+      <runtime>
+         <run class="cn.shaviation.autotest.core.internal.natures.AutoTestProjectNature" />
+      </runtime>
+      <builder id="cn.shaviation.autotest.core.builder" />
+   </extension>
+   <extension
+         point="org.eclipse.ui.ide.projectNatureImages">
+      <image
+            icon="icons/nature.gif"
+            id="cn.shaviation.autotest.core.project.ico"
+            natureId="cn.shaviation.autotest.core.nature">
+      </image>
+   </extension>
+   <extension
+         id="builder"
+         name="Automatic Testing Project Builder"
+         point="org.eclipse.core.resources.builders">
+      <builder
+            hasNature="true"
+            isConfigurable="false">
+         <run class="cn.shaviation.autotest.core.internal.builders.AutoTestProjectBuilder" />
+      </builder>
+   </extension>
+   <extension
+         id="problemmarker"
+         name="Test Data Problem"
+         point="org.eclipse.core.resources.markers">
+      <persistent value="true" />
+      <super type="org.eclipse.core.resources.problemmarker" />
+   </extension>
+   
+</plugin>
