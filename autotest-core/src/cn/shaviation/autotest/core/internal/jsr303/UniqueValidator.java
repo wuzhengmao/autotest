@@ -28,7 +28,7 @@ public class UniqueValidator implements ConstraintValidator<Unique, Object> {
 	@Override
 	public boolean isValid(Object value, ConstraintValidatorContext context) {
 		if (value == null) {
-			throw new UnexpectedTypeException("Unexcepted null value");
+			return true;
 		}
 		List<Object> list;
 		if (value.getClass().isArray()) {
