@@ -295,14 +295,24 @@ public class TestMethodSelectionDialog extends FilteredItemsSelectionDialog {
 			if (element instanceof TypeReferenceMatch) {
 				IJavaElement javaElement = ((TypeReferenceMatch) element)
 						.getLocalElement();
-				if (javaElement instanceof IAnnotation
-						&& javaElement.getParent() instanceof IMethod) {
-					IAnnotation annotation = (IAnnotation) javaElement;
-					IMethod method = (IMethod) javaElement.getParent();
+				if (javaElement != null) {
+					if (javaElement instanceof IAnnotation
+							&& javaElement.getParent() instanceof IMethod) {
+						IAnnotation annotation = (IAnnotation) javaElement;
+						IMethod method = (IMethod) javaElement.getParent();
+						if (Flags.isPublic(method.getFlags())
+								&& Flags.isPublic(method.getDeclaringType()
+										.getFlags())) {
+							return annotation;
+						}
+					}
+				} else if (((TypeReferenceMatch) element).getElement() instanceof IMethod) {
+					IMethod method = (IMethod) ((TypeReferenceMatch) element)
+							.getElement();
 					if (Flags.isPublic(method.getFlags())
 							&& Flags.isPublic(method.getDeclaringType()
 									.getFlags())) {
-						return annotation;
+						return method.getAnnotation(TestMethod.class.getName());
 					}
 				}
 			}
@@ -414,7 +424,6 @@ public class TestMethodSelectionDialog extends FilteredItemsSelectionDialog {
 			if (getAnnotation(match) != null) {
 				contentProvider.add(match, methodItemsFilter);
 			}
-
 		}
 	}
 }
