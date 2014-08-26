@@ -11,6 +11,7 @@ Bundle-ActivationPolicy: lazy
 Bundle-RequiredExecutionEnvironment: JavaSE-1.6
 Export-Package: cn.shaviation.autotest.core,
  cn.shaviation.autotest.core.annotation,
+ cn.shaviation.autotest.core.jdt,
  cn.shaviation.autotest.core.model,
  cn.shaviation.autotest.core.util
 Bundle-ClassPath: .,

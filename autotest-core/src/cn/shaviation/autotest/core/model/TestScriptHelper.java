@@ -17,7 +17,7 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 
-public abstract class TestDataHelper {
+public abstract class TestScriptHelper {
 
 	private static final ObjectMapper objectMapper = new ObjectMapper()
 			.enable(DeserializationFeature.ACCEPT_EMPTY_STRING_AS_NULL_OBJECT)
@@ -28,31 +28,31 @@ public abstract class TestDataHelper {
 			.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
 			.setDateFormat(new SimpleDateFormat("yyyyMMddHHmmssSSS"));
 
-	public static TestDataDef parse(String json) throws IOException {
-		return objectMapper.readValue(json, TestDataDef.class);
+	public static TestScript parse(String json) throws IOException {
+		return objectMapper.readValue(json, TestScript.class);
 	}
 
-	public static String serialize(TestDataDef testDataDef) throws IOException {
-		return objectMapper.writeValueAsString(testDataDef);
+	public static String serialize(TestScript testScript) throws IOException {
+		return objectMapper.writeValueAsString(testScript);
 	}
 
-	public static TestDataDef createDefault() {
-		TestDataDef testDataDef = new TestDataDef();
-		testDataDef.setName("New Test Data");
-		testDataDef.setAuthor(System.getProperty("user.name"));
-		testDataDef.setLastUpdateTime(new Date());
-		return testDataDef;
+	public static TestScript createDefault() {
+		TestScript testScript = new TestScript();
+		testScript.setName("New Test Script");
+		testScript.setAuthor(System.getProperty("user.name"));
+		testScript.setLastUpdateTime(new Date());
+		return testScript;
 	}
 
-	public static Collection<String> validate(TestDataDef testDataDef) {
+	public static Collection<String> validate(TestScript testScript) {
 		Set<String> messages = new LinkedHashSet<String>();
-		addMessages(messages, Validators.validate(testDataDef));
-		if (testDataDef.getDataList() != null) {
-			for (TestDataGroup group : testDataDef.getDataList()) {
-				addMessages(messages, Validators.validate(group));
-				if (group.getEntries() != null) {
-					for (TestDataEntry entry : group.getEntries()) {
-						addMessages(messages, Validators.validate(entry));
+		addMessages(messages, Validators.validate(testScript));
+		if (testScript.getTestSteps() != null) {
+			for (TestStep step : testScript.getTestSteps()) {
+				addMessages(messages, Validators.validate(step));
+				if (step.getParameters() != null) {
+					for (Parameter param : step.getParameters()) {
+						addMessages(messages, Validators.validate(param));
 					}
 				}
 			}

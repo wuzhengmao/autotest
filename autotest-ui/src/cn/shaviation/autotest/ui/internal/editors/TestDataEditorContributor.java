@@ -1,6 +1,10 @@
 package cn.shaviation.autotest.ui.internal.editors;
 
+import java.util.Map.Entry;
+
 import org.eclipse.core.resources.IProject;
+import org.eclipse.core.runtime.CoreException;
+import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jface.action.Action;
 import org.eclipse.jface.action.IAction;
 import org.eclipse.jface.action.IToolBarManager;
@@ -16,6 +20,7 @@ import org.eclipse.ui.part.MultiPageEditorActionBarContributor;
 import org.eclipse.ui.texteditor.ITextEditor;
 import org.eclipse.ui.texteditor.ITextEditorActionConstants;
 
+import cn.shaviation.autotest.core.jdt.AutoTestProjects;
 import cn.shaviation.autotest.core.util.JavaUtils;
 import cn.shaviation.autotest.core.util.Logs;
 import cn.shaviation.autotest.ui.internal.dialogs.TestMethodSelectionDialog;
@@ -67,14 +72,7 @@ public class TestDataEditorContributor extends
 	public void contributeToToolBar(IToolBarManager manager) {
 		Action action = new Action() {
 			public void run() {
-				IProject project = ((TestDataEditorInput) activeEditorPart
-						.getEditorInput()).getFile().getProject();
-				TestMethodSelectionDialog dialog = new TestMethodSelectionDialog(
-						activeEditorPart.getSite().getShell(),
-						JavaUtils.getJavaProject(project));
-				if (dialog.open() == Window.OK) {
-					Logs.i(dialog.getResult()[0].toString());
-				}
+				test();
 			}
 		};
 		action.setText("Sample Action");
@@ -83,5 +81,27 @@ public class TestDataEditorContributor extends
 				.getImageDescriptor(IDE.SharedImages.IMG_OBJS_TASK_TSK));
 		manager.add(new Separator());
 		manager.add(action);
+	}
+
+	private void test() {
+		IProject project = ((TestDataEditorInput) activeEditorPart
+				.getEditorInput()).getFile().getProject();
+		TestMethodSelectionDialog dialog = new TestMethodSelectionDialog(
+				activeEditorPart.getSite().getShell(),
+				JavaUtils.getJavaProject(project));
+		if (dialog.open() == Window.OK) {
+			Logs.i(dialog.getResult()[0].toString());
+		}
+		IJavaProject javaProject = JavaUtils.getJavaProject(project);
+		try {
+			for (Entry<String, String> entry : AutoTestProjects
+					.searchTestDataFiles(javaProject).entrySet()) {
+				System.out.println(entry.getKey() + ": " + entry.getValue());
+				assert (entry.getValue().equals(AutoTestProjects
+						.getTestDataName(javaProject, entry.getKey())));
+			}
+		} catch (CoreException e) {
+			Logs.e(e);
+		}
 	}
 }

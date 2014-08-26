@@ -40,10 +40,10 @@ public abstract class Logs {
 			if (t.getCause() != null) {
 				t = t.getCause();
 			}
-			if (message == null || message.isEmpty()) {
+			if (Strings.isEmpty(message)) {
 				message = t.getMessage();
 			}
-			if (message == null || message.isEmpty()) {
+			if (Strings.isEmpty(message)) {
 				message = t.getClass().getName();
 			}
 		}

@@ -689,7 +689,7 @@ public class TestDataFormPage extends FormPage {
 		} else {
 			try {
 				String json = getEditorInput().getDocument().get();
-				if (json != null && !json.isEmpty()) {
+				if (!Strings.isEmpty(json)) {
 					testDataDef = TestDataHelper.parse(json);
 				} else {
 					testDataDef.setAuthor(System.getProperty("user.name"));
@@ -787,7 +787,7 @@ public class TestDataFormPage extends FormPage {
 				|| getManagedForm().getForm().getMessageType() == IMessageProvider.WARNING) {
 			String error = getManagedForm().getMessageManager().createSummary(
 					getManagedForm().getForm().getForm().getChildrenMessages());
-			if (error == null || error.isEmpty()) {
+			if (Strings.isEmpty(error)) {
 				error = getManagedForm().getForm().getMessage();
 			}
 			return error;

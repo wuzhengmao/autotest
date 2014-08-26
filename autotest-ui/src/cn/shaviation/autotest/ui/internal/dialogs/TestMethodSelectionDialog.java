@@ -265,7 +265,7 @@ public class TestMethodSelectionDialog extends FilteredItemsSelectionDialog {
 				sb.append(getMethodQualifiedName(element));
 				sb.append(" - ");
 				String version = getAnnotationValue(annotation, "version");
-				if (version.isEmpty()) {
+				if (Strings.isEmpty(version)) {
 					try {
 						version = Strings.objToString(TestMethod.class
 								.getMethod("version").getDefaultValue());
@@ -273,7 +273,7 @@ public class TestMethodSelectionDialog extends FilteredItemsSelectionDialog {
 						Logs.w(e);
 					}
 				}
-				if (!version.isEmpty()) {
+				if (!Strings.isEmpty(version)) {
 					if (version.charAt(0) == 'v') {
 						version = "V" + version.substring(1);
 					} else if (version.charAt(0) != 'V') {
@@ -282,7 +282,7 @@ public class TestMethodSelectionDialog extends FilteredItemsSelectionDialog {
 					sb.append(version);
 				}
 				String author = getAnnotationValue(annotation, "author");
-				if (!author.isEmpty()) {
+				if (!Strings.isEmpty(author)) {
 					sb.append(" by ").append(author);
 				}
 			}
@@ -339,7 +339,7 @@ public class TestMethodSelectionDialog extends FilteredItemsSelectionDialog {
 		IAnnotation annotation = getAnnotation(element);
 		IMethod method = (IMethod) annotation.getParent();
 		String methodName = getAnnotationValue(annotation, "value");
-		if (methodName.isEmpty()) {
+		if (Strings.isEmpty(methodName)) {
 			methodName = method.getElementName();
 		}
 		return methodName;
@@ -385,7 +385,7 @@ public class TestMethodSelectionDialog extends FilteredItemsSelectionDialog {
 		@Override
 		public String getPattern() {
 			String pattern = super.getPattern();
-			return pattern != null && !pattern.isEmpty() ? pattern : "*";
+			return !Strings.isEmpty(pattern) ? pattern : "*";
 		}
 
 		@Override

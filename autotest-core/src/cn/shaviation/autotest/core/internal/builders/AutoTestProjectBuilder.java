@@ -23,9 +23,12 @@ import org.eclipse.jdt.core.JavaModelException;
 import cn.shaviation.autotest.core.AutoTestCore;
 import cn.shaviation.autotest.core.model.TestDataDef;
 import cn.shaviation.autotest.core.model.TestDataHelper;
+import cn.shaviation.autotest.core.model.TestScript;
+import cn.shaviation.autotest.core.model.TestScriptHelper;
 import cn.shaviation.autotest.core.util.IOUtils;
 import cn.shaviation.autotest.core.util.JavaUtils;
 import cn.shaviation.autotest.core.util.Logs;
+import cn.shaviation.autotest.core.util.Strings;
 
 public class AutoTestProjectBuilder extends IncrementalProjectBuilder {
 
@@ -70,6 +73,15 @@ public class AutoTestProjectBuilder extends IncrementalProjectBuilder {
 			if (delta == null) {
 				fullBuild(monitor);
 			} else {
+				IFile file = project.getFile(".classpath");
+				if (file != null) {
+					IResourceDelta rd = delta.findMember(file
+							.getProjectRelativePath());
+					if (rd != null && rd.getResource().equals(file)) {
+						fullBuild(monitor);
+						break;
+					}
+				}
 				incrementalBuild(delta, monitor);
 			}
 			break;
@@ -110,10 +122,14 @@ public class AutoTestProjectBuilder extends IncrementalProjectBuilder {
 	}
 
 	private void validate(IResource resource) {
-		if (resource instanceof IFile
-				&& AutoTestCore.TEST_DATA_FILE_EXTENSION.equals(resource
-						.getFileExtension()) && !ignore(resource)) {
-			validateTestDataDef(resource);
+		if (resource instanceof IFile) {
+			if (AutoTestCore.TEST_DATA_FILE_EXTENSION.equals(resource
+					.getFileExtension()) && !ignore(resource)) {
+				validateTestDataDef(resource);
+			} else if (AutoTestCore.TEST_SCRIPT_FILE_EXTENSION.equals(resource
+					.getFileExtension()) && !ignore(resource)) {
+				validateTestScript(resource);
+			}
 		}
 	}
 
@@ -131,13 +147,48 @@ public class AutoTestProjectBuilder extends IncrementalProjectBuilder {
 	private void validateTestDataDef(IResource resource) {
 		deleteProblems(resource);
 		try {
+			resource.setPersistentProperty(AutoTestCore.TEST_DATA_NAME_KEY,
+					null);
 			String json = IOUtils.toString(
 					((IFile) resource).getContents(true),
 					((IFile) resource).getCharset());
-			if (json != null && !json.isEmpty()) {
+			if (!Strings.isEmpty(json)) {
 				TestDataDef testDataDef = TestDataHelper.parse(json);
-				String error = TestDataHelper.validate(testDataDef);
-				if (error != null) {
+				if (!Strings.isBlank(testDataDef.getName())) {
+					resource.setPersistentProperty(
+							AutoTestCore.TEST_DATA_NAME_KEY, testDataDef
+									.getName().trim());
+				}
+				for (String error : TestDataHelper.validate(testDataDef)) {
+					addProblem(resource, error, IMarker.SEVERITY_ERROR);
+				}
+			} else {
+				addProblem(resource, "No content", IMarker.SEVERITY_WARNING);
+			}
+		} catch (CoreException e) {
+			addProblem(resource, e.getStatus().getMessage(),
+					getSeverity(e.getStatus()));
+		} catch (Exception e) {
+			addProblem(resource, e.getMessage(), IMarker.SEVERITY_ERROR);
+		}
+	}
+
+	private void validateTestScript(IResource resource) {
+		deleteProblems(resource);
+		try {
+			resource.setPersistentProperty(AutoTestCore.TEST_SCRIPT_NAME_KEY,
+					null);
+			String json = IOUtils.toString(
+					((IFile) resource).getContents(true),
+					((IFile) resource).getCharset());
+			if (!Strings.isEmpty(json)) {
+				TestScript testScript = TestScriptHelper.parse(json);
+				if (!Strings.isBlank(testScript.getName())) {
+					resource.setPersistentProperty(
+							AutoTestCore.TEST_SCRIPT_NAME_KEY, testScript
+									.getName().trim());
+				}
+				for (String error : TestScriptHelper.validate(testScript)) {
 					addProblem(resource, error, IMarker.SEVERITY_ERROR);
 				}
 			} else {
