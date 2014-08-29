@@ -4,6 +4,7 @@ import java.util.Map.Entry;
 
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.runtime.CoreException;
+import org.eclipse.jdt.core.IAnnotation;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jface.action.Action;
 import org.eclipse.jface.action.IAction;
@@ -25,20 +26,17 @@ import cn.shaviation.autotest.core.util.JavaUtils;
 import cn.shaviation.autotest.core.util.Logs;
 import cn.shaviation.autotest.ui.internal.dialogs.TestMethodSelectionDialog;
 
-public class TestDataEditorContributor extends
+public class DocumentEditorContributor extends
 		MultiPageEditorActionBarContributor {
 
-	private IEditorPart activeEditorPart;
+	protected DocumentSourcePage<?> activeEditorPart;
 
-	protected IAction getAction(ITextEditor editor, String actionID) {
-		return (editor == null ? null : editor.getAction(actionID));
-	}
-
+	@Override
 	public void setActivePage(IEditorPart part) {
-		if (activeEditorPart == part) {
+		if (activeEditorPart == part || !(part instanceof DocumentSourcePage)) {
 			return;
 		}
-		activeEditorPart = part;
+		activeEditorPart = (DocumentSourcePage<?>) part;
 		IActionBars actionBars = getActionBars();
 		if (actionBars != null) {
 			ITextEditor editor = (part instanceof ITextEditor) ? (ITextEditor) part
@@ -68,6 +66,10 @@ public class TestDataEditorContributor extends
 		}
 	}
 
+	private IAction getAction(ITextEditor editor, String actionID) {
+		return (editor == null ? null : editor.getAction(actionID));
+	}
+
 	@Override
 	public void contributeToToolBar(IToolBarManager manager) {
 		Action action = new Action() {
@@ -84,21 +86,33 @@ public class TestDataEditorContributor extends
 	}
 
 	private void test() {
-		IProject project = ((TestDataEditorInput) activeEditorPart
-				.getEditorInput()).getFile().getProject();
-		TestMethodSelectionDialog dialog = new TestMethodSelectionDialog(
-				activeEditorPart.getSite().getShell(),
-				JavaUtils.getJavaProject(project));
-		if (dialog.open() == Window.OK) {
-			Logs.i(dialog.getResult()[0].toString());
-		}
+		IProject project = activeEditorPart.getEditorInput().getFile()
+				.getProject();
 		IJavaProject javaProject = JavaUtils.getJavaProject(project);
+		TestMethodSelectionDialog dialog = new TestMethodSelectionDialog(
+				activeEditorPart.getSite().getShell(), javaProject);
+		if (dialog.open() == Window.OK) {
+			IAnnotation annotation = (IAnnotation) dialog.getResult()[0];
+			String testMethod = AutoTestProjects
+					.getTestMethodQualifiedName(annotation);
+			Logs.i(testMethod);
+			if (!AutoTestProjects.checkTestMethod(javaProject, testMethod)) {
+				Logs.e("checkTestMethod fail");
+			}
+		}
 		try {
 			for (Entry<String, String> entry : AutoTestProjects
 					.searchTestDataFiles(javaProject).entrySet()) {
 				System.out.println(entry.getKey() + ": " + entry.getValue());
-				assert (entry.getValue().equals(AutoTestProjects
-						.getTestDataName(javaProject, entry.getKey())));
+				if (!entry.getValue().equals(
+						AutoTestProjects.getTestDataName(javaProject,
+								entry.getKey()))) {
+					Logs.e("getTestDataName fail");
+				}
+				if (!AutoTestProjects.checkNonJavaResource(javaProject,
+						entry.getKey())) {
+					Logs.e("checkNonJavaResource fail");
+				}
 			}
 		} catch (CoreException e) {
 			Logs.e(e);

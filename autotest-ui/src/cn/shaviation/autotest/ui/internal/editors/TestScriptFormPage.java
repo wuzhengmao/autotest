@@ -1,11 +1,16 @@
 package cn.shaviation.autotest.ui.internal.editors;
 
+import java.util.Collections;
+import java.util.List;
+
 import org.eclipse.core.databinding.beans.PojoObservables;
 import org.eclipse.core.databinding.observable.list.IListChangeListener;
 import org.eclipse.core.databinding.observable.list.ListChangeEvent;
 import org.eclipse.core.databinding.observable.list.ListDiffVisitor;
 import org.eclipse.core.databinding.observable.list.WritableList;
 import org.eclipse.core.databinding.observable.map.IObservableMap;
+import org.eclipse.core.resources.IProject;
+import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jface.databinding.viewers.ObservableListContentProvider;
 import org.eclipse.jface.databinding.viewers.ObservableMapLabelProvider;
 import org.eclipse.jface.viewers.CellEditor;
@@ -34,56 +39,71 @@ import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Item;
 import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Text;
+import org.eclipse.ui.IEditorInput;
 import org.eclipse.ui.forms.IManagedForm;
 import org.eclipse.ui.forms.widgets.FormToolkit;
 import org.eclipse.ui.forms.widgets.ScrolledForm;
 import org.eclipse.ui.forms.widgets.Section;
 import org.eclipse.ui.forms.widgets.TableWrapData;
 
-import cn.shaviation.autotest.core.model.TestDataDef;
+import cn.shaviation.autotest.core.jdt.AutoTestProjects;
+import cn.shaviation.autotest.core.model.Parameter;
 import cn.shaviation.autotest.core.model.TestDataEntry;
 import cn.shaviation.autotest.core.model.TestDataGroup;
-import cn.shaviation.autotest.core.model.TestDataHelper;
+import cn.shaviation.autotest.core.model.TestScript;
+import cn.shaviation.autotest.core.model.TestScriptHelper;
+import cn.shaviation.autotest.core.model.TestStep;
+import cn.shaviation.autotest.core.util.JavaUtils;
 import cn.shaviation.autotest.core.util.Strings;
 import cn.shaviation.autotest.core.util.Validators;
 import cn.shaviation.autotest.ui.internal.databinding.Converters;
+import cn.shaviation.autotest.ui.internal.util.TableLabelProvider;
 import cn.shaviation.autotest.ui.internal.util.UIUtils;
 
-public class TestDataFormPage extends DocumentFormPage<TestDataDef> {
+public class TestScriptFormPage extends DocumentFormPage<TestScript> {
 
+	private IJavaProject javaProject;
+	
 	private Text nameText;
 	private Text descText;
 	private Text authorText;
 	private Label modifyTime;
-	private TableViewer groupTable;
-	private Button newGroupButton;
-	private Button removeGroupButton;
-	private Button moveGroupUpButton;
-	private Button moveGroupDownButton;
-	private Button cloneGroupButton;
+	private TableViewer stepTable;
+	private Button newStepButton;
+	private Button removeStepButton;
+	private Button moveStepUpButton;
+	private Button moveStepDownButton;
+
 	private TableViewer entryTable;
 	private Button newEntryButton;
 	private Button removeEntryButton;
 	private Button moveEntryUpButton;
 	private Button moveEntryDownButton;
 
-	public TestDataFormPage(TestDataEditor editor) {
-		super(editor, "cn.shaviation.autotest.ui.editors.TestDataFormPage",
+	public TestScriptFormPage(TestScriptEditor editor) {
+		super(editor, "cn.shaviation.autotest.ui.editors.TestScriptFormPage",
 				"Visual Editor");
+	}
+
+	@Override
+	public void setInput(IEditorInput input) {
+		super.setInput(input);
+		IProject project = getEditorInput().getFile().getProject();
+		javaProject = JavaUtils.getJavaProject(project);
 	}
 
 	@Override
 	protected void createFormContent(IManagedForm managedForm) {
 		FormToolkit toolkit = managedForm.getToolkit();
 		ScrolledForm form = managedForm.getForm();
-		form.setText("Test Data Editor");
+		form.setText("Test Script Editor");
 		Composite body = form.getBody();
 		body.setLayout(UIUtils.createFormGridLayout(true, 2));
 		Composite leftComposite = toolkit.createComposite(body, SWT.NONE);
 		leftComposite.setLayoutData(new GridData(GridData.FILL_BOTH));
 		leftComposite.setLayout(UIUtils.createFormPaneGridLayout(false, 1));
 		createGeneralSection(toolkit, leftComposite);
-		createGroupSection(toolkit, leftComposite);
+		createStepsSection(toolkit, leftComposite);
 		Composite rightComposite = toolkit.createComposite(body, SWT.NONE);
 		rightComposite.setLayoutData(new GridData(GridData.FILL_BOTH));
 		rightComposite.setLayout(UIUtils.createFormPaneGridLayout(false, 1));
@@ -129,56 +149,49 @@ public class TestDataFormPage extends DocumentFormPage<TestDataDef> {
 		toolkit.paintBordersFor(client);
 	}
 
-	private void createGroupSection(FormToolkit toolkit, Composite container) {
+	private void createStepsSection(FormToolkit toolkit, Composite container) {
 		Section section = toolkit.createSection(container, SWT.HORIZONTAL
 				| Section.DESCRIPTION);
-		section.setText("Test Data Groups");
-		section.setDescription("Specify multiple groups of test data with similar specification.");
+		section.setText("Test Steps");
+		section.setDescription("Specify all the test steps of this script, the upper step will be excuted early.");
 		section.setLayoutData(new GridData(GridData.FILL_BOTH));
 		section.setLayout(UIUtils.createClearGridLayout(false, 1));
 		Composite client = toolkit.createComposite(section);
 		client.setLayout(UIUtils.createSectionClientGridLayout(false, 2));
 		section.setClient(client);
-		groupTable = new TableViewer(client, SWT.FULL_SELECTION | SWT.V_SCROLL
+		stepTable = new TableViewer(client, SWT.FULL_SELECTION | SWT.V_SCROLL
 				| toolkit.getBorderStyle());
-		groupTable.getTable().setLayoutData(new GridData(GridData.FILL_BOTH));
-		toolkit.adapt(groupTable.getTable(), false, false);
-		groupTable.setCellEditors(new CellEditor[] { new TextCellEditor(
-				groupTable.getTable(), SWT.LEFT) });
-		groupTable.setColumnProperties(new String[] { "name" });
-		groupTable.setCellModifier(new ICellModifier() {
-
+		stepTable.getTable().setLayoutData(new GridData(GridData.FILL_BOTH));
+		stepTable.getTable().setHeaderVisible(true);
+		stepTable.getTable().setLinesVisible(true);
+		toolkit.adapt(stepTable.getTable(), false, false);
+		final TableViewerColumn tvc1 = new TableViewerColumn(stepTable,
+				SWT.RIGHT);
+		tvc1.getColumn().setWidth(15);
+		tvc1.getColumn().setText("No.");
+		final TableViewerColumn tvc2 = new TableViewerColumn(stepTable,
+				SWT.LEFT);
+		tvc2.getColumn().setWidth(60);
+		tvc2.getColumn().setText("Name");
+		final TableViewerColumn tvc3 = new TableViewerColumn(stepTable,
+				SWT.LEFT);
+		tvc3.getColumn().setWidth(15);
+		tvc3.getColumn().setText("Type");
+		final TableViewerColumn tvc4 = new TableViewerColumn(stepTable,
+				SWT.LEFT);
+		tvc4.getColumn().setWidth(60);
+		tvc4.getColumn().setText("Prev.");
+		stepTable.getTable().addControlListener(new ControlAdapter() {
 			@Override
-			public void modify(Object element, String property, Object value) {
-				TestDataGroup group = (TestDataGroup) ((Item) element)
-						.getData();
-				if (!Strings.equals(group.getName(), value)) {
-					group.setName((String) value);
-					groupTable.update(group, new String[] { "name" });
-					validate(group, false);
-					validateGroups();
-					onFormChange();
-				}
-			}
-
-			@Override
-			public Object getValue(Object element, String property) {
-				return Strings.objToString(((TestDataGroup) element).getName());
-			}
-
-			@Override
-			public boolean canModify(Object element, String property) {
-				return true;
+			public void controlResized(ControlEvent event) {
+				Point size = ((Control) event.getSource()).getSize();
+				int w = size.x - 96;
+				tvc2.getColumn().setWidth(w > 60 ? w : 60);
 			}
 		});
-		ObservableListContentProvider contentProvider = new ObservableListContentProvider();
-		groupTable.setContentProvider(contentProvider);
-		groupTable.setLabelProvider(new ObservableMapLabelProvider(
-				PojoObservables.observeMap(contentProvider.getKnownElements(),
-						TestDataGroup.class, "name")));
-		final WritableList groupTableInput = (WritableList) getEditorInput()
-				.getModel().getDataList();
-		groupTableInput.addListChangeListener(new IListChangeListener() {
+		final WritableList testSteps = (WritableList) getEditorInput()
+				.getModel().getTestSteps();
+		testSteps.addListChangeListener(new IListChangeListener() {
 			@Override
 			public void handleListChange(ListChangeEvent event) {
 				event.diff.accept(new ListDiffVisitor() {
@@ -197,86 +210,98 @@ public class TestDataFormPage extends DocumentFormPage<TestDataDef> {
 				onFormChange();
 			}
 		});
-		groupTable.setInput(groupTableInput);
+		ObservableListContentProvider contentProvider = new ObservableListContentProvider();
+		stepTable.setContentProvider(contentProvider);
+		stepTable.setLabelProvider(new TableLabelProvider() {
+			@Override
+			public String getColumnText(Object element, int columnIndex) {
+				TestStep step = (TestStep) element;
+				switch (columnIndex) {
+				case 0:
+					return String.valueOf(testSteps.indexOf(element) + 1);
+				case 1:
+					return getTestStepName(step);
+				case 2:
+					if (step.getInvokeType() == TestStep.Type.TestMethod) {
+						return "M";
+					} else if (step.getInvokeType() == TestStep.Type.TestScript) {
+						return "S";
+					}
+				case 3:
+					if (step.getDependentSteps() != null && !step.getDependentSteps().isEmpty()) {
+						return Strings.merge(step.getDependentSteps(), ",");
+					}
+				}
+				return "";
+			}
+		});
+		stepTable.setInput(testSteps);
 		Composite buttons = toolkit.createComposite(client);
 		buttons.setLayoutData(new GridData(GridData.FILL_VERTICAL));
 		buttons.setLayout(UIUtils.createButtonsGridLayout());
-		newGroupButton = toolkit.createButton(buttons, "New", SWT.PUSH);
-		newGroupButton.setLayoutData(new GridData(GridData.FILL_HORIZONTAL
+		newStepButton = toolkit.createButton(buttons, "New", SWT.PUSH);
+		newStepButton.setLayoutData(new GridData(GridData.FILL_HORIZONTAL
 				| GridData.CENTER));
-		newGroupButton.addSelectionListener(new SelectionAdapter() {
+		newStepButton.addSelectionListener(new SelectionAdapter() {
 			@SuppressWarnings("unchecked")
 			@Override
 			public void widgetSelected(SelectionEvent event) {
-				TestDataGroup group = new TestDataGroup();
-				group.setName("New Group");
-				group.setEntries(WritableList
-						.withElementType(TestDataEntry.class));
-				groupTableInput.add(group);
-				groupTable.setSelection(new StructuredSelection(group));
-				groupTable.editElement(group, 0);
+				TestStep step = new TestStep();
+				step.setInvokeType(TestStep.Type.TestMethod);
+				step.setParameters(WritableList
+						.withElementType(Parameter.class));
+				testSteps.add(step);
+				stepTable.setSelection(new StructuredSelection(step));
 			}
 		});
-		removeGroupButton = toolkit.createButton(buttons, "Remove", SWT.PUSH);
-		removeGroupButton.setLayoutData(new GridData(GridData.FILL_HORIZONTAL
+		removeStepButton = toolkit.createButton(buttons, "Remove", SWT.PUSH);
+		removeStepButton.setLayoutData(new GridData(GridData.FILL_HORIZONTAL
 				| GridData.CENTER));
-		removeGroupButton.addSelectionListener(new SelectionAdapter() {
-			@Override
-			public void widgetSelected(SelectionEvent event) {
-				int sel = groupTable.getTable().getSelectionIndex();
-				groupTableInput.remove(sel);
-			}
-		});
-		moveGroupUpButton = toolkit.createButton(buttons, "Up", SWT.PUSH);
-		moveGroupUpButton.setLayoutData(new GridData(GridData.FILL_HORIZONTAL
-				| GridData.CENTER));
-		moveGroupUpButton.addSelectionListener(new SelectionAdapter() {
-			@Override
-			public void widgetSelected(SelectionEvent event) {
-				ISelection selection = groupTable.getSelection();
-				int sel = groupTable.getTable().getSelectionIndex();
-				groupTableInput.add(sel - 1, groupTableInput.remove(sel));
-				groupTable.setSelection(selection, true);
-			}
-		});
-		moveGroupDownButton = toolkit.createButton(buttons, "Down", SWT.PUSH);
-		moveGroupDownButton.setLayoutData(new GridData(GridData.FILL_HORIZONTAL
-				| GridData.CENTER));
-		moveGroupDownButton.addSelectionListener(new SelectionAdapter() {
-			@Override
-			public void widgetSelected(SelectionEvent event) {
-				ISelection selection = groupTable.getSelection();
-				int sel = groupTable.getTable().getSelectionIndex();
-				groupTableInput.add(sel, groupTableInput.remove(sel + 1));
-				groupTable.setSelection(selection, true);
-			}
-		});
-		cloneGroupButton = toolkit.createButton(buttons, "Clone", SWT.PUSH);
-		cloneGroupButton.setLayoutData(new GridData(GridData.FILL_HORIZONTAL
-				| GridData.CENTER));
-		cloneGroupButton.addSelectionListener(new SelectionAdapter() {
+		removeStepButton.addSelectionListener(new SelectionAdapter() {
 			@SuppressWarnings("unchecked")
 			@Override
 			public void widgetSelected(SelectionEvent event) {
-				TestDataGroup group = new TestDataGroup();
-				group.setEntries(WritableList
-						.withElementType(TestDataEntry.class));
-				merge((TestDataGroup) groupTable.getElementAt(groupTable
-						.getTable().getSelectionIndex()), group);
-				group.setName("Copy of " + group.getName());
-				groupTableInput.add(group);
-				groupTable.setSelection(new StructuredSelection(group));
-				groupTable.editElement(group, 0);
+				int sel = stepTable.getTable().getSelectionIndex();
+				stepTable.remove(sel);
+				removeDependence(testSteps, sel);
+			}
+		});
+		moveStepUpButton = toolkit.createButton(buttons, "Up", SWT.PUSH);
+		moveStepUpButton.setLayoutData(new GridData(GridData.FILL_HORIZONTAL
+				| GridData.CENTER));
+		moveStepUpButton.addSelectionListener(new SelectionAdapter() {
+			@SuppressWarnings("unchecked")
+			@Override
+			public void widgetSelected(SelectionEvent event) {
+				ISelection selection = stepTable.getSelection();
+				int sel = stepTable.getTable().getSelectionIndex();
+				testSteps.add(sel - 1, testSteps.remove(sel));
+				stepTable.setSelection(selection, true);
+				exchangeDependence(testSteps, sel, sel - 1);
+			}
+		});
+		moveStepDownButton = toolkit.createButton(buttons, "Down", SWT.PUSH);
+		moveStepDownButton.setLayoutData(new GridData(GridData.FILL_HORIZONTAL
+				| GridData.CENTER));
+		moveStepDownButton.addSelectionListener(new SelectionAdapter() {
+			@SuppressWarnings("unchecked")
+			@Override
+			public void widgetSelected(SelectionEvent event) {
+				ISelection selection = stepTable.getSelection();
+				int sel = stepTable.getTable().getSelectionIndex();
+				testSteps.add(sel, testSteps.remove(sel + 1));
+				stepTable.setSelection(selection, true);
+				exchangeDependence(testSteps, sel, sel + 1);
 			}
 		});
 		toolkit.paintBordersFor(client);
-		groupTable.addSelectionChangedListener(new ISelectionChangedListener() {
+		stepTable.addSelectionChangedListener(new ISelectionChangedListener() {
 			@Override
 			public void selectionChanged(SelectionChangedEvent event) {
-				setGroupTableButtonStates();
+				setStepTableButtonStates();
 				setEntryTableButtonStates();
 				if (!event.getSelection().isEmpty()) {
-					TestDataGroup group = (TestDataGroup) ((IStructuredSelection) groupTable
+					TestStep step = (TestStep) ((IStructuredSelection) stepTable
 							.getSelection()).getFirstElement();
 					entryTable.setInput(group.getEntries());
 				} else {
@@ -286,18 +311,70 @@ public class TestDataFormPage extends DocumentFormPage<TestDataDef> {
 			}
 		});
 	}
-
-	private void setGroupTableButtonStates() {
-		int sel = groupTable.getTable().getSelectionIndex();
-		removeGroupButton.setEnabled(sel >= 0);
-		moveGroupUpButton.setEnabled(sel > 0);
-		moveGroupDownButton.setEnabled(sel >= 0
-				&& sel < groupTable.getTable().getItemCount() - 1);
-		cloneGroupButton.setEnabled(sel >= 0);
+	
+	private String getTestStepName(TestStep step) {
+		if (javaProject != null && !Strings.isEmpty(step.getInvokeTarget())) {
+			if (step.getInvokeType() == TestStep.Type.TestMethod) {
+				return AutoTestProjects.getTestMethodName(javaProject, step.getInvokeTarget());
+			} else if (step.getInvokeType() == TestStep.Type.TestMethod) {
+				return AutoTestProjects.getTestScriptName(javaProject, step.getInvokeTarget());
+			}
+		}
+		return "";
+	}
+	
+	private void exchangeDependence(List<TestStep> testSteps, Integer i, Integer j) {
+		for (int l = 0; l < testSteps.size(); l++) {
+			TestStep step = testSteps.get(l);
+			List<Integer> dependence = step.getDependentSteps();
+			if (dependence != null && !dependence.isEmpty()) {
+				boolean changed = false;
+				for (int k = 0; k < dependence.size(); k++) {
+					if (dependence.get(k) == i) {
+						dependence.set(k, j);
+						changed = true;
+					} else if (dependence.get(k) == j) {
+						dependence.set(k, i);
+						changed = true;
+					}
+				}
+				if (changed) {
+					Collections.sort(dependence);
+					testSteps.set(l, step);
+				}
+			}
+		}
+	}
+	
+	private void removeDependence(List<TestStep> testSteps, Integer i) {
+		for (int l = 0; l < testSteps.size(); l++) {
+			TestStep step = testSteps.get(l);
+			List<Integer> dependence = step.getDependentSteps();
+			if (dependence != null && !dependence.isEmpty()) {
+				boolean changed = false;
+				for (int k = dependence.size()-1; k >= 0; k--) {
+					if (dependence.get(k) == i) {
+						dependence.remove(k);
+						changed = true;
+					}
+				}
+				if (changed) {
+					testSteps.set(l, step);
+				}
+			}
+		}
 	}
 
-	private void validate(TestDataGroup group, boolean withChildren) {
-		setError("groupTable#" + group.hashCode(),
+	private void setStepTableButtonStates() {
+		int sel = stepTable.getTable().getSelectionIndex();
+		removeStepButton.setEnabled(sel >= 0);
+		moveStepUpButton.setEnabled(sel > 0);
+		moveStepDownButton.setEnabled(sel >= 0
+				&& sel < stepTable.getTable().getItemCount() - 1);
+	}
+
+	private void validate(TestStep step, boolean withChildren) {
+		setError("stepTable#" + step.hashCode(),
 				Validators.getErrorMessage(Validators.validateProperty(group,
 						"name")));
 		if (withChildren) {
@@ -565,82 +642,86 @@ public class TestDataFormPage extends DocumentFormPage<TestDataDef> {
 
 	@SuppressWarnings("unchecked")
 	@Override
-	protected TestDataDef createModel() {
-		TestDataDef testDataDef = new TestDataDef();
-		testDataDef.setDataList(WritableList
-				.withElementType(TestDataGroup.class));
-		return testDataDef;
+	protected TestScript createModel() {
+		TestScript testScript = new TestScript();
+		testScript.setTestSteps(WritableList.withElementType(TestStep.class));
+		return testScript;
 	}
 
 	@Override
-	protected void initModel(TestDataDef model) {
+	protected void initModel(TestScript model) {
 		super.initModel(model);
 		model.setAuthor(System.getProperty("user.name"));
 	}
 
 	@Override
-	protected TestDataDef convertSourceToModel(String source) throws Exception {
-		return TestDataHelper.parse(source);
+	protected TestScript convertSourceToModel(String source) throws Exception {
+		return TestScriptHelper.parse(source);
 	}
 
 	@SuppressWarnings("unchecked")
 	@Override
-	protected void mergeModel(TestDataDef source, TestDataDef target) {
+	protected void mergeModel(TestScript source, TestScript target) {
 		target.setName(source.getName());
 		target.setDescription(source.getDescription());
 		target.setAuthor(source.getAuthor());
 		target.setLastUpdateTime(source.getLastUpdateTime());
-		if (source.getDataList() != null) {
-			for (int i = 0; i < source.getDataList().size(); i++) {
-				TestDataGroup group;
-				if (target.getDataList().size() > i) {
-					group = target.getDataList().get(i);
+		if (source.getTestSteps() != null) {
+			for (int i = 0; i < source.getTestSteps().size(); i++) {
+				TestStep step;
+				if (target.getTestSteps().size() > i) {
+					step = target.getTestSteps().get(i);
 				} else {
-					group = new TestDataGroup();
-					group.setEntries(WritableList
-							.withElementType(TestDataEntry.class));
+					step = new TestStep();
+					step.setParameters(WritableList
+							.withElementType(Parameter.class));
 				}
-				merge(source.getDataList().get(i), group);
-				if (target.getDataList().size() > i) {
-					target.getDataList().set(i, group);
+				merge(source.getTestSteps().get(i), step);
+				if (target.getTestSteps().size() > i) {
+					target.getTestSteps().set(i, step);
 				} else {
-					target.getDataList().add(group);
+					target.getTestSteps().add(step);
 				}
 			}
-			while (target.getDataList().size() > source.getDataList().size()) {
-				target.getDataList().remove(target.getDataList().size() - 1);
+			while (target.getTestSteps().size() > source.getTestSteps().size()) {
+				target.getTestSteps().remove(target.getTestSteps().size() - 1);
 			}
 		} else {
-			target.getDataList().clear();
+			target.getTestSteps().clear();
 		}
 	}
 
-	private void merge(TestDataGroup source, TestDataGroup target) {
-		target.setName(source.getName());
-		if (source.getEntries() != null) {
-			for (int i = 0; i < source.getEntries().size(); i++) {
-				TestDataEntry entry;
-				if (target.getEntries().size() > i) {
-					entry = target.getEntries().get(i);
+	private void merge(TestStep source, TestStep target) {
+		target.setDependentSteps(source.getDependentSteps());
+		target.setInvokeType(source.getInvokeType());
+		target.setInvokeTarget(source.getInvokeTarget());
+		target.setTestDataFile(source.getTestDataFile());
+		target.setLoopTimes(source.getLoopTimes());
+		if (source.getParameters() != null) {
+			for (int i = 0; i < source.getParameters().size(); i++) {
+				Parameter param;
+				if (target.getParameters().size() > i) {
+					param = target.getParameters().get(i);
 				} else {
-					entry = new TestDataEntry();
+					param = new Parameter();
 				}
-				TestDataEntry e = source.getEntries().get(i);
-				entry.setKey(e.getKey());
-				entry.setValue(e.getValue());
-				entry.setType(e.getType());
-				entry.setMemo(e.getMemo());
-				if (target.getEntries().size() > i) {
-					target.getEntries().set(i, entry);
+				Parameter e = source.getParameters().get(i);
+				param.setKey(e.getKey());
+				param.setValue(e.getValue());
+				param.setMemo(e.getMemo());
+				if (target.getParameters().size() > i) {
+					target.getParameters().set(i, param);
 				} else {
-					target.getEntries().add(entry);
+					target.getParameters().add(param);
 				}
 			}
-			while (target.getEntries().size() > source.getEntries().size()) {
-				target.getEntries().remove(target.getEntries().size() - 1);
+			while (target.getParameters().size() > source.getParameters()
+					.size()) {
+				target.getParameters()
+						.remove(target.getParameters().size() - 1);
 			}
 		} else {
-			target.getEntries().clear();
+			target.getParameters().clear();
 		}
 	}
 
@@ -648,13 +729,13 @@ public class TestDataFormPage extends DocumentFormPage<TestDataDef> {
 	protected void enableControls(boolean readonly) {
 		super.enableControls(readonly);
 		if (!readonly) {
-			setGroupTableButtonStates();
+			setStepTableButtonStates();
 			setEntryTableButtonStates();
 		}
 	}
 
 	@Override
-	protected void bindControls(TestDataDef model) {
+	protected void bindControls(TestScript model) {
 		IManagedForm managedForm = getManagedForm();
 		UIUtils.bindText(dataBindingContext, managedForm, nameText, model,
 				"name", Converters.TRIM, Converters.TRIM);

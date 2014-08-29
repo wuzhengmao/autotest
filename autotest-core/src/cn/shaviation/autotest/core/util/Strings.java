@@ -22,13 +22,15 @@ public abstract class Strings {
 		return str1.equals(str2);
 	}
 
-	public static String merge(Collection<String> strings, String delimiter) {
+	public static String merge(Collection<?> objs, String delimiter) {
 		StringBuilder sb = new StringBuilder();
-		for (String str : strings) {
-			if (sb.length() > 0) {
-				sb.append(delimiter);
+		for (Object obj : objs) {
+			if (obj != null) {
+				if (sb.length() > 0) {
+					sb.append(delimiter);
+				}
+				sb.append(obj.toString());
 			}
-			sb.append(str);
 		}
 		return sb.toString();
 	}

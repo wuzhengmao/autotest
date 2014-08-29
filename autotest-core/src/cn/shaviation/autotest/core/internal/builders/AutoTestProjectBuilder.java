@@ -21,10 +21,12 @@ import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.JavaModelException;
 
 import cn.shaviation.autotest.core.AutoTestCore;
+import cn.shaviation.autotest.core.jdt.AutoTestProjects;
 import cn.shaviation.autotest.core.model.TestDataDef;
 import cn.shaviation.autotest.core.model.TestDataHelper;
 import cn.shaviation.autotest.core.model.TestScript;
 import cn.shaviation.autotest.core.model.TestScriptHelper;
+import cn.shaviation.autotest.core.model.TestStep;
 import cn.shaviation.autotest.core.util.IOUtils;
 import cn.shaviation.autotest.core.util.JavaUtils;
 import cn.shaviation.autotest.core.util.Logs;
@@ -35,13 +37,14 @@ public class AutoTestProjectBuilder extends IncrementalProjectBuilder {
 	private static final String MARKER = "cn.shaviation.autotest.core.problemmarker";
 
 	private IProject project;
+	private IJavaProject javaProject;
 	private IPath[] outputPaths;
 
 	@Override
 	protected void startupOnInitialize() {
 		super.startupOnInitialize();
 		project = getProject();
-		IJavaProject javaProject = JavaUtils.getJavaProject(project);
+		javaProject = JavaUtils.getJavaProject(project);
 		if (javaProject != null) {
 			Set<IPath> paths = new HashSet<IPath>();
 			try {
@@ -85,6 +88,9 @@ public class AutoTestProjectBuilder extends IncrementalProjectBuilder {
 				incrementalBuild(delta, monitor);
 			}
 			break;
+		}
+		if (javaProject == null) {
+			addProblem(project, "Not a Java project", IMarker.SEVERITY_ERROR);
 		}
 		return null;
 	}
@@ -190,6 +196,43 @@ public class AutoTestProjectBuilder extends IncrementalProjectBuilder {
 				}
 				for (String error : TestScriptHelper.validate(testScript)) {
 					addProblem(resource, error, IMarker.SEVERITY_ERROR);
+				}
+				if (javaProject != null && testScript.getTestSteps() != null) {
+					for (TestStep step : testScript.getTestSteps()) {
+						if (!Strings.isEmpty(step.getInvokeTarget())) {
+							if (step.getInvokeType() == TestStep.Type.TestMethod) {
+								if (!AutoTestProjects.checkTestMethod(
+										javaProject, step.getInvokeTarget())) {
+									addProblem(
+											resource,
+											"Test method '"
+													+ step.getInvokeTarget()
+													+ "' not found",
+											IMarker.SEVERITY_ERROR);
+								}
+								if (!Strings.isEmpty(step.getTestDataFile())) {
+									if (!AutoTestProjects
+											.checkNonJavaResource(javaProject,
+													step.getTestDataFile())) {
+										addProblem(resource, "Resource '"
+												+ step.getTestDataFile()
+												+ "' not found",
+												IMarker.SEVERITY_ERROR);
+									}
+								}
+							} else {
+								if (!AutoTestProjects.checkNonJavaResource(
+										javaProject, step.getInvokeTarget())) {
+									addProblem(
+											resource,
+											"Resource '"
+													+ step.getInvokeTarget()
+													+ "' not found",
+											IMarker.SEVERITY_ERROR);
+								}
+							}
+						}
+					}
 				}
 			} else {
 				addProblem(resource, "No content", IMarker.SEVERITY_WARNING);

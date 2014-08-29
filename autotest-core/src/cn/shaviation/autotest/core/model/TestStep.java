@@ -1,7 +1,6 @@
 package cn.shaviation.autotest.core.model;
 
 import java.util.List;
-import java.util.Set;
 
 import javax.validation.constraints.Min;
 import javax.validation.constraints.NotNull;
@@ -16,7 +15,7 @@ public class TestStep {
 		TestMethod, TestScript
 	}
 
-	private Set<Integer> dependentSteps;
+	private List<Integer> dependentSteps;
 
 	@NotNull(message = "{testStep.invokeType.NotNull}")
 	private Type invokeType;
@@ -32,11 +31,11 @@ public class TestStep {
 	@Unique(property = "key", message = "{parameter.key.Unique}")
 	private List<Parameter> parameters;
 
-	public Set<Integer> getDependentSteps() {
+	public List<Integer> getDependentSteps() {
 		return dependentSteps;
 	}
 
-	public void setDependentSteps(Set<Integer> dependentSteps) {
+	public void setDependentSteps(List<Integer> dependentSteps) {
 		this.dependentSteps = dependentSteps;
 	}
 

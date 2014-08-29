@@ -9,15 +9,13 @@ import org.eclipse.ui.IFileEditorInput;
 import org.eclipse.ui.IPersistableElement;
 import org.eclipse.ui.texteditor.IDocumentProvider;
 
-import cn.shaviation.autotest.core.model.TestDataDef;
-
-public class TestDataEditorInput implements IFileEditorInput {
+public class DocumentEditorInput<T> implements IFileEditorInput {
 
 	private IFileEditorInput fileEditorInput;
 	private IDocumentProvider documentProvider;
-	private TestDataDef testDataDef;
+	private T model;
 
-	public TestDataEditorInput(IFileEditorInput fileEditorInput) {
+	public DocumentEditorInput(IFileEditorInput fileEditorInput) {
 		this.fileEditorInput = fileEditorInput;
 	}
 
@@ -76,7 +74,7 @@ public class TestDataEditorInput implements IFileEditorInput {
 		return documentProvider;
 	}
 
-	/* package */void setDocumentProvider(IDocumentProvider documentProvider) {
+	public void setDocumentProvider(IDocumentProvider documentProvider) {
 		this.documentProvider = documentProvider;
 	}
 
@@ -84,15 +82,15 @@ public class TestDataEditorInput implements IFileEditorInput {
 		return documentProvider.getDocument(this);
 	}
 
-	public TestDataDef getTestDataDef() {
-		return testDataDef;
+	public T getModel() {
+		return model;
 	}
 
-	public void setTestDataDef(TestDataDef testDataDef) {
-		this.testDataDef = testDataDef;
+	public void setModel(T model) {
+		this.model = model;
 	}
 
-	/* package */void setFileEditorInput(IFileEditorInput fileEditorInput) {
+	public void setFileEditorInput(IFileEditorInput fileEditorInput) {
 		this.fileEditorInput = fileEditorInput;
 	}
 }

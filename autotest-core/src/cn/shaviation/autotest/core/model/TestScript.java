@@ -12,11 +12,11 @@ public class TestScript {
 
 	private String description;
 
-	private List<TestStep> testSteps;
-
 	private String author;
 
 	private Date lastUpdateTime;
+
+	private List<TestStep> testSteps;
 
 	public String getName() {
 		return name;
@@ -34,14 +34,6 @@ public class TestScript {
 		this.description = description;
 	}
 
-	public List<TestStep> getTestSteps() {
-		return testSteps;
-	}
-
-	public void setTestSteps(List<TestStep> testSteps) {
-		this.testSteps = testSteps;
-	}
-
 	public String getAuthor() {
 		return author;
 	}
@@ -56,5 +48,13 @@ public class TestScript {
 
 	public void setLastUpdateTime(Date lastUpdateTime) {
 		this.lastUpdateTime = lastUpdateTime;
+	}
+
+	public List<TestStep> getTestSteps() {
+		return testSteps;
+	}
+
+	public void setTestSteps(List<TestStep> testSteps) {
+		this.testSteps = testSteps;
 	}
 }

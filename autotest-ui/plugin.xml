@@ -8,7 +8,7 @@
             name="Test Data Editor"
             extensions="tdd"
             icon="icons/testdata.png"
-            contributorClass="cn.shaviation.autotest.ui.internal.editors.TestDataEditorContributor"
+            contributorClass="cn.shaviation.autotest.ui.internal.editors.DocumentEditorContributor"
             class="cn.shaviation.autotest.ui.internal.editors.TestDataEditor"
             id="cn.shaviation.autotest.ui.editors.TestDataEditor">
       </editor>
@@ -34,6 +34,13 @@
             category="cn.shaviation.autotest.ui.wizards"
             class="cn.shaviation.autotest.ui.internal.wizards.NewTestDataWizard"
             id="cn.shaviation.autotest.ui.wizards.NewTestDataWizard">
+      </wizard>
+      <wizard
+            name="Test Script file"
+            icon="icons/script.png"
+            category="cn.shaviation.autotest.ui.wizards"
+            class="cn.shaviation.autotest.ui.internal.wizards.NewTestScriptWizard"
+            id="cn.shaviation.autotest.ui.wizards.NewTestScriptWizard">
       </wizard>
    </extension>
 

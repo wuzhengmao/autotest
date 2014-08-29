@@ -8,21 +8,13 @@ import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.Status;
-import org.eclipse.jdt.core.Flags;
 import org.eclipse.jdt.core.IAnnotation;
 import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.IJavaProject;
-import org.eclipse.jdt.core.IMemberValuePair;
 import org.eclipse.jdt.core.IMethod;
 import org.eclipse.jdt.core.IPackageFragmentRoot;
 import org.eclipse.jdt.core.IType;
-import org.eclipse.jdt.core.JavaModelException;
-import org.eclipse.jdt.core.search.IJavaSearchConstants;
-import org.eclipse.jdt.core.search.IJavaSearchScope;
-import org.eclipse.jdt.core.search.SearchEngine;
 import org.eclipse.jdt.core.search.SearchMatch;
-import org.eclipse.jdt.core.search.SearchParticipant;
-import org.eclipse.jdt.core.search.SearchPattern;
 import org.eclipse.jdt.core.search.SearchRequestor;
 import org.eclipse.jdt.core.search.TypeReferenceMatch;
 import org.eclipse.jdt.ui.ISharedImages;
@@ -40,6 +32,7 @@ import org.eclipse.swt.widgets.Text;
 import org.eclipse.ui.dialogs.FilteredItemsSelectionDialog;
 
 import cn.shaviation.autotest.core.annotation.TestMethod;
+import cn.shaviation.autotest.core.jdt.AutoTestProjects;
 import cn.shaviation.autotest.core.util.JavaUtils;
 import cn.shaviation.autotest.core.util.Logs;
 import cn.shaviation.autotest.core.util.Strings;
@@ -142,16 +135,8 @@ public class TestMethodSelectionDialog extends FilteredItemsSelectionDialog {
 		MethodItemsFilter methodSearchFilter = (MethodItemsFilter) itemsFilter;
 		MethodSearchRequestor requestor = new MethodSearchRequestor(provider,
 				methodSearchFilter);
-		SearchPattern pattern = SearchPattern.createPattern(
-				TestMethod.class.getName(), IJavaSearchConstants.TYPE,
-				IJavaSearchConstants.ANNOTATION_TYPE_REFERENCE,
-				SearchPattern.R_PATTERN_MATCH | SearchPattern.R_CASE_SENSITIVE);
-		IJavaSearchScope scope = SearchEngine
-				.createJavaSearchScope(new IJavaElement[] { javaProject });
-		SearchEngine engine = new SearchEngine();
 		progressMonitor.setTaskName("Searching");
-		engine.search(pattern, new SearchParticipant[] { SearchEngine
-				.getDefaultSearchParticipant() }, scope, requestor,
+		AutoTestProjects.searchTestMethods(javaProject, requestor,
 				progressMonitor);
 	}
 
@@ -162,7 +147,7 @@ public class TestMethodSelectionDialog extends FilteredItemsSelectionDialog {
 
 	@Override
 	public String getElementName(Object item) {
-		return getMethodName(item);
+		return AutoTestProjects.getTestMethodName((TypeReferenceMatch) item);
 	}
 
 	@Override
@@ -215,7 +200,7 @@ public class TestMethodSelectionDialog extends FilteredItemsSelectionDialog {
 		public Image getImage(Object element) {
 			if (element != null) {
 				return JavaUI.getSharedImages().getImage(
-						ISharedImages.IMG_OBJS_CLASS);
+						ISharedImages.IMG_OBJS_PUBLIC);
 			} else {
 				return super.getImage(element);
 			}
@@ -259,12 +244,14 @@ public class TestMethodSelectionDialog extends FilteredItemsSelectionDialog {
 		private String getText(Object element, boolean fully) {
 			IAnnotation annotation = getAnnotation(element);
 			StringBuilder sb = new StringBuilder();
-			sb.append(getMethodName(element));
+			sb.append(AutoTestProjects.getTestMethodName(annotation));
 			if (fully) {
 				sb.append(" - ");
-				sb.append(getMethodQualifiedName(element));
+				sb.append(AutoTestProjects
+						.getTestMethodQualifiedName(annotation));
 				sb.append(" - ");
-				String version = getAnnotationValue(annotation, "version");
+				String version = AutoTestProjects.getAnnotationValue(
+						annotation, "version");
 				if (Strings.isEmpty(version)) {
 					try {
 						version = Strings.objToString(TestMethod.class
@@ -281,7 +268,8 @@ public class TestMethodSelectionDialog extends FilteredItemsSelectionDialog {
 					}
 					sb.append(version);
 				}
-				String author = getAnnotationValue(annotation, "author");
+				String author = AutoTestProjects.getAnnotationValue(annotation,
+						"author");
 				if (!Strings.isEmpty(author)) {
 					sb.append(" by ").append(author);
 				}
@@ -291,68 +279,12 @@ public class TestMethodSelectionDialog extends FilteredItemsSelectionDialog {
 	}
 
 	private static IAnnotation getAnnotation(Object element) {
-		try {
-			if (element instanceof TypeReferenceMatch) {
-				IJavaElement javaElement = ((TypeReferenceMatch) element)
-						.getLocalElement();
-				if (javaElement != null) {
-					if (javaElement instanceof IAnnotation
-							&& javaElement.getParent() instanceof IMethod) {
-						IAnnotation annotation = (IAnnotation) javaElement;
-						IMethod method = (IMethod) javaElement.getParent();
-						if (Flags.isPublic(method.getFlags())
-								&& Flags.isPublic(method.getDeclaringType()
-										.getFlags())) {
-							return annotation;
-						}
-					}
-				} else if (((TypeReferenceMatch) element).getElement() instanceof IMethod) {
-					IMethod method = (IMethod) ((TypeReferenceMatch) element)
-							.getElement();
-					if (Flags.isPublic(method.getFlags())
-							&& Flags.isPublic(method.getDeclaringType()
-									.getFlags())) {
-						return method.getAnnotation(TestMethod.class.getName());
-					}
-				}
-			}
-		} catch (JavaModelException e) {
-			Logs.w(e);
-		}
-		return null;
+		return element instanceof TypeReferenceMatch ? AutoTestProjects
+				.getTestMethodAnnotation((TypeReferenceMatch) element) : null;
 	}
 
-	private static String getAnnotationValue(IAnnotation annotation, String name) {
-		try {
-			for (IMemberValuePair pair : annotation.getMemberValuePairs()) {
-				if (pair.getMemberName().equals(name)) {
-					return Strings.objToString(pair.getValue());
-				}
-			}
-		} catch (JavaModelException e) {
-			Logs.w(e);
-		}
-		return "";
-	}
-
-	private static String getMethodName(Object element) {
-		IAnnotation annotation = getAnnotation(element);
+	private static String getMethodTypeName(IAnnotation annotation) {
 		IMethod method = (IMethod) annotation.getParent();
-		String methodName = getAnnotationValue(annotation, "value");
-		if (Strings.isEmpty(methodName)) {
-			methodName = method.getElementName();
-		}
-		return methodName;
-	}
-
-	private static String getMethodQualifiedName(Object element) {
-		IMethod method = (IMethod) getAnnotation(element).getParent();
-		IType type = method.getDeclaringType();
-		return type.getFullyQualifiedName() + "#" + method.getElementName();
-	}
-
-	private static String getMethodTypeName(Object element) {
-		IMethod method = (IMethod) getAnnotation(element).getParent();
 		IType type = method.getDeclaringType();
 		return type.getElementName();
 	}
@@ -360,12 +292,15 @@ public class TestMethodSelectionDialog extends FilteredItemsSelectionDialog {
 	private static class MethodItemsComparator implements Comparator<Object> {
 
 		public int compare(Object left, Object right) {
-			int result = getMethodName(left).compareTo(getMethodName(right));
+			IAnnotation leftAnno = getAnnotation(left);
+			IAnnotation rightAnno = getAnnotation(right);
+			int result = AutoTestProjects.getTestMethodName(leftAnno)
+					.compareTo(AutoTestProjects.getTestMethodName(rightAnno));
 			if (result != 0) {
 				return result;
 			}
-			IMethod leftMethod = (IMethod) getAnnotation(left).getParent();
-			IMethod rightMethod = (IMethod) getAnnotation(right).getParent();
+			IMethod leftMethod = (IMethod) leftAnno.getParent();
+			IMethod rightMethod = (IMethod) rightAnno.getParent();
 			result = leftMethod
 					.getDeclaringType()
 					.getFullyQualifiedName()
@@ -390,15 +325,16 @@ public class TestMethodSelectionDialog extends FilteredItemsSelectionDialog {
 
 		@Override
 		public boolean matchItem(Object item) {
-			String text = getMethodName(item);
+			IAnnotation annotation = getAnnotation(item);
+			String text = AutoTestProjects.getTestMethodName(annotation);
 			if (matches(text)) {
 				return true;
 			}
-			text = getMethodTypeName(item);
+			text = getMethodTypeName(annotation);
 			if (matches(text)) {
 				return true;
 			}
-			text = getMethodQualifiedName(item);
+			text = AutoTestProjects.getTestMethodQualifiedName(annotation);
 			return matches(text);
 		}
 

@@ -143,23 +143,32 @@ public abstract class NonJavaResourceFinder {
 		return i >= 0 ? name.substring(i + 1) : "";
 	}
 
-	public static Object lookup(IJavaProject javaProject, String location,
-			IProgressMonitor monitor) throws CoreException {
+	public static Object lookup(IJavaProject javaProject,
+			final String location, IProgressMonitor monitor)
+			throws CoreException {
 		final Object[] result = new Object[1];
 		search(javaProject, null, new INonJavaResourceVisitor() {
 
 			@Override
 			public boolean visit(String path, IFile resource)
 					throws CoreException {
-				result[0] = resource;
-				return false;
+				if (path.equals(location)) {
+					result[0] = resource;
+					return false;
+				} else {
+					return true;
+				}
 			}
 
 			@Override
 			public boolean visit(String path, IJarEntryResource resource)
 					throws CoreException {
-				result[0] = resource;
-				return false;
+				if (path.equals(location)) {
+					result[0] = resource;
+					return false;
+				} else {
+					return true;
+				}
 			}
 		}, monitor);
 		return result[0];
