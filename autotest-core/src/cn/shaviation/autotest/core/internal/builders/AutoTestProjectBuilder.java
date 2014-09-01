@@ -200,7 +200,7 @@ public class AutoTestProjectBuilder extends IncrementalProjectBuilder {
 				if (javaProject != null && testScript.getTestSteps() != null) {
 					for (TestStep step : testScript.getTestSteps()) {
 						if (!Strings.isEmpty(step.getInvokeTarget())) {
-							if (step.getInvokeType() == TestStep.Type.TestMethod) {
+							if (step.getInvokeType() == TestStep.Type.Method) {
 								if (!AutoTestProjects.checkTestMethod(
 										javaProject, step.getInvokeTarget())) {
 									addProblem(

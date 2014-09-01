@@ -35,6 +35,7 @@ import cn.shaviation.autotest.core.annotation.TestMethod;
 import cn.shaviation.autotest.core.jdt.AutoTestProjects;
 import cn.shaviation.autotest.core.util.JavaUtils;
 import cn.shaviation.autotest.core.util.Logs;
+import cn.shaviation.autotest.core.util.Objects;
 import cn.shaviation.autotest.core.util.Strings;
 import cn.shaviation.autotest.ui.AutoTestUI;
 import cn.shaviation.autotest.ui.internal.util.UIUtils;
@@ -254,8 +255,8 @@ public class TestMethodSelectionDialog extends FilteredItemsSelectionDialog {
 						annotation, "version");
 				if (Strings.isEmpty(version)) {
 					try {
-						version = Strings.objToString(TestMethod.class
-								.getMethod("version").getDefaultValue());
+						version = Objects.toString(TestMethod.class.getMethod(
+								"version").getDefaultValue());
 					} catch (Exception e) {
 						Logs.w(e);
 					}

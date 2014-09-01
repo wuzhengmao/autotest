@@ -32,6 +32,7 @@ import cn.shaviation.autotest.core.model.TestDataHelper;
 import cn.shaviation.autotest.core.model.TestScript;
 import cn.shaviation.autotest.core.model.TestScriptHelper;
 import cn.shaviation.autotest.core.util.IOUtils;
+import cn.shaviation.autotest.core.util.Objects;
 import cn.shaviation.autotest.core.util.Strings;
 
 public abstract class AutoTestProjects {
@@ -83,15 +84,16 @@ public abstract class AutoTestProjects {
 	public static boolean checkTestMethod(IJavaProject javaProject,
 			String testMethod) {
 		IMethod method = getTestMethod(javaProject, testMethod);
-		return method.getAnnotation(TestMethod.class.getName()) != null
+		return method != null
+				&& method.getAnnotation(TestMethod.class.getName()) != null
 				&& method.getDeclaringType().exists();
 	}
 
 	public static String getTestMethodName(IJavaProject javaProject,
 			String testMethod) {
 		IMethod method = getTestMethod(javaProject, testMethod);
-		IAnnotation annotation = method.getAnnotation(TestMethod.class
-				.getName());
+		IAnnotation annotation = method != null ? method
+				.getAnnotation(TestMethod.class.getName()) : null;
 		return annotation != null ? getTestMethodName(annotation) : "";
 	}
 
@@ -127,7 +129,7 @@ public abstract class AutoTestProjects {
 		try {
 			for (IMemberValuePair pair : annotation.getMemberValuePairs()) {
 				if (pair.getMemberName().equals(name)) {
-					return Strings.objToString(pair.getValue());
+					return Objects.toString(pair.getValue());
 				}
 			}
 		} catch (JavaModelException e) {

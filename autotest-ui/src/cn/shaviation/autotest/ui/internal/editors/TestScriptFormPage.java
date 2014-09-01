@@ -3,6 +3,7 @@ package cn.shaviation.autotest.ui.internal.editors;
 import java.util.Collections;
 import java.util.List;
 
+import org.eclipse.core.databinding.DataBindingContext;
 import org.eclipse.core.databinding.beans.PojoObservables;
 import org.eclipse.core.databinding.observable.list.IListChangeListener;
 import org.eclipse.core.databinding.observable.list.ListChangeEvent;
@@ -13,9 +14,9 @@ import org.eclipse.core.resources.IProject;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jface.databinding.viewers.ObservableListContentProvider;
 import org.eclipse.jface.databinding.viewers.ObservableMapLabelProvider;
+import org.eclipse.jface.viewers.ArrayContentProvider;
 import org.eclipse.jface.viewers.CellEditor;
-import org.eclipse.jface.viewers.ComboBoxCellEditor;
-import org.eclipse.jface.viewers.ComboBoxViewerCellEditor;
+import org.eclipse.jface.viewers.ComboViewer;
 import org.eclipse.jface.viewers.ICellModifier;
 import org.eclipse.jface.viewers.ISelection;
 import org.eclipse.jface.viewers.ISelectionChangedListener;
@@ -41,6 +42,7 @@ import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Text;
 import org.eclipse.ui.IEditorInput;
 import org.eclipse.ui.forms.IManagedForm;
+import org.eclipse.ui.forms.IMessageManager;
 import org.eclipse.ui.forms.widgets.FormToolkit;
 import org.eclipse.ui.forms.widgets.ScrolledForm;
 import org.eclipse.ui.forms.widgets.Section;
@@ -48,22 +50,24 @@ import org.eclipse.ui.forms.widgets.TableWrapData;
 
 import cn.shaviation.autotest.core.jdt.AutoTestProjects;
 import cn.shaviation.autotest.core.model.Parameter;
-import cn.shaviation.autotest.core.model.TestDataEntry;
-import cn.shaviation.autotest.core.model.TestDataGroup;
 import cn.shaviation.autotest.core.model.TestScript;
 import cn.shaviation.autotest.core.model.TestScriptHelper;
 import cn.shaviation.autotest.core.model.TestStep;
 import cn.shaviation.autotest.core.util.JavaUtils;
+import cn.shaviation.autotest.core.util.Objects;
 import cn.shaviation.autotest.core.util.Strings;
 import cn.shaviation.autotest.core.util.Validators;
 import cn.shaviation.autotest.ui.internal.databinding.Converters;
+import cn.shaviation.autotest.ui.internal.util.EnumLabelProvider;
+import cn.shaviation.autotest.ui.internal.util.NumberVerifyListener;
+import cn.shaviation.autotest.ui.internal.util.SelectionChangedListener;
 import cn.shaviation.autotest.ui.internal.util.TableLabelProvider;
 import cn.shaviation.autotest.ui.internal.util.UIUtils;
 
 public class TestScriptFormPage extends DocumentFormPage<TestScript> {
 
 	private IJavaProject javaProject;
-	
+
 	private Text nameText;
 	private Text descText;
 	private Text authorText;
@@ -74,11 +78,22 @@ public class TestScriptFormPage extends DocumentFormPage<TestScript> {
 	private Button moveStepUpButton;
 	private Button moveStepDownButton;
 
-	private TableViewer entryTable;
-	private Button newEntryButton;
-	private Button removeEntryButton;
-	private Button moveEntryUpButton;
-	private Button moveEntryDownButton;
+	private DataBindingContext detailBindingContext;
+	private Section detailSection;
+	private ComboViewer invokeTypeCombo;
+	private Label invokeTargetLabel;
+	private Text invokeTargetText;
+	private Button invokeTargetButton;
+	private Label testDataLabel;
+	private Text testDataText;
+	private Button testDataButton;
+	private Text loopTimesText;
+	private Text dependenceText;
+	private TableViewer paramTable;
+	private Button newParamButton;
+	private Button removeParamButton;
+	private Button moveParamUpButton;
+	private Button moveParamDownButton;
 
 	public TestScriptFormPage(TestScriptEditor editor) {
 		super(editor, "cn.shaviation.autotest.ui.editors.TestScriptFormPage",
@@ -107,7 +122,8 @@ public class TestScriptFormPage extends DocumentFormPage<TestScript> {
 		Composite rightComposite = toolkit.createComposite(body, SWT.NONE);
 		rightComposite.setLayoutData(new GridData(GridData.FILL_BOTH));
 		rightComposite.setLayout(UIUtils.createFormPaneGridLayout(false, 1));
-		createDataSection(toolkit, rightComposite);
+		createDetailSection(toolkit, rightComposite);
+		detailSection.setVisible(false);
 		super.createFormContent(managedForm);
 	}
 
@@ -167,26 +183,26 @@ public class TestScriptFormPage extends DocumentFormPage<TestScript> {
 		toolkit.adapt(stepTable.getTable(), false, false);
 		final TableViewerColumn tvc1 = new TableViewerColumn(stepTable,
 				SWT.RIGHT);
-		tvc1.getColumn().setWidth(15);
+		tvc1.getColumn().setWidth(35);
 		tvc1.getColumn().setText("No.");
 		final TableViewerColumn tvc2 = new TableViewerColumn(stepTable,
 				SWT.LEFT);
-		tvc2.getColumn().setWidth(60);
+		tvc2.getColumn().setWidth(80);
 		tvc2.getColumn().setText("Name");
 		final TableViewerColumn tvc3 = new TableViewerColumn(stepTable,
 				SWT.LEFT);
-		tvc3.getColumn().setWidth(15);
+		tvc3.getColumn().setWidth(45);
 		tvc3.getColumn().setText("Type");
 		final TableViewerColumn tvc4 = new TableViewerColumn(stepTable,
 				SWT.LEFT);
-		tvc4.getColumn().setWidth(60);
+		tvc4.getColumn().setWidth(80);
 		tvc4.getColumn().setText("Prev.");
 		stepTable.getTable().addControlListener(new ControlAdapter() {
 			@Override
 			public void controlResized(ControlEvent event) {
 				Point size = ((Control) event.getSource()).getSize();
-				int w = size.x - 96;
-				tvc2.getColumn().setWidth(w > 60 ? w : 60);
+				int w = size.x - 166;
+				tvc2.getColumn().setWidth(w > 80 ? w : 80);
 			}
 		});
 		final WritableList testSteps = (WritableList) getEditorInput()
@@ -198,15 +214,14 @@ public class TestScriptFormPage extends DocumentFormPage<TestScript> {
 
 					@Override
 					public void handleAdd(int index, Object element) {
-						validate((TestDataGroup) element, true);
+						validate((TestStep) element, true);
 					}
 
 					@Override
 					public void handleRemove(int index, Object element) {
-						clearError((TestDataGroup) element, true);
+						clearError((TestStep) element, true);
 					}
 				});
-				validateGroups();
 				onFormChange();
 			}
 		});
@@ -222,13 +237,14 @@ public class TestScriptFormPage extends DocumentFormPage<TestScript> {
 				case 1:
 					return getTestStepName(step);
 				case 2:
-					if (step.getInvokeType() == TestStep.Type.TestMethod) {
+					if (step.getInvokeType() == TestStep.Type.Method) {
 						return "M";
-					} else if (step.getInvokeType() == TestStep.Type.TestScript) {
+					} else if (step.getInvokeType() == TestStep.Type.Script) {
 						return "S";
 					}
 				case 3:
-					if (step.getDependentSteps() != null && !step.getDependentSteps().isEmpty()) {
+					if (step.getDependentSteps() != null
+							&& !step.getDependentSteps().isEmpty()) {
 						return Strings.merge(step.getDependentSteps(), ",");
 					}
 				}
@@ -241,13 +257,14 @@ public class TestScriptFormPage extends DocumentFormPage<TestScript> {
 		buttons.setLayout(UIUtils.createButtonsGridLayout());
 		newStepButton = toolkit.createButton(buttons, "New", SWT.PUSH);
 		newStepButton.setLayoutData(new GridData(GridData.FILL_HORIZONTAL
-				| GridData.CENTER));
+				| GridData.VERTICAL_ALIGN_BEGINNING));
 		newStepButton.addSelectionListener(new SelectionAdapter() {
 			@SuppressWarnings("unchecked")
 			@Override
 			public void widgetSelected(SelectionEvent event) {
 				TestStep step = new TestStep();
-				step.setInvokeType(TestStep.Type.TestMethod);
+				step.setInvokeType(TestStep.Type.Method);
+				step.setLoopTimes(1);
 				step.setParameters(WritableList
 						.withElementType(Parameter.class));
 				testSteps.add(step);
@@ -256,19 +273,21 @@ public class TestScriptFormPage extends DocumentFormPage<TestScript> {
 		});
 		removeStepButton = toolkit.createButton(buttons, "Remove", SWT.PUSH);
 		removeStepButton.setLayoutData(new GridData(GridData.FILL_HORIZONTAL
-				| GridData.CENTER));
+				| GridData.VERTICAL_ALIGN_BEGINNING));
 		removeStepButton.addSelectionListener(new SelectionAdapter() {
 			@SuppressWarnings("unchecked")
 			@Override
 			public void widgetSelected(SelectionEvent event) {
+				detailSection.setData(null);
 				int sel = stepTable.getTable().getSelectionIndex();
-				stepTable.remove(sel);
+				testSteps.remove(sel);
+				reorderStepTable(sel);
 				removeDependence(testSteps, sel);
 			}
 		});
 		moveStepUpButton = toolkit.createButton(buttons, "Up", SWT.PUSH);
 		moveStepUpButton.setLayoutData(new GridData(GridData.FILL_HORIZONTAL
-				| GridData.CENTER));
+				| GridData.VERTICAL_ALIGN_BEGINNING));
 		moveStepUpButton.addSelectionListener(new SelectionAdapter() {
 			@SuppressWarnings("unchecked")
 			@Override
@@ -276,13 +295,14 @@ public class TestScriptFormPage extends DocumentFormPage<TestScript> {
 				ISelection selection = stepTable.getSelection();
 				int sel = stepTable.getTable().getSelectionIndex();
 				testSteps.add(sel - 1, testSteps.remove(sel));
+				reorderStepTable(sel - 1);
 				stepTable.setSelection(selection, true);
 				exchangeDependence(testSteps, sel, sel - 1);
 			}
 		});
 		moveStepDownButton = toolkit.createButton(buttons, "Down", SWT.PUSH);
 		moveStepDownButton.setLayoutData(new GridData(GridData.FILL_HORIZONTAL
-				| GridData.CENTER));
+				| GridData.VERTICAL_ALIGN_BEGINNING));
 		moveStepDownButton.addSelectionListener(new SelectionAdapter() {
 			@SuppressWarnings("unchecked")
 			@Override
@@ -290,6 +310,7 @@ public class TestScriptFormPage extends DocumentFormPage<TestScript> {
 				ISelection selection = stepTable.getSelection();
 				int sel = stepTable.getTable().getSelectionIndex();
 				testSteps.add(sel, testSteps.remove(sel + 1));
+				reorderStepTable(sel);
 				stepTable.setSelection(selection, true);
 				exchangeDependence(testSteps, sel, sel + 1);
 			}
@@ -299,31 +320,49 @@ public class TestScriptFormPage extends DocumentFormPage<TestScript> {
 			@Override
 			public void selectionChanged(SelectionChangedEvent event) {
 				setStepTableButtonStates();
-				setEntryTableButtonStates();
 				if (!event.getSelection().isEmpty()) {
 					TestStep step = (TestStep) ((IStructuredSelection) stepTable
 							.getSelection()).getFirstElement();
-					entryTable.setInput(group.getEntries());
+					if (!step.equals(detailSection.getData())) {
+						unbindDetails();
+						detailSection.setData(step);
+						detailSection.setVisible(true);
+						setIgnoreChange(true);
+						bindDetails(step);
+						detailSection.setData(step);
+						setIgnoreChange(false);
+						setParamTableButtonStates();
+					}
 				} else {
-					entryTable.setInput(WritableList
-							.withElementType(TestDataEntry.class));
+					unbindDetails();
+					detailSection.setVisible(false);
+					detailSection.setData(null);
 				}
 			}
 		});
 	}
-	
+
 	private String getTestStepName(TestStep step) {
 		if (javaProject != null && !Strings.isEmpty(step.getInvokeTarget())) {
-			if (step.getInvokeType() == TestStep.Type.TestMethod) {
-				return AutoTestProjects.getTestMethodName(javaProject, step.getInvokeTarget());
-			} else if (step.getInvokeType() == TestStep.Type.TestMethod) {
-				return AutoTestProjects.getTestScriptName(javaProject, step.getInvokeTarget());
+			if (step.getInvokeType() == TestStep.Type.Method) {
+				return AutoTestProjects.getTestMethodName(javaProject,
+						step.getInvokeTarget());
+			} else if (step.getInvokeType() == TestStep.Type.Method) {
+				return AutoTestProjects.getTestScriptName(javaProject,
+						step.getInvokeTarget());
 			}
 		}
 		return "";
 	}
-	
-	private void exchangeDependence(List<TestStep> testSteps, Integer i, Integer j) {
+
+	private void reorderStepTable(int index) {
+		for (int i = index; i < stepTable.getTable().getItemCount(); i++) {
+			stepTable.getTable().getItem(i).setText(0, String.valueOf(i + 1));
+		}
+	}
+
+	private void exchangeDependence(List<TestStep> testSteps, Integer i,
+			Integer j) {
 		for (int l = 0; l < testSteps.size(); l++) {
 			TestStep step = testSteps.get(l);
 			List<Integer> dependence = step.getDependentSteps();
@@ -345,14 +384,14 @@ public class TestScriptFormPage extends DocumentFormPage<TestScript> {
 			}
 		}
 	}
-	
+
 	private void removeDependence(List<TestStep> testSteps, Integer i) {
 		for (int l = 0; l < testSteps.size(); l++) {
 			TestStep step = testSteps.get(l);
 			List<Integer> dependence = step.getDependentSteps();
 			if (dependence != null && !dependence.isEmpty()) {
 				boolean changed = false;
-				for (int k = dependence.size()-1; k >= 0; k--) {
+				for (int k = dependence.size() - 1; k >= 0; k--) {
 					if (dependence.get(k) == i) {
 						dependence.remove(k);
 						changed = true;
@@ -374,96 +413,206 @@ public class TestScriptFormPage extends DocumentFormPage<TestScript> {
 	}
 
 	private void validate(TestStep step, boolean withChildren) {
-		setError("stepTable#" + step.hashCode(),
-				Validators.getErrorMessage(Validators.validateProperty(group,
-						"name")));
+		setError("stepTable.invokeType#" + step.hashCode(),
+				Validators.getErrorMessage(Validators.validateProperty(step,
+						"invokeType")));
+		setError("stepTable.invokeTarget#" + step.hashCode(),
+				Validators.getErrorMessage(Validators.validateProperty(step,
+						"invokeTarget")));
+		setError("stepTable.loopTimes#" + step.hashCode(),
+				Validators.getErrorMessage(Validators.validateProperty(step,
+						"loopTimes")));
 		if (withChildren) {
-			if (group.getEntries() != null) {
-				validateEntries(group);
-				for (TestDataEntry entry : group.getEntries()) {
-					validate(entry);
+			if (step.getParameters() != null) {
+				validateParameters(step);
+				for (Parameter param : step.getParameters()) {
+					validate(param);
 				}
 			}
 		}
 	}
 
-	private void validate(TestDataEntry entry) {
-		setError("entryTable#" + entry.hashCode(),
-				Validators.getErrorMessage(Validators.validate(entry)));
+	private void validate(Parameter param) {
+		setError("stepTable.parameters.p#" + param.hashCode(),
+				Validators.getErrorMessage(Validators.validate(param)));
 	}
 
-	private void clearError(TestDataGroup group, boolean withChildren) {
-		setError("groupTable#" + group.hashCode(), null);
+	private void clearError(TestStep step, boolean withChildren) {
+		setError("stepTable.invokeType#" + step.hashCode(), null);
+		setError("stepTable.invokeTarget#" + step.hashCode(), null);
+		setError("stepTable.loopTimes#" + step.hashCode(), null);
 		if (withChildren) {
-			if (group.getEntries() != null) {
-				setError("testDataEntries#" + group.hashCode(), null);
-				for (TestDataEntry entry : group.getEntries()) {
-					clearError(entry);
+			if (step.getParameters() != null) {
+				setError("stepTable.parameters#" + step.hashCode(), null);
+				for (Parameter param : step.getParameters()) {
+					clearError(param);
 				}
 			}
 		}
 	}
 
-	private void clearError(TestDataEntry entry) {
-		setError("entryTable#" + entry.hashCode(), null);
+	private void clearError(Parameter param) {
+		setError("stepTable.parameters.p#" + param.hashCode(), null);
 	}
 
-	private void validateGroups() {
-		setError("testDataGroups", Validators.getErrorMessage(Validators
-				.validateProperty(getEditorInput().getModel(), "dataList")));
+	private void validateParameters(TestStep step) {
+		setError("stepTable.parameters#" + step.hashCode(),
+				Validators.getErrorMessage(Validators.validateProperty(step,
+						"parameters")));
 	}
 
-	private void validateEntries(TestDataGroup group) {
-		setError("testDataEntries#" + group.hashCode(),
-				Validators.getErrorMessage(Validators.validateProperty(group,
-						"entries")));
-	}
-
-	private void createDataSection(FormToolkit toolkit, Composite container) {
-		Section section = toolkit.createSection(container, SWT.HORIZONTAL
+	private void createDetailSection(FormToolkit toolkit, Composite container) {
+		detailSection = toolkit.createSection(container, SWT.HORIZONTAL
 				| Section.DESCRIPTION);
-		section.setText("Test Data Specification");
-		section.setDescription("Specify the specification of current selected test data group.");
-		section.setLayoutData(new GridData(GridData.FILL_BOTH));
-		section.setLayout(UIUtils.createClearTableWrapLayout(false, 1));
-		Composite client = toolkit.createComposite(section);
-		client.setLayout(UIUtils.createSectionClientGridLayout(false, 2));
-		section.setClient(client);
-		entryTable = new TableViewer(client, SWT.HIDE_SELECTION
+		detailSection.setText("Test Step Details");
+		detailSection
+				.setDescription("Specify the properties and runtime parameters of the selected test step.");
+		detailSection.setLayoutData(new GridData(GridData.FILL_BOTH));
+		detailSection.setLayout(UIUtils.createClearTableWrapLayout(false, 1));
+		Composite client = toolkit.createComposite(detailSection);
+		client.setLayout(UIUtils.createSectionClientGridLayout(false, 3));
+		detailSection.setClient(client);
+		toolkit.createLabel(client, "Type:").setLayoutData(new GridData());
+		invokeTypeCombo = new ComboViewer(client, SWT.DROP_DOWN | SWT.READ_ONLY);
+		GridData gd_invokeTypeCombo = new GridData();
+		gd_invokeTypeCombo.horizontalIndent = 5;
+		invokeTypeCombo.getCombo().setLayoutData(gd_invokeTypeCombo);
+		toolkit.adapt(invokeTypeCombo.getCombo(), false, false);
+		invokeTypeCombo
+				.addSelectionChangedListener(new SelectionChangedListener() {
+					@Override
+					public void onSelectionChanged(SelectionChangedEvent event) {
+						onFormChange();
+						TestStep.Type type = event.getSelection().isEmpty() ? null
+								: (TestStep.Type) ((IStructuredSelection) event
+										.getSelection()).getFirstElement();
+						if (type == TestStep.Type.Method) {
+							invokeTargetLabel.setText("Test Method:");
+							invokeTargetLabel.setVisible(true);
+							invokeTargetText.setText("");
+							invokeTargetText.setVisible(true);
+							invokeTargetButton.setVisible(true);
+							testDataLabel.setVisible(true);
+							testDataText.setText("");
+							testDataText.setVisible(true);
+							testDataButton.setVisible(true);
+						} else if (type == TestStep.Type.Script) {
+							invokeTargetLabel.setText("Test Script:");
+							invokeTargetLabel.setVisible(true);
+							invokeTargetText.setText("");
+							invokeTargetText.setVisible(true);
+							invokeTargetButton.setVisible(true);
+							testDataLabel.setVisible(false);
+							testDataText.setText("");
+							testDataText.setVisible(false);
+							testDataButton.setVisible(false);
+						} else {
+							invokeTargetLabel.setVisible(false);
+							invokeTargetText.setText("");
+							invokeTargetText.setVisible(false);
+							invokeTargetButton.setVisible(false);
+							testDataLabel.setVisible(false);
+							testDataText.setText("");
+							testDataText.setVisible(false);
+							testDataButton.setVisible(false);
+						}
+					}
+				});
+		invokeTypeCombo.setContentProvider(new ArrayContentProvider());
+		invokeTypeCombo.setLabelProvider(new EnumLabelProvider());
+		invokeTypeCombo.setInput(TestStep.Type.values());
+		toolkit.createLabel(client, "").setLayoutData(new GridData());
+		invokeTargetLabel = toolkit.createLabel(client, "Test Method:");
+		invokeTargetLabel.setLayoutData(new GridData());
+		invokeTargetLabel.setVisible(false);
+		invokeTargetText = toolkit.createText(client, "", SWT.READ_ONLY);
+		GridData gd_invokeTargetText = new GridData(GridData.FILL_HORIZONTAL);
+		gd_invokeTargetText.horizontalIndent = 5;
+		invokeTargetText.setLayoutData(gd_invokeTargetText);
+		invokeTargetText.setVisible(false);
+		invokeTargetText.addModifyListener(defaultModifyListener);
+		invokeTargetButton = toolkit
+				.createButton(client, "Select...", SWT.PUSH);
+		invokeTargetButton.setLayoutData(new GridData(
+				GridData.HORIZONTAL_ALIGN_FILL));
+		invokeTargetButton.setVisible(false);
+		invokeTargetButton.addSelectionListener(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent event) {
+				// TODO
+			}
+		});
+		testDataLabel = toolkit.createLabel(client, "Test Data:");
+		testDataLabel.setLayoutData(new GridData());
+		testDataLabel.setVisible(false);
+		testDataText = toolkit.createText(client, "", SWT.READ_ONLY);
+		GridData gd_testDataText = new GridData(GridData.FILL_HORIZONTAL);
+		gd_testDataText.horizontalIndent = 5;
+		testDataText.setLayoutData(gd_testDataText);
+		testDataText.setVisible(false);
+		testDataText.addModifyListener(defaultModifyListener);
+		testDataButton = toolkit.createButton(client, "Select...", SWT.PUSH);
+		testDataButton.setLayoutData(new GridData(
+				GridData.HORIZONTAL_ALIGN_FILL));
+		testDataButton.setVisible(false);
+		testDataButton.addSelectionListener(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent event) {
+				// TODO
+			}
+		});
+		toolkit.createLabel(client, "Loops:").setLayoutData(new GridData());
+		loopTimesText = toolkit.createText(client, "1", SWT.RIGHT);
+		GridData gd_loopTimesText = new GridData();
+		gd_loopTimesText.horizontalIndent = 5;
+		gd_loopTimesText.widthHint = 40;
+		loopTimesText.setLayoutData(gd_loopTimesText);
+		loopTimesText.addModifyListener(defaultModifyListener);
+		loopTimesText.addVerifyListener(new NumberVerifyListener());
+		toolkit.createLabel(client, "").setLayoutData(new GridData());
+		toolkit.createLabel(client, "Dependence:")
+				.setLayoutData(new GridData());
+		dependenceText = toolkit.createText(client, "");
+		GridData gd_dependenceText = new GridData(GridData.FILL_HORIZONTAL);
+		gd_dependenceText.horizontalIndent = 5;
+		dependenceText.setLayoutData(gd_dependenceText);
+		dependenceText.addModifyListener(defaultModifyListener);
+		toolkit.createLabel(client, "").setLayoutData(new GridData());
+		toolkit.createLabel(client, "Runtime Parameters:").setLayoutData(
+				new GridData(GridData.BEGINNING, GridData.CENTER, false, false,
+						3, 1));
+		paramTable = new TableViewer(client, SWT.HIDE_SELECTION
 				| SWT.FULL_SELECTION | SWT.V_SCROLL | toolkit.getBorderStyle());
-		entryTable.getTable().setLayoutData(new GridData(GridData.FILL_BOTH));
-		entryTable.getTable().setHeaderVisible(true);
-		entryTable.getTable().setLinesVisible(true);
-		toolkit.adapt(entryTable.getTable(), false, false);
-		final TableViewerColumn tvc1 = new TableViewerColumn(entryTable,
+		paramTable.getTable().setLayoutData(
+				new GridData(GridData.FILL, GridData.FILL, true, true, 2, 1));
+		paramTable.getTable().setHeaderVisible(true);
+		paramTable.getTable().setLinesVisible(true);
+		toolkit.adapt(paramTable.getTable(), false, false);
+		final TableViewerColumn tvc1 = new TableViewerColumn(paramTable,
 				SWT.LEFT);
 		tvc1.getColumn().setWidth(60);
 		tvc1.getColumn().setText("Key");
-		final TableViewerColumn tvc2 = new TableViewerColumn(entryTable,
+		final TableViewerColumn tvc2 = new TableViewerColumn(paramTable,
 				SWT.LEFT);
 		tvc2.getColumn().setWidth(120);
 		tvc2.getColumn().setText("Value");
-		final TableViewerColumn tvc3 = new TableViewerColumn(entryTable,
+		final TableViewerColumn tvc3 = new TableViewerColumn(paramTable,
 				SWT.LEFT);
-		tvc3.getColumn().setWidth(60);
-		tvc3.getColumn().setText("Type");
-		final TableViewerColumn tvc4 = new TableViewerColumn(entryTable,
-				SWT.LEFT);
-		tvc4.getColumn().setText("Memo");
-		entryTable.getTable().addControlListener(new ControlAdapter() {
+		tvc3.getColumn().setText("Memo");
+		paramTable.getTable().addControlListener(new ControlAdapter() {
 			@Override
 			public void controlResized(ControlEvent event) {
 				Point size = ((Control) event.getSource()).getSize();
-				int w = size.x - 66;
-				int t = w / 5;
-				if (t > 60) {
-					tvc1.getColumn().setWidth(t);
-					tvc2.getColumn().setWidth(t * 2);
-					tvc4.getColumn().setWidth(w - t * 3);
+				int w = size.x - 4;
+				int t = w / 9;
+				if (t > 30) {
+					tvc1.getColumn().setWidth(t * 2);
+					tvc2.getColumn().setWidth(t * 4);
+					tvc3.getColumn().setWidth(w - t * 6);
 				} else {
 					tvc1.getColumn().setWidth(60);
 					tvc2.getColumn().setWidth(120);
-					tvc4.getColumn().setWidth(120);
+					tvc3.getColumn().setWidth(90);
 				}
 			}
 		});
@@ -474,16 +623,16 @@ public class TestScriptFormPage extends DocumentFormPage<TestScript> {
 
 					@Override
 					public void handleAdd(int index, Object element) {
-						validate((TestDataEntry) element);
+						validate((Parameter) element);
 					}
 
 					@Override
 					public void handleRemove(int index, Object element) {
-						clearError((TestDataEntry) element);
+						clearError((Parameter) element);
 					}
 				});
-				validateEntries((TestDataGroup) groupTable
-						.getElementAt(groupTable.getTable().getSelectionIndex()));
+				validateParameters((TestStep) stepTable.getElementAt(stepTable
+						.getTable().getSelectionIndex()));
 				onFormChange();
 			}
 		};
@@ -502,44 +651,30 @@ public class TestScriptFormPage extends DocumentFormPage<TestScript> {
 				}
 			}
 		};
-		entryTable.setContentProvider(contentProvider);
-		final String[] propertyNames = new String[] { "key", "value", "type",
-				"memo" };
+		paramTable.setContentProvider(contentProvider);
+		final String[] propertyNames = new String[] { "key", "value", "memo" };
 		final IObservableMap[] observableMaps = PojoObservables.observeMaps(
-				contentProvider.getKnownElements(), TestDataEntry.class,
+				contentProvider.getKnownElements(), Parameter.class,
 				propertyNames);
-		entryTable.setLabelProvider(new ObservableMapLabelProvider(
+		paramTable.setLabelProvider(new ObservableMapLabelProvider(
 				observableMaps));
-		final TestDataEntry.Type[] types = TestDataEntry.Type.values();
-		String[] typeNames = new String[types.length];
-		for (int i = 0; i < types.length; i++) {
-			typeNames[i] = types[i].name();
-		}
-		ComboBoxCellEditor cbce = new ComboBoxCellEditor(entryTable.getTable(),
-				typeNames, SWT.LEFT | SWT.READ_ONLY);
-		cbce.setActivationStyle(ComboBoxViewerCellEditor.DROP_DOWN_ON_MOUSE_ACTIVATION
-				| ComboBoxViewerCellEditor.DROP_DOWN_ON_PROGRAMMATIC_ACTIVATION);
-		entryTable.setCellEditors(new CellEditor[] {
-				new TextCellEditor(entryTable.getTable(), SWT.LEFT),
-				new TextCellEditor(entryTable.getTable(), SWT.LEFT), cbce,
-				new TextCellEditor(entryTable.getTable(), SWT.LEFT) });
-		entryTable.setColumnProperties(propertyNames);
-		entryTable.setCellModifier(new ICellModifier() {
+		paramTable.setCellEditors(new CellEditor[] {
+				new TextCellEditor(paramTable.getTable(), SWT.LEFT),
+				new TextCellEditor(paramTable.getTable(), SWT.LEFT),
+				new TextCellEditor(paramTable.getTable(), SWT.LEFT) });
+		paramTable.setColumnProperties(propertyNames);
+		paramTable.setCellModifier(new ICellModifier() {
 
 			@Override
 			public void modify(Object element, String property, Object value) {
-				TestDataEntry entry = (TestDataEntry) ((Item) element)
-						.getData();
-				Object oldValue = observableMaps[getIndex(property)].get(entry);
-				if ("type".equals(property)) {
-					value = types[(Integer) value];
-				}
+				Parameter param = (Parameter) ((Item) element).getData();
+				Object oldValue = observableMaps[getIndex(property)].get(param);
 				if (!Strings.equals(oldValue, value)) {
-					observableMaps[getIndex(property)].put(entry, value);
-					entryTable.update(entry, new String[] { property });
-					validate(entry);
-					validateEntries((TestDataGroup) groupTable
-							.getElementAt(groupTable.getTable()
+					observableMaps[getIndex(property)].put(param, value);
+					paramTable.update(param, new String[] { property });
+					validate(param);
+					validateParameters((TestStep) stepTable
+							.getElementAt(stepTable.getTable()
 									.getSelectionIndex()));
 					onFormChange();
 				}
@@ -548,12 +683,7 @@ public class TestScriptFormPage extends DocumentFormPage<TestScript> {
 			@Override
 			public Object getValue(Object element, String property) {
 				Object value = observableMaps[getIndex(property)].get(element);
-				if ("type".equals(property)) {
-					return value != null ? ((TestDataEntry.Type) value)
-							.ordinal() : -1;
-				} else {
-					return Strings.objToString(value);
-				}
+				return Objects.toString(value);
 			}
 
 			private int getIndex(String property) {
@@ -571,73 +701,72 @@ public class TestScriptFormPage extends DocumentFormPage<TestScript> {
 			}
 		});
 		Composite buttons = toolkit.createComposite(client);
-		buttons.setLayoutData(new GridData(GridData.FILL_VERTICAL));
+		buttons.setLayoutData(new GridData(GridData.HORIZONTAL_ALIGN_FILL
+				| GridData.FILL_VERTICAL));
 		buttons.setLayout(UIUtils.createButtonsGridLayout());
-		newEntryButton = toolkit.createButton(buttons, "New", SWT.PUSH);
-		newEntryButton.setLayoutData(new GridData(GridData.FILL_HORIZONTAL
-				| GridData.CENTER));
-		newEntryButton.addSelectionListener(new SelectionAdapter() {
+		newParamButton = toolkit.createButton(buttons, "New", SWT.PUSH);
+		newParamButton.setLayoutData(new GridData(GridData.FILL_HORIZONTAL
+				| GridData.VERTICAL_ALIGN_BEGINNING));
+		newParamButton.addSelectionListener(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent event) {
-				TestDataEntry entry = new TestDataEntry();
-				((WritableList) entryTable.getInput()).add(entry);
-				entryTable.setSelection(new StructuredSelection(entry));
-				entryTable.editElement(entry, 0);
+				Parameter param = new Parameter();
+				((WritableList) paramTable.getInput()).add(param);
+				paramTable.setSelection(new StructuredSelection(param));
+				paramTable.editElement(param, 0);
 			}
 		});
-		removeEntryButton = toolkit.createButton(buttons, "Remove", SWT.PUSH);
-		removeEntryButton.setLayoutData(new GridData(GridData.FILL_HORIZONTAL
-				| GridData.CENTER));
-		removeEntryButton.addSelectionListener(new SelectionAdapter() {
+		removeParamButton = toolkit.createButton(buttons, "Remove", SWT.PUSH);
+		removeParamButton.setLayoutData(new GridData(GridData.FILL_HORIZONTAL
+				| GridData.VERTICAL_ALIGN_BEGINNING));
+		removeParamButton.addSelectionListener(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent event) {
-				int sel = entryTable.getTable().getSelectionIndex();
-				((WritableList) entryTable.getInput()).remove(sel);
+				int sel = paramTable.getTable().getSelectionIndex();
+				((WritableList) paramTable.getInput()).remove(sel);
 			}
 		});
-		moveEntryUpButton = toolkit.createButton(buttons, "Up", SWT.PUSH);
-		moveEntryUpButton.setLayoutData(new GridData(GridData.FILL_HORIZONTAL
-				| GridData.CENTER));
-		moveEntryUpButton.addSelectionListener(new SelectionAdapter() {
+		moveParamUpButton = toolkit.createButton(buttons, "Up", SWT.PUSH);
+		moveParamUpButton.setLayoutData(new GridData(GridData.FILL_HORIZONTAL
+				| GridData.VERTICAL_ALIGN_BEGINNING));
+		moveParamUpButton.addSelectionListener(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent event) {
-				ISelection selection = entryTable.getSelection();
-				int sel = entryTable.getTable().getSelectionIndex();
-				((WritableList) entryTable.getInput()).add(sel - 1,
-						((WritableList) entryTable.getInput()).remove(sel));
-				entryTable.setSelection(selection, true);
+				ISelection selection = paramTable.getSelection();
+				int sel = paramTable.getTable().getSelectionIndex();
+				((WritableList) paramTable.getInput()).add(sel - 1,
+						((WritableList) paramTable.getInput()).remove(sel));
+				paramTable.setSelection(selection, true);
 			}
 		});
-		moveEntryDownButton = toolkit.createButton(buttons, "Down", SWT.PUSH);
-		moveEntryDownButton.setLayoutData(new GridData(GridData.FILL_HORIZONTAL
-				| GridData.CENTER));
-		moveEntryDownButton.addSelectionListener(new SelectionAdapter() {
+		moveParamDownButton = toolkit.createButton(buttons, "Down", SWT.PUSH);
+		moveParamDownButton.setLayoutData(new GridData(GridData.FILL_HORIZONTAL
+				| GridData.VERTICAL_ALIGN_BEGINNING));
+		moveParamDownButton.addSelectionListener(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent event) {
-				ISelection selection = entryTable.getSelection();
-				int sel = entryTable.getTable().getSelectionIndex();
-				((WritableList) entryTable.getInput()).add(sel,
-						((WritableList) entryTable.getInput()).remove(sel + 1));
-				entryTable.setSelection(selection, true);
+				ISelection selection = paramTable.getSelection();
+				int sel = paramTable.getTable().getSelectionIndex();
+				((WritableList) paramTable.getInput()).add(sel,
+						((WritableList) paramTable.getInput()).remove(sel + 1));
+				paramTable.setSelection(selection, true);
 			}
 		});
 		toolkit.paintBordersFor(client);
-		entryTable.addSelectionChangedListener(new ISelectionChangedListener() {
+		paramTable.addSelectionChangedListener(new ISelectionChangedListener() {
 			@Override
 			public void selectionChanged(SelectionChangedEvent event) {
-				setEntryTableButtonStates();
+				setParamTableButtonStates();
 			}
 		});
 	}
 
-	private void setEntryTableButtonStates() {
-		boolean gsel = !groupTable.getSelection().isEmpty();
-		int sel = entryTable.getTable().getSelectionIndex();
-		newEntryButton.setEnabled(gsel);
-		removeEntryButton.setEnabled(gsel && sel >= 0);
-		moveEntryUpButton.setEnabled(gsel && sel > 0);
-		moveEntryDownButton.setEnabled(gsel && sel >= 0
-				&& sel < groupTable.getTable().getItemCount() - 1);
+	private void setParamTableButtonStates() {
+		int sel = paramTable.getTable().getSelectionIndex();
+		removeParamButton.setEnabled(sel >= 0);
+		moveParamUpButton.setEnabled(sel > 0);
+		moveParamDownButton.setEnabled(sel >= 0
+				&& sel < paramTable.getTable().getItemCount() - 1);
 	}
 
 	@SuppressWarnings("unchecked")
@@ -730,7 +859,9 @@ public class TestScriptFormPage extends DocumentFormPage<TestScript> {
 		super.enableControls(readonly);
 		if (!readonly) {
 			setStepTableButtonStates();
-			setEntryTableButtonStates();
+			if (detailSection.isVisible()) {
+				setParamTableButtonStates();
+			}
 		}
 	}
 
@@ -745,5 +876,59 @@ public class TestScriptFormPage extends DocumentFormPage<TestScript> {
 				"author", Converters.TRIM, Converters.TRIM);
 		UIUtils.bindText(dataBindingContext, managedForm, modifyTime, model,
 				"lastUpdateTime", null, Converters.DATESTAMP);
+		if (detailSection.getData() != null) {
+			bindDetails((TestStep) detailSection.getData());
+		}
+	}
+
+	@Override
+	protected void unbindControls() {
+		unbindDetails();
+		super.unbindControls();
+	}
+
+	private void bindDetails(TestStep testStep) {
+		clearError(testStep, false);
+		detailBindingContext = new DataBindingContext();
+		IManagedForm managedForm = getManagedForm();
+		UIUtils.bindSelection(detailBindingContext, managedForm,
+				invokeTypeCombo, testStep, "invokeType");
+		UIUtils.bindText(detailBindingContext, managedForm, invokeTargetText,
+				testStep, "invokeTarget");
+		UIUtils.bindText(detailBindingContext, managedForm, testDataText,
+				testStep, "testDataFile");
+		UIUtils.bindText(detailBindingContext, managedForm, loopTimesText,
+				testStep, "loopTimes", Converters.INT_PARSER,
+				Converters.DEFAULT);
+		UIUtils.bindText(detailBindingContext, managedForm, dependenceText,
+				testStep, "dependentSteps");
+		paramTable.setInput(testStep.getParameters());
+	}
+
+	private void unbindDetails() {
+		if (detailBindingContext != null) {
+			paramTable.setInput(WritableList.withElementType(Parameter.class));
+			detailBindingContext.dispose();
+			detailBindingContext = null;
+		}
+		IMessageManager messageManager = getManagedForm().getMessageManager();
+		messageManager.removeMessages(invokeTypeCombo.getCombo());
+		messageManager.removeMessages(invokeTargetText);
+		messageManager.removeMessages(testDataText);
+		messageManager.removeMessages(loopTimesText);
+		messageManager.removeMessages(dependenceText);
+		if (detailSection.getData() != null) {
+			validate((TestStep) detailSection.getData(), false);
+		}
+	}
+
+	@Override
+	protected void postLoadModel(TestScript model) {
+		super.postLoadModel(model);
+		if (stepTable.getSelection().isEmpty()
+				&& !model.getTestSteps().isEmpty()) {
+			stepTable.setSelection(new StructuredSelection(model.getTestSteps()
+					.get(0)), true);
+		}
 	}
 }

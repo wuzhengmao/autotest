@@ -12,6 +12,14 @@
             class="cn.shaviation.autotest.ui.internal.editors.TestDataEditor"
             id="cn.shaviation.autotest.ui.editors.TestDataEditor">
       </editor>
+      <editor
+            name="Test Script Editor"
+            extensions="tsc"
+            icon="icons/script.png"
+            contributorClass="cn.shaviation.autotest.ui.internal.editors.DocumentEditorContributor"
+            class="cn.shaviation.autotest.ui.internal.editors.TestScriptEditor"
+            id="cn.shaviation.autotest.ui.editors.TestScriptEditor">
+      </editor>
    </extension>
    
    <extension

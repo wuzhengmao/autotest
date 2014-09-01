@@ -4,14 +4,14 @@ import org.eclipse.core.databinding.conversion.Converter;
 
 import cn.shaviation.autotest.core.util.Objects;
 
-public class TrimConverter extends Converter {
+public class ObjectConverter extends Converter {
 
-	public TrimConverter() {
-		super(String.class, String.class);
+	public ObjectConverter() {
+		super(Object.class, String.class);
 	}
 
 	@Override
 	public Object convert(Object fromObject) {
-		return Objects.toString(fromObject).trim();
+		return Objects.toString(fromObject);
 	}
 }

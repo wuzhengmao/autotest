@@ -44,6 +44,8 @@ import cn.shaviation.autotest.core.model.TestDataDef;
 import cn.shaviation.autotest.core.model.TestDataEntry;
 import cn.shaviation.autotest.core.model.TestDataGroup;
 import cn.shaviation.autotest.core.model.TestDataHelper;
+import cn.shaviation.autotest.core.util.Enums;
+import cn.shaviation.autotest.core.util.Objects;
 import cn.shaviation.autotest.core.util.Strings;
 import cn.shaviation.autotest.core.util.Validators;
 import cn.shaviation.autotest.ui.internal.databinding.Converters;
@@ -61,6 +63,7 @@ public class TestDataFormPage extends DocumentFormPage<TestDataDef> {
 	private Button moveGroupUpButton;
 	private Button moveGroupDownButton;
 	private Button cloneGroupButton;
+	private Section dataSection;
 	private TableViewer entryTable;
 	private Button newEntryButton;
 	private Button removeEntryButton;
@@ -88,6 +91,7 @@ public class TestDataFormPage extends DocumentFormPage<TestDataDef> {
 		rightComposite.setLayoutData(new GridData(GridData.FILL_BOTH));
 		rightComposite.setLayout(UIUtils.createFormPaneGridLayout(false, 1));
 		createDataSection(toolkit, rightComposite);
+		dataSection.setVisible(false);
 		super.createFormContent(managedForm);
 	}
 
@@ -163,7 +167,7 @@ public class TestDataFormPage extends DocumentFormPage<TestDataDef> {
 
 			@Override
 			public Object getValue(Object element, String property) {
-				return Strings.objToString(((TestDataGroup) element).getName());
+				return Objects.toString(((TestDataGroup) element).getName());
 			}
 
 			@Override
@@ -203,7 +207,7 @@ public class TestDataFormPage extends DocumentFormPage<TestDataDef> {
 		buttons.setLayout(UIUtils.createButtonsGridLayout());
 		newGroupButton = toolkit.createButton(buttons, "New", SWT.PUSH);
 		newGroupButton.setLayoutData(new GridData(GridData.FILL_HORIZONTAL
-				| GridData.CENTER));
+				| GridData.VERTICAL_ALIGN_BEGINNING));
 		newGroupButton.addSelectionListener(new SelectionAdapter() {
 			@SuppressWarnings("unchecked")
 			@Override
@@ -219,7 +223,7 @@ public class TestDataFormPage extends DocumentFormPage<TestDataDef> {
 		});
 		removeGroupButton = toolkit.createButton(buttons, "Remove", SWT.PUSH);
 		removeGroupButton.setLayoutData(new GridData(GridData.FILL_HORIZONTAL
-				| GridData.CENTER));
+				| GridData.VERTICAL_ALIGN_BEGINNING));
 		removeGroupButton.addSelectionListener(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent event) {
@@ -229,7 +233,7 @@ public class TestDataFormPage extends DocumentFormPage<TestDataDef> {
 		});
 		moveGroupUpButton = toolkit.createButton(buttons, "Up", SWT.PUSH);
 		moveGroupUpButton.setLayoutData(new GridData(GridData.FILL_HORIZONTAL
-				| GridData.CENTER));
+				| GridData.VERTICAL_ALIGN_BEGINNING));
 		moveGroupUpButton.addSelectionListener(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent event) {
@@ -241,7 +245,7 @@ public class TestDataFormPage extends DocumentFormPage<TestDataDef> {
 		});
 		moveGroupDownButton = toolkit.createButton(buttons, "Down", SWT.PUSH);
 		moveGroupDownButton.setLayoutData(new GridData(GridData.FILL_HORIZONTAL
-				| GridData.CENTER));
+				| GridData.VERTICAL_ALIGN_BEGINNING));
 		moveGroupDownButton.addSelectionListener(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent event) {
@@ -253,7 +257,7 @@ public class TestDataFormPage extends DocumentFormPage<TestDataDef> {
 		});
 		cloneGroupButton = toolkit.createButton(buttons, "Clone", SWT.PUSH);
 		cloneGroupButton.setLayoutData(new GridData(GridData.FILL_HORIZONTAL
-				| GridData.CENTER));
+				| GridData.VERTICAL_ALIGN_BEGINNING));
 		cloneGroupButton.addSelectionListener(new SelectionAdapter() {
 			@SuppressWarnings("unchecked")
 			@Override
@@ -274,14 +278,14 @@ public class TestDataFormPage extends DocumentFormPage<TestDataDef> {
 			@Override
 			public void selectionChanged(SelectionChangedEvent event) {
 				setGroupTableButtonStates();
-				setEntryTableButtonStates();
 				if (!event.getSelection().isEmpty()) {
+					dataSection.setVisible(true);
 					TestDataGroup group = (TestDataGroup) ((IStructuredSelection) groupTable
 							.getSelection()).getFirstElement();
 					entryTable.setInput(group.getEntries());
+					setEntryTableButtonStates();
 				} else {
-					entryTable.setInput(WritableList
-							.withElementType(TestDataEntry.class));
+					dataSection.setVisible(false);
 				}
 			}
 		});
@@ -343,15 +347,16 @@ public class TestDataFormPage extends DocumentFormPage<TestDataDef> {
 	}
 
 	private void createDataSection(FormToolkit toolkit, Composite container) {
-		Section section = toolkit.createSection(container, SWT.HORIZONTAL
+		dataSection = toolkit.createSection(container, SWT.HORIZONTAL
 				| Section.DESCRIPTION);
-		section.setText("Test Data Specification");
-		section.setDescription("Specify the specification of current selected test data group.");
-		section.setLayoutData(new GridData(GridData.FILL_BOTH));
-		section.setLayout(UIUtils.createClearTableWrapLayout(false, 1));
-		Composite client = toolkit.createComposite(section);
+		dataSection.setText("Test Data Specification");
+		dataSection
+				.setDescription("Specify the specification of current selected test data group.");
+		dataSection.setLayoutData(new GridData(GridData.FILL_BOTH));
+		dataSection.setLayout(UIUtils.createClearTableWrapLayout(false, 1));
+		Composite client = toolkit.createComposite(dataSection);
 		client.setLayout(UIUtils.createSectionClientGridLayout(false, 2));
-		section.setClient(client);
+		dataSection.setClient(client);
 		entryTable = new TableViewer(client, SWT.HIDE_SELECTION
 				| SWT.FULL_SELECTION | SWT.V_SCROLL | toolkit.getBorderStyle());
 		entryTable.getTable().setLayoutData(new GridData(GridData.FILL_BOTH));
@@ -433,13 +438,9 @@ public class TestDataFormPage extends DocumentFormPage<TestDataDef> {
 				propertyNames);
 		entryTable.setLabelProvider(new ObservableMapLabelProvider(
 				observableMaps));
-		final TestDataEntry.Type[] types = TestDataEntry.Type.values();
-		String[] typeNames = new String[types.length];
-		for (int i = 0; i < types.length; i++) {
-			typeNames[i] = types[i].name();
-		}
 		ComboBoxCellEditor cbce = new ComboBoxCellEditor(entryTable.getTable(),
-				typeNames, SWT.LEFT | SWT.READ_ONLY);
+				Enums.getNames(TestDataEntry.Type.class), SWT.LEFT
+						| SWT.READ_ONLY);
 		cbce.setActivationStyle(ComboBoxViewerCellEditor.DROP_DOWN_ON_MOUSE_ACTIVATION
 				| ComboBoxViewerCellEditor.DROP_DOWN_ON_PROGRAMMATIC_ACTIVATION);
 		entryTable.setCellEditors(new CellEditor[] {
@@ -455,7 +456,8 @@ public class TestDataFormPage extends DocumentFormPage<TestDataDef> {
 						.getData();
 				Object oldValue = observableMaps[getIndex(property)].get(entry);
 				if ("type".equals(property)) {
-					value = types[(Integer) value];
+					value = Enums.getEnum(TestDataEntry.Type.class,
+							(Integer) value);
 				}
 				if (!Strings.equals(oldValue, value)) {
 					observableMaps[getIndex(property)].put(entry, value);
@@ -475,7 +477,7 @@ public class TestDataFormPage extends DocumentFormPage<TestDataDef> {
 					return value != null ? ((TestDataEntry.Type) value)
 							.ordinal() : -1;
 				} else {
-					return Strings.objToString(value);
+					return Objects.toString(value);
 				}
 			}
 
@@ -498,7 +500,7 @@ public class TestDataFormPage extends DocumentFormPage<TestDataDef> {
 		buttons.setLayout(UIUtils.createButtonsGridLayout());
 		newEntryButton = toolkit.createButton(buttons, "New", SWT.PUSH);
 		newEntryButton.setLayoutData(new GridData(GridData.FILL_HORIZONTAL
-				| GridData.CENTER));
+				| GridData.VERTICAL_ALIGN_BEGINNING));
 		newEntryButton.addSelectionListener(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent event) {
@@ -510,7 +512,7 @@ public class TestDataFormPage extends DocumentFormPage<TestDataDef> {
 		});
 		removeEntryButton = toolkit.createButton(buttons, "Remove", SWT.PUSH);
 		removeEntryButton.setLayoutData(new GridData(GridData.FILL_HORIZONTAL
-				| GridData.CENTER));
+				| GridData.VERTICAL_ALIGN_BEGINNING));
 		removeEntryButton.addSelectionListener(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent event) {
@@ -520,7 +522,7 @@ public class TestDataFormPage extends DocumentFormPage<TestDataDef> {
 		});
 		moveEntryUpButton = toolkit.createButton(buttons, "Up", SWT.PUSH);
 		moveEntryUpButton.setLayoutData(new GridData(GridData.FILL_HORIZONTAL
-				| GridData.CENTER));
+				| GridData.VERTICAL_ALIGN_BEGINNING));
 		moveEntryUpButton.addSelectionListener(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent event) {
@@ -533,7 +535,7 @@ public class TestDataFormPage extends DocumentFormPage<TestDataDef> {
 		});
 		moveEntryDownButton = toolkit.createButton(buttons, "Down", SWT.PUSH);
 		moveEntryDownButton.setLayoutData(new GridData(GridData.FILL_HORIZONTAL
-				| GridData.CENTER));
+				| GridData.VERTICAL_ALIGN_BEGINNING));
 		moveEntryDownButton.addSelectionListener(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent event) {
@@ -554,13 +556,11 @@ public class TestDataFormPage extends DocumentFormPage<TestDataDef> {
 	}
 
 	private void setEntryTableButtonStates() {
-		boolean gsel = !groupTable.getSelection().isEmpty();
 		int sel = entryTable.getTable().getSelectionIndex();
-		newEntryButton.setEnabled(gsel);
-		removeEntryButton.setEnabled(gsel && sel >= 0);
-		moveEntryUpButton.setEnabled(gsel && sel > 0);
-		moveEntryDownButton.setEnabled(gsel && sel >= 0
-				&& sel < groupTable.getTable().getItemCount() - 1);
+		removeEntryButton.setEnabled(sel >= 0);
+		moveEntryUpButton.setEnabled(sel > 0);
+		moveEntryDownButton.setEnabled(sel >= 0
+				&& sel < entryTable.getTable().getItemCount() - 1);
 	}
 
 	@SuppressWarnings("unchecked")
@@ -649,7 +649,9 @@ public class TestDataFormPage extends DocumentFormPage<TestDataDef> {
 		super.enableControls(readonly);
 		if (!readonly) {
 			setGroupTableButtonStates();
-			setEntryTableButtonStates();
+			if (dataSection.isVisible()) {
+				setEntryTableButtonStates();
+			}
 		}
 	}
 
@@ -664,5 +666,15 @@ public class TestDataFormPage extends DocumentFormPage<TestDataDef> {
 				"author", Converters.TRIM, Converters.TRIM);
 		UIUtils.bindText(dataBindingContext, managedForm, modifyTime, model,
 				"lastUpdateTime", null, Converters.DATESTAMP);
+	}
+
+	@Override
+	protected void postLoadModel(TestDataDef model) {
+		super.postLoadModel(model);
+		if (groupTable.getSelection().isEmpty()
+				&& !model.getDataList().isEmpty()) {
+			groupTable.setSelection(new StructuredSelection(model.getDataList()
+					.get(0)), true);
+		}
 	}
 }

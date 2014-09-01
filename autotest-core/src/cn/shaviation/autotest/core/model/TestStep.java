@@ -12,7 +12,7 @@ import cn.shaviation.autotest.core.internal.jsr303.Unique;
 public class TestStep {
 
 	public static enum Type {
-		TestMethod, TestScript
+		Method, Script
 	}
 
 	private List<Integer> dependentSteps;
@@ -25,8 +25,9 @@ public class TestStep {
 
 	private String testDataFile;
 
+	@NotNull(message = "{testStep.loopTimes.NotNull}")
 	@Min(value = 1, message = "{testStep.loopTimes.Min}")
-	private int loopTimes = 1;
+	private Integer loopTimes;
 
 	@Unique(property = "key", message = "{parameter.key.Unique}")
 	private List<Parameter> parameters;
@@ -63,11 +64,11 @@ public class TestStep {
 		this.testDataFile = testDataFile;
 	}
 
-	public int getLoopTimes() {
+	public Integer getLoopTimes() {
 		return loopTimes;
 	}
 
-	public void setLoopTimes(int loopTimes) {
+	public void setLoopTimes(Integer loopTimes) {
 		this.loopTimes = loopTimes;
 	}
 

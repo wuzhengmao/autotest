@@ -1,6 +1,7 @@
 package cn.shaviation.autotest.core.util;
 
 import java.util.Collection;
+import java.util.regex.Pattern;
 
 public abstract class Strings {
 
@@ -12,13 +13,9 @@ public abstract class Strings {
 		return str == null || str.trim().isEmpty();
 	}
 
-	public static String objToString(Object value) {
-		return value != null ? value.toString() : "";
-	}
-
 	public static boolean equals(Object value1, Object value2) {
-		String str1 = objToString(value1);
-		String str2 = objToString(value2);
+		String str1 = Objects.toString(value1);
+		String str2 = Objects.toString(value2);
 		return str1.equals(str2);
 	}
 
@@ -33,5 +30,11 @@ public abstract class Strings {
 			}
 		}
 		return sb.toString();
+	}
+
+	private static final Pattern NUMBER_PATTERN = Pattern.compile("\\d*");
+
+	public static boolean isNumber(String str) {
+		return NUMBER_PATTERN.matcher(str).matches();
 	}
 }

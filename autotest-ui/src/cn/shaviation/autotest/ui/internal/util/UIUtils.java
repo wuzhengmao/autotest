@@ -8,8 +8,10 @@ import org.eclipse.core.databinding.conversion.Converter;
 import org.eclipse.core.databinding.observable.value.IObservableValue;
 import org.eclipse.core.runtime.Status;
 import org.eclipse.jface.databinding.swt.WidgetProperties;
+import org.eclipse.jface.databinding.viewers.ViewerProperties;
 import org.eclipse.jface.dialogs.ErrorDialog;
 import org.eclipse.jface.resource.ImageDescriptor;
+import org.eclipse.jface.viewers.Viewer;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.CCombo;
 import org.eclipse.swt.custom.StyledText;
@@ -236,6 +238,26 @@ public abstract class UIUtils {
 				control);
 		return bind(dataBindingContext, observeWidget, managedForm, control,
 				bean, propName, targetToModelConverter, modelToTargetConverter);
+	}
+
+	public static Binding bindSelection(DataBindingContext dataBindingContext,
+			IManagedForm managedForm, Viewer viewer, Object bean,
+			String propName) {
+		IObservableValue observeWidget = ViewerProperties.singleSelection()
+				.observe(viewer);
+		return bind(dataBindingContext, observeWidget, managedForm,
+				viewer.getControl(), bean, propName, null, null);
+	}
+
+	public static Binding bindSelection(DataBindingContext dataBindingContext,
+			IManagedForm managedForm, Viewer viewer, Object bean,
+			String propName, Converter targetToModelConverter,
+			Converter modelToTargetConverter) {
+		IObservableValue observeWidget = ViewerProperties.singleSelection()
+				.observe(viewer);
+		return bind(dataBindingContext, observeWidget, managedForm,
+				viewer.getControl(), bean, propName, targetToModelConverter,
+				modelToTargetConverter);
 	}
 
 	private static Binding bind(DataBindingContext dataBindingContext,

@@ -165,7 +165,7 @@ public abstract class DocumentFormPage<T> extends FormPage {
 		mergeModel(model, getEditorInput().getModel());
 		if (!documentError) {
 			dataBindingContext = new DataBindingContext();
-			bindControls(model);
+			bindControls(getEditorInput().getModel());
 		}
 		ignoreChange = false;
 		lastModifyTime = 0;
@@ -177,6 +177,7 @@ public abstract class DocumentFormPage<T> extends FormPage {
 			}
 		}
 		enableControls(readonly);
+		postLoadModel(getEditorInput().getModel());
 	}
 
 	protected abstract T createModel();
@@ -201,6 +202,10 @@ public abstract class DocumentFormPage<T> extends FormPage {
 			dataBindingContext = null;
 		}
 		getManagedForm().getMessageManager().removeAllMessages();
+	}
+
+	protected void postLoadModel(T model) {
+
 	}
 
 	public String getErrorMessage() {
@@ -247,6 +252,10 @@ public abstract class DocumentFormPage<T> extends FormPage {
 		}
 	}
 
+	protected void setIgnoreChange(boolean ignoreChange) {
+		this.ignoreChange = ignoreChange;
+	}
+
 	public boolean isDocumentError() {
 		return documentError;
 	}
@@ -266,7 +275,7 @@ public abstract class DocumentFormPage<T> extends FormPage {
 
 		@Override
 		public void widgetDefaultSelected(SelectionEvent event) {
-			onFormChange();
+
 		}
 
 		@Override

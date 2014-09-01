@@ -34,7 +34,9 @@ public abstract class DocumentSourcePage<T> extends TextEditor {
 		}
 		super.doSetInput(input);
 		editor.setInput(input);
-		editor.getEditorPage().setInput(input);
+		if (editor.getEditorPage() != null) {
+			editor.getEditorPage().setInput(input);
+		}
 	}
 
 	@Override
