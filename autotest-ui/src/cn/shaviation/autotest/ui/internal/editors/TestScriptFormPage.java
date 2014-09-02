@@ -4,6 +4,7 @@ import java.util.Collections;
 import java.util.List;
 
 import org.eclipse.core.databinding.DataBindingContext;
+import org.eclipse.core.databinding.beans.BeansObservables;
 import org.eclipse.core.databinding.beans.PojoObservables;
 import org.eclipse.core.databinding.observable.list.IListChangeListener;
 import org.eclipse.core.databinding.observable.list.ListChangeEvent;
@@ -11,6 +12,7 @@ import org.eclipse.core.databinding.observable.list.ListDiffVisitor;
 import org.eclipse.core.databinding.observable.list.WritableList;
 import org.eclipse.core.databinding.observable.map.IObservableMap;
 import org.eclipse.core.resources.IProject;
+import org.eclipse.jdt.core.IAnnotation;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jface.databinding.viewers.ObservableListContentProvider;
 import org.eclipse.jface.databinding.viewers.ObservableMapLabelProvider;
@@ -27,6 +29,7 @@ import org.eclipse.jface.viewers.TableViewer;
 import org.eclipse.jface.viewers.TableViewerColumn;
 import org.eclipse.jface.viewers.TextCellEditor;
 import org.eclipse.jface.viewers.Viewer;
+import org.eclipse.jface.window.Window;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.events.ControlAdapter;
 import org.eclipse.swt.events.ControlEvent;
@@ -58,10 +61,12 @@ import cn.shaviation.autotest.core.util.Objects;
 import cn.shaviation.autotest.core.util.Strings;
 import cn.shaviation.autotest.core.util.Validators;
 import cn.shaviation.autotest.ui.internal.databinding.Converters;
+import cn.shaviation.autotest.ui.internal.dialogs.TestDataSelectionDialog;
+import cn.shaviation.autotest.ui.internal.dialogs.TestMethodSelectionDialog;
+import cn.shaviation.autotest.ui.internal.dialogs.TestScriptSelectionDialog;
 import cn.shaviation.autotest.ui.internal.util.EnumLabelProvider;
 import cn.shaviation.autotest.ui.internal.util.NumberVerifyListener;
 import cn.shaviation.autotest.ui.internal.util.SelectionChangedListener;
-import cn.shaviation.autotest.ui.internal.util.TableLabelProvider;
 import cn.shaviation.autotest.ui.internal.util.UIUtils;
 
 public class TestScriptFormPage extends DocumentFormPage<TestScript> {
@@ -78,7 +83,7 @@ public class TestScriptFormPage extends DocumentFormPage<TestScript> {
 	private Button moveStepUpButton;
 	private Button moveStepDownButton;
 
-	private DataBindingContext detailBindingContext;
+	private DataBindingContext dataBindingContext;
 	private Section detailSection;
 	private ComboViewer invokeTypeCombo;
 	private Label invokeTargetLabel;
@@ -227,7 +232,11 @@ public class TestScriptFormPage extends DocumentFormPage<TestScript> {
 		});
 		ObservableListContentProvider contentProvider = new ObservableListContentProvider();
 		stepTable.setContentProvider(contentProvider);
-		stepTable.setLabelProvider(new TableLabelProvider() {
+		stepTable.setLabelProvider(new ObservableMapLabelProvider(
+				BeansObservables.observeMaps(
+						contentProvider.getKnownElements(), TestStep.class,
+						new String[] { "invokeTarget", "invokeType",
+								"dependentSteps" })) {
 			@Override
 			public String getColumnText(Object element, int columnIndex) {
 				TestStep step = (TestStep) element;
@@ -278,8 +287,8 @@ public class TestScriptFormPage extends DocumentFormPage<TestScript> {
 			@SuppressWarnings("unchecked")
 			@Override
 			public void widgetSelected(SelectionEvent event) {
-				detailSection.setData(null);
 				int sel = stepTable.getTable().getSelectionIndex();
+				stepTable.setSelection(StructuredSelection.EMPTY);
 				testSteps.remove(sel);
 				reorderStepTable(sel);
 				removeDependence(testSteps, sel);
@@ -325,11 +334,10 @@ public class TestScriptFormPage extends DocumentFormPage<TestScript> {
 							.getSelection()).getFirstElement();
 					if (!step.equals(detailSection.getData())) {
 						unbindDetails();
-						detailSection.setData(step);
 						detailSection.setVisible(true);
+						detailSection.setData(step);
 						setIgnoreChange(true);
 						bindDetails(step);
-						detailSection.setData(step);
 						setIgnoreChange(false);
 						setParamTableButtonStates();
 					}
@@ -347,7 +355,7 @@ public class TestScriptFormPage extends DocumentFormPage<TestScript> {
 			if (step.getInvokeType() == TestStep.Type.Method) {
 				return AutoTestProjects.getTestMethodName(javaProject,
 						step.getInvokeTarget());
-			} else if (step.getInvokeType() == TestStep.Type.Method) {
+			} else if (step.getInvokeType() == TestStep.Type.Script) {
 				return AutoTestProjects.getTestScriptName(javaProject,
 						step.getInvokeTarget());
 			}
@@ -539,7 +547,11 @@ public class TestScriptFormPage extends DocumentFormPage<TestScript> {
 		invokeTargetButton.addSelectionListener(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent event) {
-				// TODO
+				if (testDataText.isVisible()) {
+					selectTestMethod();
+				} else {
+					selectTestScript();
+				}
 			}
 		});
 		testDataLabel = toolkit.createLabel(client, "Test Data:");
@@ -558,7 +570,7 @@ public class TestScriptFormPage extends DocumentFormPage<TestScript> {
 		testDataButton.addSelectionListener(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent event) {
-				// TODO
+				selectTestData();
 			}
 		});
 		toolkit.createLabel(client, "Loops:").setLayoutData(new GridData());
@@ -761,6 +773,54 @@ public class TestScriptFormPage extends DocumentFormPage<TestScript> {
 		});
 	}
 
+	private void selectTestMethod() {
+		if (!ensureJavaProject()) {
+			return;
+		}
+		TestMethodSelectionDialog dialog = new TestMethodSelectionDialog(
+				getEditorSite().getShell(), javaProject);
+		dialog.setInitialPattern(invokeTargetText.getText());
+		if (dialog.open() == Window.OK) {
+			IAnnotation annotation = (IAnnotation) dialog.getResult()[0];
+			String testMethod = AutoTestProjects
+					.getTestMethodQualifiedName(annotation);
+			invokeTargetText.setText(testMethod);
+		}
+	}
+
+	private void selectTestData() {
+		if (!ensureJavaProject()) {
+			return;
+		}
+		TestDataSelectionDialog dialog = new TestDataSelectionDialog(
+				getEditorSite().getShell(), javaProject);
+		dialog.setInitialPattern(testDataText.getText());
+		if (dialog.open() == Window.OK) {
+			testDataText.setText(Objects.toString(dialog.getResult()[0]));
+		}
+	}
+
+	private void selectTestScript() {
+		if (!ensureJavaProject()) {
+			return;
+		}
+		TestScriptSelectionDialog dialog = new TestScriptSelectionDialog(
+				getEditorSite().getShell(), javaProject);
+		dialog.setInitialPattern(invokeTargetText.getText());
+		if (dialog.open() == Window.OK) {
+			invokeTargetText.setText(Objects.toString(dialog.getResult()[0]));
+		}
+	}
+
+	private boolean ensureJavaProject() {
+		if (javaProject == null) {
+			UIUtils.showError(getEditorSite().getShell(), "Error",
+					"It's not a Java project.");
+			return false;
+		}
+		return true;
+	}
+
 	private void setParamTableButtonStates() {
 		int sel = paramTable.getTable().getSelectionIndex();
 		removeParamButton.setEnabled(sel >= 0);
@@ -858,6 +918,8 @@ public class TestScriptFormPage extends DocumentFormPage<TestScript> {
 	protected void enableControls(boolean readonly) {
 		super.enableControls(readonly);
 		if (!readonly) {
+			invokeTargetText.setEditable(false);
+			testDataText.setEditable(false);
 			setStepTableButtonStates();
 			if (detailSection.isVisible()) {
 				setParamTableButtonStates();
@@ -866,7 +928,8 @@ public class TestScriptFormPage extends DocumentFormPage<TestScript> {
 	}
 
 	@Override
-	protected void bindControls(TestScript model) {
+	protected void bindControls(DataBindingContext dataBindingContext,
+			TestScript model) {
 		IManagedForm managedForm = getManagedForm();
 		UIUtils.bindText(dataBindingContext, managedForm, nameText, model,
 				"name", Converters.TRIM, Converters.TRIM);
@@ -876,40 +939,31 @@ public class TestScriptFormPage extends DocumentFormPage<TestScript> {
 				"author", Converters.TRIM, Converters.TRIM);
 		UIUtils.bindText(dataBindingContext, managedForm, modifyTime, model,
 				"lastUpdateTime", null, Converters.DATESTAMP);
-		if (detailSection.getData() != null) {
-			bindDetails((TestStep) detailSection.getData());
-		}
-	}
-
-	@Override
-	protected void unbindControls() {
-		unbindDetails();
-		super.unbindControls();
 	}
 
 	private void bindDetails(TestStep testStep) {
 		clearError(testStep, false);
-		detailBindingContext = new DataBindingContext();
+		dataBindingContext = new DataBindingContext();
 		IManagedForm managedForm = getManagedForm();
-		UIUtils.bindSelection(detailBindingContext, managedForm,
-				invokeTypeCombo, testStep, "invokeType");
-		UIUtils.bindText(detailBindingContext, managedForm, invokeTargetText,
+		UIUtils.bindSelection(dataBindingContext, managedForm, invokeTypeCombo,
+				testStep, "invokeType");
+		UIUtils.bindText(dataBindingContext, managedForm, invokeTargetText,
 				testStep, "invokeTarget");
-		UIUtils.bindText(detailBindingContext, managedForm, testDataText,
+		UIUtils.bindText(dataBindingContext, managedForm, testDataText,
 				testStep, "testDataFile");
-		UIUtils.bindText(detailBindingContext, managedForm, loopTimesText,
+		UIUtils.bindText(dataBindingContext, managedForm, loopTimesText,
 				testStep, "loopTimes", Converters.INT_PARSER,
 				Converters.DEFAULT);
-		UIUtils.bindText(detailBindingContext, managedForm, dependenceText,
+		UIUtils.bindText(dataBindingContext, managedForm, dependenceText,
 				testStep, "dependentSteps");
 		paramTable.setInput(testStep.getParameters());
 	}
 
 	private void unbindDetails() {
-		if (detailBindingContext != null) {
+		if (dataBindingContext != null) {
 			paramTable.setInput(WritableList.withElementType(Parameter.class));
-			detailBindingContext.dispose();
-			detailBindingContext = null;
+			dataBindingContext.dispose();
+			dataBindingContext = null;
 		}
 		IMessageManager messageManager = getManagedForm().getMessageManager();
 		messageManager.removeMessages(invokeTypeCombo.getCombo());

@@ -1,14 +1,11 @@
 package cn.shaviation.autotest.core.jdt;
 
-import java.util.LinkedHashMap;
-import java.util.Map;
-
-import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.jdt.core.Flags;
 import org.eclipse.jdt.core.IAnnotation;
+import org.eclipse.jdt.core.IImportDeclaration;
 import org.eclipse.jdt.core.IJarEntryResource;
 import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.IJavaProject;
@@ -76,7 +73,7 @@ public abstract class AutoTestProjects {
 			engine.search(pattern, new SearchParticipant[] { SearchEngine
 					.getDefaultSearchParticipant() }, scope, requestor, null);
 			return result[0];
-		} catch (CoreException e) {
+		} catch (Exception e) {
 		}
 		return null;
 	}
@@ -85,15 +82,15 @@ public abstract class AutoTestProjects {
 			String testMethod) {
 		IMethod method = getTestMethod(javaProject, testMethod);
 		return method != null
-				&& method.getAnnotation(TestMethod.class.getName()) != null
+				&& getAnnotation(method, TestMethod.class.getName()) != null
 				&& method.getDeclaringType().exists();
 	}
 
 	public static String getTestMethodName(IJavaProject javaProject,
 			String testMethod) {
 		IMethod method = getTestMethod(javaProject, testMethod);
-		IAnnotation annotation = method != null ? method
-				.getAnnotation(TestMethod.class.getName()) : null;
+		IAnnotation annotation = method != null ? getAnnotation(method,
+				TestMethod.class.getName()) : null;
 		return annotation != null ? getTestMethodName(annotation) : "";
 	}
 
@@ -117,7 +114,37 @@ public abstract class AutoTestProjects {
 						.getElement();
 				if (Flags.isPublic(method.getFlags())
 						&& Flags.isPublic(method.getDeclaringType().getFlags())) {
-					return method.getAnnotation(TestMethod.class.getName());
+					return getAnnotation(method, TestMethod.class.getName());
+				}
+			}
+		} catch (JavaModelException e) {
+		}
+		return null;
+	}
+
+	private static IAnnotation getAnnotation(IMethod method,
+			String annotationName) {
+		try {
+			for (IAnnotation annotation : method.getAnnotations()) {
+				if (annotation.getElementName().equals(annotationName)) {
+					return annotation;
+				} else {
+					int i = annotationName.lastIndexOf('.');
+					if (i >= 0) {
+						if (annotation.getElementName().equals(
+								annotationName.substring(i + 1))) {
+							for (IImportDeclaration importDec : method
+									.getCompilationUnit().getImports()) {
+								if (importDec.getElementName().equals(
+										annotationName)
+										|| importDec.getElementName().equals(
+												annotationName.substring(0, i)
+														+ "*")) {
+									return annotation;
+								}
+							}
+						}
+					}
 				}
 			}
 		} catch (JavaModelException e) {
@@ -163,30 +190,6 @@ public abstract class AutoTestProjects {
 		return type.getFullyQualifiedName() + "#" + method.getElementName();
 	}
 
-	public static Map<String, String> searchTestDataFiles(
-			IJavaProject javaProject) throws CoreException {
-		final Map<String, String> result = new LinkedHashMap<String, String>();
-		NonJavaResourceFinder.search(javaProject,
-				AutoTestCore.TEST_DATA_FILE_EXTENSION,
-				new INonJavaResourceVisitor() {
-
-					@Override
-					public boolean visit(String path, IFile resource)
-							throws CoreException {
-						result.put(path, getTestDataName(resource));
-						return true;
-					}
-
-					@Override
-					public boolean visit(String path, IJarEntryResource resource)
-							throws CoreException {
-						result.put(path, getTestDataName(resource));
-						return true;
-					}
-				}, null);
-		return result;
-	}
-
 	public static String getTestDataName(IJavaProject javaProject,
 			String location) {
 		try {
@@ -202,7 +205,7 @@ public abstract class AutoTestProjects {
 		return "";
 	}
 
-	private static String getTestDataName(IResource resource) {
+	public static String getTestDataName(IResource resource) {
 		String name = null;
 		try {
 			name = resource
@@ -215,7 +218,7 @@ public abstract class AutoTestProjects {
 		return name;
 	}
 
-	private static String getTestDataName(IJarEntryResource resource) {
+	public static String getTestDataName(IJarEntryResource resource) {
 		try {
 			String json = IOUtils.toString(resource.getContents(), "UTF-8");
 			if (!Strings.isEmpty(json)) {
@@ -227,30 +230,6 @@ public abstract class AutoTestProjects {
 		} catch (Exception e) {
 		}
 		return resource.getName();
-	}
-
-	public static Map<String, String> searchTestScriptFiles(
-			IJavaProject javaProject) throws CoreException {
-		final Map<String, String> result = new LinkedHashMap<String, String>();
-		NonJavaResourceFinder.search(javaProject,
-				AutoTestCore.TEST_SCRIPT_FILE_EXTENSION,
-				new INonJavaResourceVisitor() {
-
-					@Override
-					public boolean visit(String path, IFile resource)
-							throws CoreException {
-						result.put(path, getTestScriptName(resource));
-						return true;
-					}
-
-					@Override
-					public boolean visit(String path, IJarEntryResource resource)
-							throws CoreException {
-						result.put(path, getTestScriptName(resource));
-						return true;
-					}
-				}, null);
-		return result;
 	}
 
 	public static String getTestScriptName(IJavaProject javaProject,
@@ -268,7 +247,7 @@ public abstract class AutoTestProjects {
 		return "";
 	}
 
-	private static String getTestScriptName(IResource resource) {
+	public static String getTestScriptName(IResource resource) {
 		String name = null;
 		try {
 			name = resource
@@ -281,7 +260,7 @@ public abstract class AutoTestProjects {
 		return name;
 	}
 
-	private static String getTestScriptName(IJarEntryResource resource) {
+	public static String getTestScriptName(IJarEntryResource resource) {
 		try {
 			String json = IOUtils.toString(resource.getContents(), "UTF-8");
 			if (!Strings.isEmpty(json)) {

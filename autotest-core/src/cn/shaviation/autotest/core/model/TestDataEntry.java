@@ -4,7 +4,10 @@ import javax.validation.constraints.NotNull;
 
 import org.hibernate.validator.constraints.NotBlank;
 
-public class TestDataEntry {
+import cn.shaviation.autotest.core.util.Objects;
+import cn.shaviation.autotest.core.util.PropertyChangeSupportBean;
+
+public class TestDataEntry extends PropertyChangeSupportBean {
 
 	public static enum Type {
 		Input, Output
@@ -20,21 +23,14 @@ public class TestDataEntry {
 
 	private String memo;
 
-	public TestDataEntry() {
-
-	}
-
-	public TestDataEntry(String key, String value) {
-		this.key = key;
-		this.value = value;
-	}
-
 	public String getKey() {
 		return key;
 	}
 
 	public void setKey(String key) {
-		this.key = key;
+		if (!Objects.equals(this.key, key)) {
+			firePropertyChange("key", this.key, this.key = key);
+		}
 	}
 
 	public String getValue() {
@@ -42,7 +38,9 @@ public class TestDataEntry {
 	}
 
 	public void setValue(String value) {
-		this.value = value;
+		if (!Objects.equals(this.value, value)) {
+			firePropertyChange("value", this.value, this.value = value);
+		}
 	}
 
 	public Type getType() {
@@ -50,7 +48,9 @@ public class TestDataEntry {
 	}
 
 	public void setType(Type type) {
-		this.type = type;
+		if (!Objects.equals(this.type, type)) {
+			firePropertyChange("type", this.type, this.type = type);
+		}
 	}
 
 	public String getMemo() {
@@ -58,6 +58,8 @@ public class TestDataEntry {
 	}
 
 	public void setMemo(String memo) {
-		this.memo = memo;
+		if (!Objects.equals(this.memo, memo)) {
+			firePropertyChange("memo", this.memo, this.memo = memo);
+		}
 	}
 }

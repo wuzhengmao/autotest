@@ -6,8 +6,10 @@ import java.util.List;
 import org.hibernate.validator.constraints.NotBlank;
 
 import cn.shaviation.autotest.core.internal.jsr303.Unique;
+import cn.shaviation.autotest.core.util.Objects;
+import cn.shaviation.autotest.core.util.PropertyChangeSupportBean;
 
-public class TestDataDef {
+public class TestDataDef extends PropertyChangeSupportBean {
 
 	@NotBlank(message = "{testDataDef.name.NotBlank}")
 	private String name;
@@ -26,7 +28,9 @@ public class TestDataDef {
 	}
 
 	public void setName(String name) {
-		this.name = name;
+		if (!Objects.equals(this.name, name)) {
+			firePropertyChange("name", this.name, this.name = name);
+		}
 	}
 
 	public String getDescription() {
@@ -34,7 +38,10 @@ public class TestDataDef {
 	}
 
 	public void setDescription(String description) {
-		this.description = description;
+		if (!Objects.equals(this.description, description)) {
+			firePropertyChange("description", this.description,
+					this.description = description);
+		}
 	}
 
 	public String getAuthor() {
@@ -42,7 +49,9 @@ public class TestDataDef {
 	}
 
 	public void setAuthor(String author) {
-		this.author = author;
+		if (!Objects.equals(this.author, author)) {
+			firePropertyChange("author", this.author, this.author = author);
+		}
 	}
 
 	public Date getLastUpdateTime() {
@@ -50,7 +59,10 @@ public class TestDataDef {
 	}
 
 	public void setLastUpdateTime(Date lastUpdateTime) {
-		this.lastUpdateTime = lastUpdateTime;
+		if (!Objects.equals(this.lastUpdateTime, lastUpdateTime)) {
+			firePropertyChange("lastUpdateTime", this.lastUpdateTime,
+					this.lastUpdateTime = lastUpdateTime);
+		}
 	}
 
 	public List<TestDataGroup> getDataList() {
@@ -58,6 +70,9 @@ public class TestDataDef {
 	}
 
 	public void setDataList(List<TestDataGroup> dataList) {
-		this.dataList = dataList;
+		if (!Objects.equals(this.dataList, dataList)) {
+			firePropertyChange("dataList", this.dataList,
+					this.dataList = dataList);
+		}
 	}
 }

@@ -5,7 +5,10 @@ import java.util.List;
 
 import org.hibernate.validator.constraints.NotBlank;
 
-public class TestScript {
+import cn.shaviation.autotest.core.util.Objects;
+import cn.shaviation.autotest.core.util.PropertyChangeSupportBean;
+
+public class TestScript extends PropertyChangeSupportBean {
 
 	@NotBlank(message = "{testScript.name.NotBlank}")
 	private String name;
@@ -23,7 +26,9 @@ public class TestScript {
 	}
 
 	public void setName(String name) {
-		this.name = name;
+		if (!Objects.equals(this.name, name)) {
+			firePropertyChange("name", this.name, this.name = name);
+		}
 	}
 
 	public String getDescription() {
@@ -31,7 +36,10 @@ public class TestScript {
 	}
 
 	public void setDescription(String description) {
-		this.description = description;
+		if (!Objects.equals(this.description, description)) {
+			firePropertyChange("description", this.description,
+					this.description = description);
+		}
 	}
 
 	public String getAuthor() {
@@ -39,7 +47,9 @@ public class TestScript {
 	}
 
 	public void setAuthor(String author) {
-		this.author = author;
+		if (!Objects.equals(this.author, author)) {
+			firePropertyChange("author", this.author, this.author = author);
+		}
 	}
 
 	public Date getLastUpdateTime() {
@@ -47,7 +57,10 @@ public class TestScript {
 	}
 
 	public void setLastUpdateTime(Date lastUpdateTime) {
-		this.lastUpdateTime = lastUpdateTime;
+		if (!Objects.equals(this.lastUpdateTime, lastUpdateTime)) {
+			firePropertyChange("lastUpdateTime", this.lastUpdateTime,
+					this.lastUpdateTime = lastUpdateTime);
+		}
 	}
 
 	public List<TestStep> getTestSteps() {
@@ -55,6 +68,9 @@ public class TestScript {
 	}
 
 	public void setTestSteps(List<TestStep> testSteps) {
-		this.testSteps = testSteps;
+		if (!Objects.equals(this.testSteps, testSteps)) {
+			firePropertyChange("testSteps", this.testSteps,
+					this.testSteps = testSteps);
+		}
 	}
 }

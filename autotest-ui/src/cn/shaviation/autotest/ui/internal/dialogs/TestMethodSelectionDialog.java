@@ -91,7 +91,8 @@ public class TestMethodSelectionDialog extends FilteredItemsSelectionDialog {
 	@SuppressWarnings("rawtypes")
 	@Override
 	protected void setResult(List newResult) {
-		List<IAnnotation> resultToReturn = new ArrayList<IAnnotation>(1);
+		List<IAnnotation> resultToReturn = new ArrayList<IAnnotation>(
+				newResult.size());
 		for (int i = 0; i < newResult.size(); i++) {
 			IAnnotation annotation = getAnnotation(newResult.get(i));
 			IMethod method = (IMethod) annotation.getParent();

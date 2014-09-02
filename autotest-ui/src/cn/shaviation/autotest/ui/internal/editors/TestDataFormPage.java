@@ -1,5 +1,6 @@
 package cn.shaviation.autotest.ui.internal.editors;
 
+import org.eclipse.core.databinding.DataBindingContext;
 import org.eclipse.core.databinding.beans.PojoObservables;
 import org.eclipse.core.databinding.observable.list.IListChangeListener;
 import org.eclipse.core.databinding.observable.list.ListChangeEvent;
@@ -656,7 +657,8 @@ public class TestDataFormPage extends DocumentFormPage<TestDataDef> {
 	}
 
 	@Override
-	protected void bindControls(TestDataDef model) {
+	protected void bindControls(DataBindingContext dataBindingContext,
+			TestDataDef model) {
 		IManagedForm managedForm = getManagedForm();
 		UIUtils.bindText(dataBindingContext, managedForm, nameText, model,
 				"name", Converters.TRIM, Converters.TRIM);

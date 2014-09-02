@@ -1,14 +1,14 @@
 package cn.shaviation.autotest.core.model;
 
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 import org.hibernate.validator.constraints.NotBlank;
 
 import cn.shaviation.autotest.core.internal.jsr303.Unique;
+import cn.shaviation.autotest.core.util.Objects;
+import cn.shaviation.autotest.core.util.PropertyChangeSupportBean;
 
-public class TestDataGroup {
+public class TestDataGroup extends PropertyChangeSupportBean {
 
 	@NotBlank(message = "{testDataGroup.name.NotBlank}")
 	private String name;
@@ -16,20 +16,14 @@ public class TestDataGroup {
 	@Unique(property = "key", message = "{testDataEntry.key.Unique}")
 	private List<TestDataEntry> entries;
 
-	public TestDataGroup() {
-
-	}
-
-	public TestDataGroup(TestDataEntry... entries) {
-		this.entries = new ArrayList<TestDataEntry>(Arrays.asList(entries));
-	}
-
 	public String getName() {
 		return name;
 	}
 
 	public void setName(String name) {
-		this.name = name;
+		if (!Objects.equals(this.name, name)) {
+			firePropertyChange("name", this.name, this.name = name);
+		}
 	}
 
 	public List<TestDataEntry> getEntries() {
@@ -37,6 +31,8 @@ public class TestDataGroup {
 	}
 
 	public void setEntries(List<TestDataEntry> entries) {
-		this.entries = entries;
+		if (!Objects.equals(this.entries, entries)) {
+			firePropertyChange("entries", this.entries, this.entries = entries);
+		}
 	}
 }

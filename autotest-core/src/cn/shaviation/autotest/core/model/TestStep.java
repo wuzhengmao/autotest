@@ -8,8 +8,11 @@ import javax.validation.constraints.NotNull;
 import org.hibernate.validator.constraints.NotBlank;
 
 import cn.shaviation.autotest.core.internal.jsr303.Unique;
+import cn.shaviation.autotest.core.util.Objects;
+import cn.shaviation.autotest.core.util.PropertyChangeSupportBean;
+import cn.shaviation.autotest.core.util.Strings;
 
-public class TestStep {
+public class TestStep extends PropertyChangeSupportBean {
 
 	public static enum Type {
 		Method, Script
@@ -37,7 +40,12 @@ public class TestStep {
 	}
 
 	public void setDependentSteps(List<Integer> dependentSteps) {
-		this.dependentSteps = dependentSteps;
+		String oldValue = Strings.merge(this.dependentSteps, ",");
+		String newValue = Strings.merge(dependentSteps, ",");
+		if (!oldValue.equals(newValue)) {
+			firePropertyChange("dependentSteps", this.dependentSteps,
+					this.dependentSteps = dependentSteps);
+		}
 	}
 
 	public Type getInvokeType() {
@@ -45,7 +53,10 @@ public class TestStep {
 	}
 
 	public void setInvokeType(Type invokeType) {
-		this.invokeType = invokeType;
+		if (!Objects.equals(this.invokeType, invokeType)) {
+			firePropertyChange("invokeType", this.invokeType,
+					this.invokeType = invokeType);
+		}
 	}
 
 	public String getInvokeTarget() {
@@ -53,7 +64,10 @@ public class TestStep {
 	}
 
 	public void setInvokeTarget(String invokeTarget) {
-		this.invokeTarget = invokeTarget;
+		if (!Objects.equals(this.invokeTarget, invokeTarget)) {
+			firePropertyChange("invokeTarget", this.invokeTarget,
+					this.invokeTarget = invokeTarget);
+		}
 	}
 
 	public String getTestDataFile() {
@@ -61,7 +75,10 @@ public class TestStep {
 	}
 
 	public void setTestDataFile(String testDataFile) {
-		this.testDataFile = testDataFile;
+		if (!Objects.equals(this.testDataFile, testDataFile)) {
+			firePropertyChange("testDataFile", this.testDataFile,
+					this.testDataFile = testDataFile);
+		}
 	}
 
 	public Integer getLoopTimes() {
@@ -69,7 +86,10 @@ public class TestStep {
 	}
 
 	public void setLoopTimes(Integer loopTimes) {
-		this.loopTimes = loopTimes;
+		if (!Objects.equals(this.loopTimes, loopTimes)) {
+			firePropertyChange("loopTimes", this.loopTimes,
+					this.loopTimes = loopTimes);
+		}
 	}
 
 	public List<Parameter> getParameters() {
@@ -77,6 +97,9 @@ public class TestStep {
 	}
 
 	public void setParameters(List<Parameter> parameters) {
-		this.parameters = parameters;
+		if (!Objects.equals(this.parameters, parameters)) {
+			firePropertyChange("parameters", this.parameters,
+					this.parameters = parameters);
+		}
 	}
 }

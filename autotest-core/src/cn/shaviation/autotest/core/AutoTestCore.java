@@ -1,5 +1,9 @@
 package cn.shaviation.autotest.core;
 
+import org.eclipse.core.runtime.Assert;
+import org.eclipse.core.runtime.IAdaptable;
+import org.eclipse.core.runtime.Platform;
+import org.eclipse.core.runtime.PlatformObject;
 import org.eclipse.core.runtime.Plugin;
 import org.eclipse.core.runtime.QualifiedName;
 import org.osgi.framework.BundleContext;
@@ -33,5 +37,31 @@ public class AutoTestCore extends Plugin {
 
 	public static AutoTestCore getDefault() {
 		return plugin;
+	}
+
+	public static <T> T getAdapter(Object sourceObject, Class<T> adapterType) {
+		Assert.isNotNull(adapterType);
+		if (sourceObject == null) {
+			return null;
+		}
+		if (adapterType.isInstance(sourceObject)) {
+			return adapterType.cast(sourceObject);
+		}
+		if ((sourceObject instanceof IAdaptable)) {
+			IAdaptable adaptable = (IAdaptable) sourceObject;
+			Object result = adaptable.getAdapter(adapterType);
+			if (result != null) {
+				Assert.isTrue(adapterType.isInstance(result));
+				return adapterType.cast(result);
+			}
+		}
+		if (!(sourceObject instanceof PlatformObject)) {
+			Object result = Platform.getAdapterManager().getAdapter(
+					sourceObject, adapterType);
+			if (result != null) {
+				return adapterType.cast(result);
+			}
+		}
+		return null;
 	}
 }

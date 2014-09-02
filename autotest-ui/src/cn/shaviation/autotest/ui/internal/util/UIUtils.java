@@ -3,6 +3,7 @@ package cn.shaviation.autotest.ui.internal.util;
 import org.eclipse.core.databinding.Binding;
 import org.eclipse.core.databinding.DataBindingContext;
 import org.eclipse.core.databinding.UpdateValueStrategy;
+import org.eclipse.core.databinding.beans.BeanProperties;
 import org.eclipse.core.databinding.beans.PojoProperties;
 import org.eclipse.core.databinding.conversion.Converter;
 import org.eclipse.core.databinding.observable.value.IObservableValue;
@@ -11,10 +12,14 @@ import org.eclipse.jface.databinding.swt.WidgetProperties;
 import org.eclipse.jface.databinding.viewers.ViewerProperties;
 import org.eclipse.jface.dialogs.ErrorDialog;
 import org.eclipse.jface.resource.ImageDescriptor;
+import org.eclipse.jface.resource.JFaceResources;
+import org.eclipse.jface.resource.LocalResourceManager;
+import org.eclipse.jface.resource.ResourceManager;
 import org.eclipse.jface.viewers.Viewer;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.CCombo;
 import org.eclipse.swt.custom.StyledText;
+import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Combo;
@@ -27,14 +32,33 @@ import org.eclipse.ui.forms.IManagedForm;
 import org.eclipse.ui.forms.widgets.ScrolledForm;
 import org.eclipse.ui.forms.widgets.TableWrapLayout;
 
+import cn.shaviation.autotest.core.util.PropertyChangeSupportBean;
 import cn.shaviation.autotest.ui.AutoTestUI;
 import cn.shaviation.autotest.ui.internal.databinding.Jsr303BeanValidator;
 
 public abstract class UIUtils {
 
+	private static ResourceManager resourceManager;
+
 	public static ImageDescriptor getImageDescriptor(String name) {
 		return AutoTestUI.imageDescriptorFromPlugin(AutoTestUI.PLUGIN_ID,
 				"icons/" + name);
+	}
+
+	public static Image getImage(ImageDescriptor imageDescriptor) {
+		return (Image) getResourceManager().get(imageDescriptor);
+	}
+
+	public static Image getImage(String name) {
+		return (Image) getResourceManager().get(getImageDescriptor(name));
+	}
+
+	public static ResourceManager getResourceManager() {
+		if (resourceManager == null) {
+			resourceManager = new LocalResourceManager(
+					JFaceResources.getResources());
+		}
+		return resourceManager;
 	}
 
 	public static void showError(IEditorPart editorPart, String message,
@@ -264,8 +288,9 @@ public abstract class UIUtils {
 			IObservableValue observeWidget, IManagedForm managedForm,
 			Control control, Object bean, String propName,
 			Converter targetToModelConverter, Converter modelToTargetConverter) {
-		IObservableValue observeValue = PojoProperties.value(propName).observe(
-				bean);
+		IObservableValue observeValue = bean instanceof PropertyChangeSupportBean ? BeanProperties
+				.value(propName).observe(bean) : PojoProperties.value(propName)
+				.observe(bean);
 		UpdateValueStrategy targetToModel = new UpdateValueStrategy();
 		targetToModel.setConverter(targetToModelConverter);
 		targetToModel.setAfterConvertValidator(new Jsr303BeanValidator(bean

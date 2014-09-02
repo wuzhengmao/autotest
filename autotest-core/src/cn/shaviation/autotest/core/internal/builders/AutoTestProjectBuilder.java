@@ -90,7 +90,7 @@ public class AutoTestProjectBuilder extends IncrementalProjectBuilder {
 			break;
 		}
 		if (javaProject == null) {
-			addProblem(project, "Not a Java project", IMarker.SEVERITY_ERROR);
+			addProblem(project, "It's not a Java project", IMarker.SEVERITY_ERROR);
 		}
 		return null;
 	}

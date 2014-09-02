@@ -21,12 +21,14 @@ public abstract class Strings {
 
 	public static String merge(Collection<?> objs, String delimiter) {
 		StringBuilder sb = new StringBuilder();
-		for (Object obj : objs) {
-			if (obj != null) {
-				if (sb.length() > 0) {
-					sb.append(delimiter);
+		if (objs != null) {
+			for (Object obj : objs) {
+				if (obj != null) {
+					if (sb.length() > 0) {
+						sb.append(delimiter);
+					}
+					sb.append(obj.toString());
 				}
-				sb.append(obj.toString());
 			}
 		}
 		return sb.toString();

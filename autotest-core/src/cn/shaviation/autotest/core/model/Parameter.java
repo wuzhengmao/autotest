@@ -2,7 +2,10 @@ package cn.shaviation.autotest.core.model;
 
 import org.hibernate.validator.constraints.NotBlank;
 
-public class Parameter {
+import cn.shaviation.autotest.core.util.Objects;
+import cn.shaviation.autotest.core.util.PropertyChangeSupportBean;
+
+public class Parameter extends PropertyChangeSupportBean {
 
 	@NotBlank(message = "{parameter.key.NotBlank}")
 	private String key;
@@ -16,7 +19,9 @@ public class Parameter {
 	}
 
 	public void setKey(String key) {
-		this.key = key;
+		if (!Objects.equals(this.key, key)) {
+			firePropertyChange("key", this.key, this.key = key);
+		}
 	}
 
 	public String getValue() {
@@ -24,7 +29,9 @@ public class Parameter {
 	}
 
 	public void setValue(String value) {
-		this.value = value;
+		if (!Objects.equals(this.value, value)) {
+			firePropertyChange("value", this.value, this.value = value);
+		}
 	}
 
 	public String getMemo() {
@@ -32,6 +39,8 @@ public class Parameter {
 	}
 
 	public void setMemo(String memo) {
-		this.memo = memo;
+		if (!Objects.equals(this.memo, memo)) {
+			firePropertyChange("memo", this.memo, this.memo = memo);
+		}
 	}
 }

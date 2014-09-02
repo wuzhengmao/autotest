@@ -36,9 +36,8 @@ import cn.shaviation.autotest.ui.internal.util.UIUtils;
 
 public abstract class DocumentFormPage<T> extends FormPage {
 
-	protected DataBindingContext dataBindingContext;
 	protected DefaultModifyListener defaultModifyListener = new DefaultModifyListener();
-
+	private DataBindingContext dataBindingContext;
 	private boolean ignoreChange = false;
 	private boolean ignoreReload = false;
 	private boolean needReload = true;
@@ -140,7 +139,6 @@ public abstract class DocumentFormPage<T> extends FormPage {
 	}
 
 	private void loadModel() {
-		unbindControls();
 		T model = createModel();
 		IStatus status = getEditor().checkDocumentStatus();
 		if (status != null) {
@@ -164,8 +162,10 @@ public abstract class DocumentFormPage<T> extends FormPage {
 		ignoreChange = true;
 		mergeModel(model, getEditorInput().getModel());
 		if (!documentError) {
-			dataBindingContext = new DataBindingContext();
-			bindControls(getEditorInput().getModel());
+			if (dataBindingContext == null) {
+				dataBindingContext = new DataBindingContext();
+				bindControls(dataBindingContext, getEditorInput().getModel());
+			}
 		}
 		ignoreChange = false;
 		lastModifyTime = 0;
@@ -194,15 +194,8 @@ public abstract class DocumentFormPage<T> extends FormPage {
 		UIUtils.setReadonly((Composite) getPartControl(), readonly);
 	}
 
-	protected abstract void bindControls(T model);
-
-	protected void unbindControls() {
-		if (dataBindingContext != null) {
-			dataBindingContext.dispose();
-			dataBindingContext = null;
-		}
-		getManagedForm().getMessageManager().removeAllMessages();
-	}
+	protected abstract void bindControls(DataBindingContext dataBindingContext,
+			T model);
 
 	protected void postLoadModel(T model) {
 
