@@ -45,6 +45,8 @@ import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Item;
 import org.eclipse.swt.widgets.Label;
+import org.eclipse.swt.widgets.ScrollBar;
+import org.eclipse.swt.widgets.Scrollable;
 import org.eclipse.swt.widgets.Text;
 import org.eclipse.ui.IEditorInput;
 import org.eclipse.ui.forms.IManagedForm;
@@ -212,6 +214,11 @@ public class TestScriptFormPage extends DocumentFormPage<TestScript> {
 			public void controlResized(ControlEvent event) {
 				Point size = ((Control) event.getSource()).getSize();
 				int w = size.x - 166;
+				ScrollBar vbar = ((Scrollable) event.getSource())
+						.getVerticalBar();
+				if (vbar != null && vbar.isVisible()) {
+					w -= vbar.getSize().x;
+				}
 				tvc2.getColumn().setWidth(w > 80 ? w : 80);
 			}
 		});
@@ -633,6 +640,11 @@ public class TestScriptFormPage extends DocumentFormPage<TestScript> {
 			public void controlResized(ControlEvent event) {
 				Point size = ((Control) event.getSource()).getSize();
 				int w = size.x - 4;
+				ScrollBar vbar = ((Scrollable) event.getSource())
+						.getVerticalBar();
+				if (vbar != null && vbar.isVisible()) {
+					w -= vbar.getSize().x;
+				}
 				int t = w / 9;
 				if (t > 30) {
 					tvc1.getColumn().setWidth(t * 2);

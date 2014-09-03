@@ -34,6 +34,8 @@ import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Item;
 import org.eclipse.swt.widgets.Label;
+import org.eclipse.swt.widgets.ScrollBar;
+import org.eclipse.swt.widgets.Scrollable;
 import org.eclipse.swt.widgets.Text;
 import org.eclipse.ui.forms.IManagedForm;
 import org.eclipse.ui.forms.widgets.FormToolkit;
@@ -384,6 +386,11 @@ public class TestDataFormPage extends DocumentFormPage<TestDataDef> {
 			public void controlResized(ControlEvent event) {
 				Point size = ((Control) event.getSource()).getSize();
 				int w = size.x - 66;
+				ScrollBar vbar = ((Scrollable) event.getSource())
+						.getVerticalBar();
+				if (vbar != null && vbar.isVisible()) {
+					w -= vbar.getSize().x;
+				}
 				int t = w / 5;
 				if (t > 60) {
 					tvc1.getColumn().setWidth(t);
