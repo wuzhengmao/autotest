@@ -128,6 +128,7 @@ public abstract class DocumentFormEditor<T> extends FormEditor {
 						confirmRemoveDocument();
 					}
 				});
+				return;
 			} else if (!isDocumentSynchronized()
 					&& lastConfirmSyncTime < getEditorInput()
 							.getDocumentProvider().getModificationStamp(
@@ -139,8 +140,10 @@ public abstract class DocumentFormEditor<T> extends FormEditor {
 						confirmSynchronizeDocument();
 					}
 				});
+				return;
 			}
 		}
+		notifyPageActive(getActivePage());
 	}
 
 	private void confirmSynchronizeDocument() {

@@ -142,7 +142,7 @@ public abstract class DocumentFormPage<T> extends FormPage {
 		T model = createModel();
 		IStatus status = getEditor().checkDocumentStatus();
 		if (status != null) {
-			setErrorMessage(status.getMessage(), IMessageProvider.WARNING);
+			documentError(status.getMessage(), IMessageProvider.WARNING);
 			documentError = true;
 		} else {
 			try {
@@ -155,7 +155,7 @@ public abstract class DocumentFormPage<T> extends FormPage {
 				clearErrorMessage();
 				documentError = false;
 			} catch (Exception e) {
-				setErrorMessage(e.getMessage(), IMessageProvider.ERROR);
+				documentError(e.getMessage(), IMessageProvider.ERROR);
 				documentError = true;
 			}
 		}
@@ -180,6 +180,14 @@ public abstract class DocumentFormPage<T> extends FormPage {
 		postLoadModel(getEditorInput().getModel());
 	}
 
+	private void documentError(String message, int severity) {
+		if (dataBindingContext != null) {
+			unbindControls(dataBindingContext);
+			dataBindingContext = null;
+		}
+		setErrorMessage(message, severity);
+	}
+
 	protected abstract T createModel();
 
 	protected void initModel(T model) {
@@ -197,6 +205,11 @@ public abstract class DocumentFormPage<T> extends FormPage {
 	protected abstract void bindControls(DataBindingContext dataBindingContext,
 			T model);
 
+	protected void unbindControls(DataBindingContext dataBindingContext) {
+		UIUtils.unbind(dataBindingContext);
+		clearAllErrorMessages();
+	}
+
 	protected void postLoadModel(T model) {
 
 	}
@@ -212,6 +225,10 @@ public abstract class DocumentFormPage<T> extends FormPage {
 			return error;
 		}
 		return null;
+	}
+
+	private void clearAllErrorMessages() {
+		getManagedForm().getForm().getMessageManager().removeAllMessages();
 	}
 
 	private void clearErrorMessage() {

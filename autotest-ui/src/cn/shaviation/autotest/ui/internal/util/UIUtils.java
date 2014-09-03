@@ -1,12 +1,17 @@
 package cn.shaviation.autotest.ui.internal.util;
 
+import java.util.ArrayList;
+
 import org.eclipse.core.databinding.Binding;
 import org.eclipse.core.databinding.DataBindingContext;
 import org.eclipse.core.databinding.UpdateValueStrategy;
 import org.eclipse.core.databinding.beans.BeanProperties;
 import org.eclipse.core.databinding.beans.PojoProperties;
 import org.eclipse.core.databinding.conversion.Converter;
+import org.eclipse.core.databinding.observable.IObservable;
 import org.eclipse.core.databinding.observable.value.IObservableValue;
+import org.eclipse.core.databinding.observable.value.IValueChangeListener;
+import org.eclipse.core.databinding.observable.value.ValueChangeEvent;
 import org.eclipse.core.runtime.Status;
 import org.eclipse.jface.databinding.swt.WidgetProperties;
 import org.eclipse.jface.databinding.viewers.ViewerProperties;
@@ -288,17 +293,43 @@ public abstract class UIUtils {
 			IObservableValue observeWidget, IManagedForm managedForm,
 			Control control, Object bean, String propName,
 			Converter targetToModelConverter, Converter modelToTargetConverter) {
-		IObservableValue observeValue = bean instanceof PropertyChangeSupportBean ? BeanProperties
-				.value(propName).observe(bean) : PojoProperties.value(propName)
-				.observe(bean);
+		final Jsr303BeanValidator validator = new Jsr303BeanValidator(
+				bean.getClass(), propName, managedForm, control);
+		final IObservableValue observeValue;
+		if (bean instanceof PropertyChangeSupportBean) {
+			observeValue = BeanProperties.value(propName).observe(bean);
+		} else {
+			observeValue = PojoProperties.value(propName).observe(bean);
+		}
+		observeValue.addValueChangeListener(new IValueChangeListener() {
+			@Override
+			public void handleValueChange(ValueChangeEvent event) {
+				validator.validate(observeValue.getValue());
+			}
+		});
+		validator.validate(observeValue.getValue());
 		UpdateValueStrategy targetToModel = new UpdateValueStrategy();
 		targetToModel.setConverter(targetToModelConverter);
-		targetToModel.setAfterConvertValidator(new Jsr303BeanValidator(bean
-				.getClass(), propName, managedForm, control));
 		UpdateValueStrategy modelToTarget = new UpdateValueStrategy();
 		modelToTarget.setConverter(modelToTargetConverter);
 		Binding binding = dataBindingContext.bindValue(observeWidget,
 				observeValue, targetToModel, modelToTarget);
 		return binding;
+	}
+
+	@SuppressWarnings("unchecked")
+	public static void unbind(DataBindingContext dataBindingContext) {
+		for (Binding binding : new ArrayList<Binding>(
+				dataBindingContext.getBindings())) {
+			IObservable target = binding.getTarget();
+			IObservable model = binding.getModel();
+			if (target != null) {
+				target.dispose();
+			}
+			if (model != null) {
+				model.dispose();
+			}
+		}
+		dataBindingContext.dispose();
 	}
 }

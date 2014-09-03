@@ -219,12 +219,16 @@ public class TestScriptFormPage extends DocumentFormPage<TestScript> {
 
 					@Override
 					public void handleAdd(int index, Object element) {
-						validate((TestStep) element, true);
+						if (index != stepTable.getTable().getSelectionIndex()) {
+							validate((TestStep) element, true);
+						}
 					}
 
 					@Override
 					public void handleRemove(int index, Object element) {
-						clearError((TestStep) element, true);
+						if (index != stepTable.getTable().getSelectionIndex()) {
+							clearError((TestStep) element, true);
+						}
 					}
 				});
 				onFormChange();
@@ -962,7 +966,7 @@ public class TestScriptFormPage extends DocumentFormPage<TestScript> {
 	private void unbindDetails() {
 		if (dataBindingContext != null) {
 			paramTable.setInput(WritableList.withElementType(Parameter.class));
-			dataBindingContext.dispose();
+			UIUtils.unbind(dataBindingContext);
 			dataBindingContext = null;
 		}
 		IMessageManager messageManager = getManagedForm().getMessageManager();
@@ -971,7 +975,7 @@ public class TestScriptFormPage extends DocumentFormPage<TestScript> {
 		messageManager.removeMessages(testDataText);
 		messageManager.removeMessages(loopTimesText);
 		messageManager.removeMessages(dependenceText);
-		if (detailSection.getData() != null) {
+		if (!isDocumentError() && detailSection.getData() != null) {
 			validate((TestStep) detailSection.getData(), false);
 		}
 	}

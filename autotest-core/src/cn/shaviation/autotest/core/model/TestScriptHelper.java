@@ -23,6 +23,7 @@ public abstract class TestScriptHelper {
 			.enable(DeserializationFeature.ACCEPT_EMPTY_STRING_AS_NULL_OBJECT)
 			.configure(JsonParser.Feature.ALLOW_SINGLE_QUOTES, true)
 			.configure(JsonParser.Feature.ALLOW_UNQUOTED_FIELD_NAMES, true)
+			.configure(JsonParser.Feature.ALLOW_NUMERIC_LEADING_ZEROS, true)
 			.enable(SerializationFeature.INDENT_OUTPUT)
 			.setSerializationInclusion(Include.NON_EMPTY)
 			.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
