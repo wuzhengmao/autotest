@@ -5,6 +5,7 @@ import java.beans.PropertyChangeListener;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.regex.Pattern;
 
 import org.eclipse.core.databinding.DataBindingContext;
 import org.eclipse.core.databinding.beans.BeansObservables;
@@ -38,6 +39,8 @@ import org.eclipse.swt.events.ControlAdapter;
 import org.eclipse.swt.events.ControlEvent;
 import org.eclipse.swt.events.SelectionAdapter;
 import org.eclipse.swt.events.SelectionEvent;
+import org.eclipse.swt.events.VerifyEvent;
+import org.eclipse.swt.events.VerifyListener;
 import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.widgets.Button;
@@ -106,6 +109,15 @@ public class TestScriptFormPage extends DocumentFormPage<TestScript> {
 	private Button removeParamButton;
 	private Button moveParamUpButton;
 	private Button moveParamDownButton;
+
+	private static final Pattern DEPENDENCE_PATTERN = Pattern
+			.compile("^[0-9,]*$");
+	private static VerifyListener dependenceVerifyListener = new VerifyListener() {
+		@Override
+		public void verifyText(VerifyEvent event) {
+			event.doit = DEPENDENCE_PATTERN.matcher(event.text).matches();
+		}
+	};
 
 	public TestScriptFormPage(TestScriptEditor editor) {
 		super(editor, "cn.shaviation.autotest.ui.editors.TestScriptFormPage",
@@ -613,6 +625,7 @@ public class TestScriptFormPage extends DocumentFormPage<TestScript> {
 		gd_dependenceText.horizontalIndent = 5;
 		dependenceText.setLayoutData(gd_dependenceText);
 		dependenceText.addModifyListener(defaultModifyListener);
+		dependenceText.addVerifyListener(dependenceVerifyListener);
 		toolkit.createLabel(client, "").setLayoutData(new GridData());
 		toolkit.createLabel(client, "Runtime Parameters:").setLayoutData(
 				new GridData(GridData.BEGINNING, GridData.CENTER, false, false,
