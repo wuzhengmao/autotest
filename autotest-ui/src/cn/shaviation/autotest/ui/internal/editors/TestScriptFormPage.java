@@ -1,5 +1,8 @@
 package cn.shaviation.autotest.ui.internal.editors;
 
+import java.beans.PropertyChangeEvent;
+import java.beans.PropertyChangeListener;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
@@ -61,6 +64,8 @@ import cn.shaviation.autotest.core.util.Objects;
 import cn.shaviation.autotest.core.util.Strings;
 import cn.shaviation.autotest.core.util.Validators;
 import cn.shaviation.autotest.ui.internal.databinding.Converters;
+import cn.shaviation.autotest.ui.internal.databinding.ListToStringConverter;
+import cn.shaviation.autotest.ui.internal.databinding.StringToListConverter;
 import cn.shaviation.autotest.ui.internal.dialogs.TestDataSelectionDialog;
 import cn.shaviation.autotest.ui.internal.dialogs.TestMethodSelectionDialog;
 import cn.shaviation.autotest.ui.internal.dialogs.TestScriptSelectionDialog;
@@ -295,7 +300,8 @@ public class TestScriptFormPage extends DocumentFormPage<TestScript> {
 				stepTable.setSelection(StructuredSelection.EMPTY);
 				testSteps.remove(sel);
 				reorderStepTable(sel);
-				removeDependence(testSteps, sel);
+				removeDependence(testSteps, sel + 1);
+				validateDependence();
 			}
 		});
 		moveStepUpButton = toolkit.createButton(buttons, "Up", SWT.PUSH);
@@ -310,7 +316,7 @@ public class TestScriptFormPage extends DocumentFormPage<TestScript> {
 				testSteps.add(sel - 1, testSteps.remove(sel));
 				reorderStepTable(sel - 1);
 				stepTable.setSelection(selection, true);
-				exchangeDependence(testSteps, sel, sel - 1);
+				exchangeDependence(testSteps, sel + 1, sel);
 			}
 		});
 		moveStepDownButton = toolkit.createButton(buttons, "Down", SWT.PUSH);
@@ -325,7 +331,7 @@ public class TestScriptFormPage extends DocumentFormPage<TestScript> {
 				testSteps.add(sel, testSteps.remove(sel + 1));
 				reorderStepTable(sel);
 				stepTable.setSelection(selection, true);
-				exchangeDependence(testSteps, sel, sel + 1);
+				exchangeDependence(testSteps, sel + 1, sel + 2);
 			}
 		});
 		toolkit.paintBordersFor(client);
@@ -337,7 +343,7 @@ public class TestScriptFormPage extends DocumentFormPage<TestScript> {
 					TestStep step = (TestStep) ((IStructuredSelection) stepTable
 							.getSelection()).getFirstElement();
 					if (!step.equals(detailSection.getData())) {
-						unbindDetails();
+						unbindDetails((TestStep) detailSection.getData());
 						detailSection.setVisible(true);
 						detailSection.setData(step);
 						setIgnoreChange(true);
@@ -346,7 +352,7 @@ public class TestScriptFormPage extends DocumentFormPage<TestScript> {
 						setParamTableButtonStates();
 					}
 				} else {
-					unbindDetails();
+					unbindDetails((TestStep) detailSection.getData());
 					detailSection.setVisible(false);
 					detailSection.setData(null);
 				}
@@ -379,6 +385,7 @@ public class TestScriptFormPage extends DocumentFormPage<TestScript> {
 			TestStep step = testSteps.get(l);
 			List<Integer> dependence = step.getDependentSteps();
 			if (dependence != null && !dependence.isEmpty()) {
+				dependence = new ArrayList<Integer>(dependence);
 				boolean changed = false;
 				for (int k = 0; k < dependence.size(); k++) {
 					if (dependence.get(k) == i) {
@@ -391,6 +398,7 @@ public class TestScriptFormPage extends DocumentFormPage<TestScript> {
 				}
 				if (changed) {
 					Collections.sort(dependence);
+					step.setDependentSteps(dependence);
 					testSteps.set(l, step);
 				}
 			}
@@ -422,6 +430,11 @@ public class TestScriptFormPage extends DocumentFormPage<TestScript> {
 		moveStepUpButton.setEnabled(sel > 0);
 		moveStepDownButton.setEnabled(sel >= 0
 				&& sel < stepTable.getTable().getItemCount() - 1);
+	}
+
+	private void validateDependence() {
+		setError("testScript.testSteps", Validators.getErrorMessage(Validators
+				.validateProperty(getEditorInput().getModel(), "testSteps")));
 	}
 
 	private void validate(TestStep step, boolean withChildren) {
@@ -945,6 +958,13 @@ public class TestScriptFormPage extends DocumentFormPage<TestScript> {
 				"lastUpdateTime", null, Converters.DATESTAMP);
 	}
 
+	private final PropertyChangeListener dependenceChangeListener = new PropertyChangeListener() {
+		@Override
+		public void propertyChange(PropertyChangeEvent event) {
+			validateDependence();
+		}
+	};
+
 	private void bindDetails(TestStep testStep) {
 		clearError(testStep, false);
 		dataBindingContext = new DataBindingContext();
@@ -959,13 +979,19 @@ public class TestScriptFormPage extends DocumentFormPage<TestScript> {
 				testStep, "loopTimes", Converters.INT_PARSER,
 				Converters.DEFAULT);
 		UIUtils.bindText(dataBindingContext, managedForm, dependenceText,
-				testStep, "dependentSteps");
+				testStep, "dependentSteps", new StringToListConverter(
+						Integer.class, true, true, true),
+				new ListToStringConverter(true));
+		testStep.addPropertyChangeListener(dependenceChangeListener);
 		paramTable.setInput(testStep.getParameters());
 	}
 
-	private void unbindDetails() {
+	private void unbindDetails(TestStep testStep) {
 		if (dataBindingContext != null) {
 			paramTable.setInput(WritableList.withElementType(Parameter.class));
+			if (testStep != null) {
+				testStep.removePropertyChangeListener(dependenceChangeListener);
+			}
 			UIUtils.unbind(dataBindingContext);
 			dataBindingContext = null;
 		}
@@ -983,6 +1009,7 @@ public class TestScriptFormPage extends DocumentFormPage<TestScript> {
 	@Override
 	protected void postLoadModel(TestScript model) {
 		super.postLoadModel(model);
+		validateDependence();
 		if (stepTable.getSelection().isEmpty()
 				&& !model.getTestSteps().isEmpty()) {
 			stepTable.setSelection(new StructuredSelection(model.getTestSteps()

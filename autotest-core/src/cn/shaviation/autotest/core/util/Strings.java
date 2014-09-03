@@ -1,6 +1,9 @@
 package cn.shaviation.autotest.core.util;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
 import java.util.regex.Pattern;
 
 public abstract class Strings {
@@ -32,6 +35,31 @@ public abstract class Strings {
 			}
 		}
 		return sb.toString();
+	}
+
+	public static List<String> split(String text, String delimiter) {
+		return split(text, delimiter, String.class, false, false);
+	}
+
+	public static <T> List<T> split(String text, String delimiter,
+			Class<T> type, boolean ignoreNull, boolean ignoreDuplicate) {
+		if (text == null) {
+			return Collections.emptyList();
+		}
+		List<T> list = new ArrayList<T>();
+		for (String str : text.split("\\" + delimiter)) {
+			T value = null;
+			try {
+				value = Objects.toObject(str, type);
+			} catch (Exception e) {
+			}
+			if (!ignoreNull || value != null) {
+				if (!ignoreDuplicate || !list.contains(value)) {
+					list.add(value);
+				}
+			}
+		}
+		return list;
 	}
 
 	private static final Pattern NUMBER_PATTERN = Pattern.compile("\\d*");

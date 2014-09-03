@@ -5,6 +5,7 @@ import java.util.List;
 
 import org.hibernate.validator.constraints.NotBlank;
 
+import cn.shaviation.autotest.core.internal.jsr303.TestDataDependence;
 import cn.shaviation.autotest.core.util.Objects;
 import cn.shaviation.autotest.core.util.PropertyChangeSupportBean;
 
@@ -19,6 +20,7 @@ public class TestScript extends PropertyChangeSupportBean {
 
 	private Date lastUpdateTime;
 
+	@TestDataDependence(message = "{testStep.dependentSteps.invalid}")
 	private List<TestStep> testSteps;
 
 	public String getName() {
