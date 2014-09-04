@@ -34,9 +34,9 @@ import cn.shaviation.autotest.core.AutoTestCore;
 import cn.shaviation.autotest.core.jdt.INonJavaResourceVisitor;
 import cn.shaviation.autotest.core.jdt.NonJavaResourceFinder;
 import cn.shaviation.autotest.core.util.JavaUtils;
-import cn.shaviation.autotest.core.util.Strings;
 import cn.shaviation.autotest.ui.AutoTestUI;
 import cn.shaviation.autotest.ui.internal.util.UIUtils;
+import cn.shaviation.autotest.util.Strings;
 
 public abstract class NonJavaResourceSelectionDialog extends
 		FilteredItemsSelectionDialog {

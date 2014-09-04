@@ -1,7 +1,7 @@
 package cn.shaviation.autotest.ui.internal.editors;
 
-import cn.shaviation.autotest.core.model.TestDataDef;
-import cn.shaviation.autotest.core.model.TestDataHelper;
+import cn.shaviation.autotest.model.TestDataDef;
+import cn.shaviation.autotest.model.TestDataHelper;
 
 public class TestDataSourcePage extends DocumentSourcePage<TestDataDef> {
 

@@ -18,7 +18,9 @@ Require-Bundle: org.eclipse.core.runtime,
  org.eclipse.jdt.core,
  org.eclipse.jdt.ui,
  com.ibm.icu,
- cn.shaviation.autotest.core
+ cn.shaviation.autotest.runtime;bundle-version="1.0.0",
+ cn.shaviation.autotest.core;bundle-version="1.0.0"
 Bundle-ActivationPolicy: lazy
 Bundle-RequiredExecutionEnvironment: JavaSE-1.6
 Export-Package: cn.shaviation.autotest.ui
+Import-Package: javax.validation;version="1.0.0"

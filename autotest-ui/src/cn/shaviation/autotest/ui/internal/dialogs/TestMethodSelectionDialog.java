@@ -31,14 +31,14 @@ import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.Text;
 import org.eclipse.ui.dialogs.FilteredItemsSelectionDialog;
 
-import cn.shaviation.autotest.core.annotation.TestMethod;
+import cn.shaviation.autotest.annotation.TestMethod;
 import cn.shaviation.autotest.core.jdt.AutoTestProjects;
 import cn.shaviation.autotest.core.util.JavaUtils;
-import cn.shaviation.autotest.core.util.Logs;
-import cn.shaviation.autotest.core.util.Objects;
-import cn.shaviation.autotest.core.util.Strings;
 import cn.shaviation.autotest.ui.AutoTestUI;
 import cn.shaviation.autotest.ui.internal.util.UIUtils;
+import cn.shaviation.autotest.util.Logs;
+import cn.shaviation.autotest.util.Objects;
+import cn.shaviation.autotest.util.Strings;
 
 public class TestMethodSelectionDialog extends FilteredItemsSelectionDialog {
 

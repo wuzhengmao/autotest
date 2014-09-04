@@ -1,8 +1,12 @@
 package cn.shaviation.autotest.core.internal.builders;
 
+import java.util.Collection;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
+
+import javax.validation.ConstraintViolation;
 
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IMarker;
@@ -22,15 +26,19 @@ import org.eclipse.jdt.core.JavaModelException;
 
 import cn.shaviation.autotest.core.AutoTestCore;
 import cn.shaviation.autotest.core.jdt.AutoTestProjects;
-import cn.shaviation.autotest.core.model.TestDataDef;
-import cn.shaviation.autotest.core.model.TestDataHelper;
-import cn.shaviation.autotest.core.model.TestScript;
-import cn.shaviation.autotest.core.model.TestScriptHelper;
-import cn.shaviation.autotest.core.model.TestStep;
-import cn.shaviation.autotest.core.util.IOUtils;
 import cn.shaviation.autotest.core.util.JavaUtils;
-import cn.shaviation.autotest.core.util.Logs;
-import cn.shaviation.autotest.core.util.Strings;
+import cn.shaviation.autotest.core.util.Validators;
+import cn.shaviation.autotest.model.Parameter;
+import cn.shaviation.autotest.model.TestDataDef;
+import cn.shaviation.autotest.model.TestDataEntry;
+import cn.shaviation.autotest.model.TestDataGroup;
+import cn.shaviation.autotest.model.TestDataHelper;
+import cn.shaviation.autotest.model.TestScript;
+import cn.shaviation.autotest.model.TestScriptHelper;
+import cn.shaviation.autotest.model.TestStep;
+import cn.shaviation.autotest.util.IOUtils;
+import cn.shaviation.autotest.util.Logs;
+import cn.shaviation.autotest.util.Strings;
 
 public class AutoTestProjectBuilder extends IncrementalProjectBuilder {
 
@@ -90,7 +98,8 @@ public class AutoTestProjectBuilder extends IncrementalProjectBuilder {
 			break;
 		}
 		if (javaProject == null) {
-			addProblem(project, "It's not a Java project", IMarker.SEVERITY_ERROR);
+			addProblem(project, "It's not a Java project",
+					IMarker.SEVERITY_ERROR);
 		}
 		return null;
 	}
@@ -165,7 +174,7 @@ public class AutoTestProjectBuilder extends IncrementalProjectBuilder {
 							AutoTestCore.TEST_DATA_NAME_KEY, testDataDef
 									.getName().trim());
 				}
-				for (String error : TestDataHelper.validate(testDataDef)) {
+				for (String error : validate(testDataDef)) {
 					addProblem(resource, error, IMarker.SEVERITY_ERROR);
 				}
 			} else {
@@ -194,7 +203,7 @@ public class AutoTestProjectBuilder extends IncrementalProjectBuilder {
 							AutoTestCore.TEST_SCRIPT_NAME_KEY, testScript
 									.getName().trim());
 				}
-				for (String error : TestScriptHelper.validate(testScript)) {
+				for (String error : validate(testScript)) {
 					addProblem(resource, error, IMarker.SEVERITY_ERROR);
 				}
 				if (javaProject != null && testScript.getTestSteps() != null) {
@@ -269,6 +278,45 @@ public class AutoTestProjectBuilder extends IncrementalProjectBuilder {
 		try {
 			resource.deleteMarkers(MARKER, true, IResource.DEPTH_ZERO);
 		} catch (CoreException e) {
+		}
+	}
+
+	private Collection<String> validate(TestDataDef testDataDef) {
+		Set<String> messages = new LinkedHashSet<String>();
+		addMessages(messages, Validators.validate(testDataDef));
+		if (testDataDef.getDataList() != null) {
+			for (TestDataGroup group : testDataDef.getDataList()) {
+				addMessages(messages, Validators.validate(group));
+				if (group.getEntries() != null) {
+					for (TestDataEntry entry : group.getEntries()) {
+						addMessages(messages, Validators.validate(entry));
+					}
+				}
+			}
+		}
+		return messages;
+	}
+
+	private Collection<String> validate(TestScript testScript) {
+		Set<String> messages = new LinkedHashSet<String>();
+		addMessages(messages, Validators.validate(testScript));
+		if (testScript.getTestSteps() != null) {
+			for (TestStep step : testScript.getTestSteps()) {
+				addMessages(messages, Validators.validate(step));
+				if (step.getParameters() != null) {
+					for (Parameter param : step.getParameters()) {
+						addMessages(messages, Validators.validate(param));
+					}
+				}
+			}
+		}
+		return messages;
+	}
+
+	private <T> void addMessages(Set<String> messages,
+			Set<ConstraintViolation<T>> violations) {
+		for (ConstraintViolation<T> violation : violations) {
+			messages.add(violation.getMessage());
 		}
 	}
 }

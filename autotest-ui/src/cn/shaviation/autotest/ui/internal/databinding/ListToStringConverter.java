@@ -5,7 +5,7 @@ import java.util.List;
 
 import org.eclipse.core.databinding.conversion.Converter;
 
-import cn.shaviation.autotest.core.util.Strings;
+import cn.shaviation.autotest.util.Strings;
 
 public class ListToStringConverter extends Converter {
 

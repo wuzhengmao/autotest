@@ -15,10 +15,10 @@ import org.eclipse.ui.dialogs.WizardNewFileCreationPage;
 import org.eclipse.ui.ide.IDE;
 
 import cn.shaviation.autotest.core.AutoTestCore;
-import cn.shaviation.autotest.core.model.TestScript;
-import cn.shaviation.autotest.core.model.TestScriptHelper;
-import cn.shaviation.autotest.core.util.Logs;
+import cn.shaviation.autotest.model.TestScript;
+import cn.shaviation.autotest.model.TestScriptHelper;
 import cn.shaviation.autotest.ui.AutoTestUI;
+import cn.shaviation.autotest.util.Logs;
 
 public class NewTestScriptWizard extends Wizard implements INewWizard {
 

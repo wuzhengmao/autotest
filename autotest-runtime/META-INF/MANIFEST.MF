@@ -1,0 +1,24 @@
+Manifest-Version: 1.0
+Bundle-ManifestVersion: 2
+Bundle-Name: Automatic Testing Runtime
+Bundle-SymbolicName: cn.shaviation.autotest.runtime;singleton:=true
+Bundle-Version: 1.0.0.qualifier
+Bundle-RequiredExecutionEnvironment: JavaSE-1.6
+Export-Package: cn.shavation.autotest,
+ cn.shaviation.autotest.annotation,
+ cn.shaviation.autotest.model,
+ cn.shaviation.autotest.util,
+ javax.validation;version="1.0.0",
+ javax.validation.bootstrap;version="1.0.0",
+ javax.validation.constraints;version="1.0.0",
+ javax.validation.groups;version="1.0.0",
+ javax.validation.metadata;version="1.0.0",
+ javax.validation.spi;version="1.0.0"
+Bundle-ClassPath: .,
+ lib/jackson-annotations-2.2.3.jar,
+ lib/jackson-core-2.2.3.jar,
+ lib/jackson-databind-2.2.3.jar,
+ lib/validation-api-1.0.0.GA.jar
+Require-Bundle: org.eclipse.core.runtime
+Bundle-Activator: cn.shavation.autotest.AutoTest$Plugin
+Bundle-ActivationPolicy: lazy

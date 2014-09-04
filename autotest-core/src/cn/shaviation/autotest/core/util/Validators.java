@@ -3,10 +3,11 @@ package cn.shaviation.autotest.core.util;
 import java.util.Set;
 
 import javax.validation.ConstraintViolation;
-import javax.validation.Validation;
 import javax.validation.Validator;
 import javax.validation.ValidatorFactory;
 
+import org.hibernate.validator.HibernateValidator;
+import org.hibernate.validator.engine.ConfigurationImpl;
 import org.hibernate.validator.messageinterpolation.ResourceBundleMessageInterpolator;
 import org.hibernate.validator.resourceloading.PlatformResourceBundleLocator;
 
@@ -18,9 +19,7 @@ public abstract class Validators {
 		if (factory == null) {
 			synchronized (ValidatorFactory.class) {
 				if (factory == null) {
-					factory = Validation
-							.byDefaultProvider()
-							.configure()
+					factory = new ConfigurationImpl(new HibernateValidator())
 							.messageInterpolator(
 									new ResourceBundleMessageInterpolator(
 											new PlatformResourceBundleLocator(

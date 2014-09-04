@@ -43,16 +43,16 @@ import org.eclipse.ui.forms.widgets.ScrolledForm;
 import org.eclipse.ui.forms.widgets.Section;
 import org.eclipse.ui.forms.widgets.TableWrapData;
 
-import cn.shaviation.autotest.core.model.TestDataDef;
-import cn.shaviation.autotest.core.model.TestDataEntry;
-import cn.shaviation.autotest.core.model.TestDataGroup;
-import cn.shaviation.autotest.core.model.TestDataHelper;
-import cn.shaviation.autotest.core.util.Enums;
-import cn.shaviation.autotest.core.util.Objects;
-import cn.shaviation.autotest.core.util.Strings;
 import cn.shaviation.autotest.core.util.Validators;
+import cn.shaviation.autotest.model.TestDataDef;
+import cn.shaviation.autotest.model.TestDataEntry;
+import cn.shaviation.autotest.model.TestDataGroup;
+import cn.shaviation.autotest.model.TestDataHelper;
 import cn.shaviation.autotest.ui.internal.databinding.Converters;
 import cn.shaviation.autotest.ui.internal.util.UIUtils;
+import cn.shaviation.autotest.util.Enums;
+import cn.shaviation.autotest.util.Objects;
+import cn.shaviation.autotest.util.Strings;
 
 public class TestDataFormPage extends DocumentFormPage<TestDataDef> {
 

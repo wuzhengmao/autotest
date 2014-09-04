@@ -2,7 +2,7 @@ package cn.shaviation.autotest.ui.internal.databinding;
 
 import org.eclipse.core.databinding.conversion.Converter;
 
-import cn.shaviation.autotest.core.util.Objects;
+import cn.shaviation.autotest.util.Objects;
 
 public class TrimConverter extends Converter {
 

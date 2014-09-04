@@ -1,7 +1,7 @@
 package cn.shaviation.autotest.ui.internal.editors;
 
-import cn.shaviation.autotest.core.model.TestScript;
-import cn.shaviation.autotest.core.model.TestScriptHelper;
+import cn.shaviation.autotest.model.TestScript;
+import cn.shaviation.autotest.model.TestScriptHelper;
 
 public class TestScriptSourcePage extends DocumentSourcePage<TestScript> {
 

@@ -60,14 +60,12 @@ import org.eclipse.ui.forms.widgets.Section;
 import org.eclipse.ui.forms.widgets.TableWrapData;
 
 import cn.shaviation.autotest.core.jdt.AutoTestProjects;
-import cn.shaviation.autotest.core.model.Parameter;
-import cn.shaviation.autotest.core.model.TestScript;
-import cn.shaviation.autotest.core.model.TestScriptHelper;
-import cn.shaviation.autotest.core.model.TestStep;
 import cn.shaviation.autotest.core.util.JavaUtils;
-import cn.shaviation.autotest.core.util.Objects;
-import cn.shaviation.autotest.core.util.Strings;
 import cn.shaviation.autotest.core.util.Validators;
+import cn.shaviation.autotest.model.Parameter;
+import cn.shaviation.autotest.model.TestScript;
+import cn.shaviation.autotest.model.TestScriptHelper;
+import cn.shaviation.autotest.model.TestStep;
 import cn.shaviation.autotest.ui.internal.databinding.Converters;
 import cn.shaviation.autotest.ui.internal.databinding.ListToStringConverter;
 import cn.shaviation.autotest.ui.internal.databinding.StringToListConverter;
@@ -78,6 +76,8 @@ import cn.shaviation.autotest.ui.internal.util.EnumLabelProvider;
 import cn.shaviation.autotest.ui.internal.util.NumberVerifyListener;
 import cn.shaviation.autotest.ui.internal.util.SelectionChangedListener;
 import cn.shaviation.autotest.ui.internal.util.UIUtils;
+import cn.shaviation.autotest.util.Objects;
+import cn.shaviation.autotest.util.Strings;
 
 public class TestScriptFormPage extends DocumentFormPage<TestScript> {
 

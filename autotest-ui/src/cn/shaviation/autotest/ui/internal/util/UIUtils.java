@@ -37,9 +37,9 @@ import org.eclipse.ui.forms.IManagedForm;
 import org.eclipse.ui.forms.widgets.ScrolledForm;
 import org.eclipse.ui.forms.widgets.TableWrapLayout;
 
-import cn.shaviation.autotest.core.util.PropertyChangeSupportBean;
 import cn.shaviation.autotest.ui.AutoTestUI;
 import cn.shaviation.autotest.ui.internal.databinding.Jsr303BeanValidator;
+import cn.shaviation.autotest.util.PropertyChangeSupportBean;
 
 public abstract class UIUtils {
 

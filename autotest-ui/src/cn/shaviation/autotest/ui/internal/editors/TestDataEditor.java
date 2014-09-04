@@ -2,7 +2,7 @@ package cn.shaviation.autotest.ui.internal.editors;
 
 import java.util.Date;
 
-import cn.shaviation.autotest.core.model.TestDataDef;
+import cn.shaviation.autotest.model.TestDataDef;
 
 public class TestDataEditor extends DocumentFormEditor<TestDataDef> {
 

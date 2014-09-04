@@ -30,9 +30,9 @@ import org.eclipse.ui.forms.widgets.ScrolledForm;
 import org.eclipse.ui.texteditor.IDocumentProvider;
 import org.eclipse.ui.texteditor.ITextEditorActionConstants;
 
-import cn.shaviation.autotest.core.util.Strings;
 import cn.shaviation.autotest.ui.internal.util.DocumentListenerAdapter;
 import cn.shaviation.autotest.ui.internal.util.UIUtils;
+import cn.shaviation.autotest.util.Strings;
 
 public abstract class DocumentFormPage<T> extends FormPage {
 

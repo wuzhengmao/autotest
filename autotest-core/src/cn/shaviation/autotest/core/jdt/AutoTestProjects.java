@@ -22,15 +22,15 @@ import org.eclipse.jdt.core.search.SearchPattern;
 import org.eclipse.jdt.core.search.SearchRequestor;
 import org.eclipse.jdt.core.search.TypeReferenceMatch;
 
+import cn.shaviation.autotest.annotation.TestMethod;
 import cn.shaviation.autotest.core.AutoTestCore;
-import cn.shaviation.autotest.core.annotation.TestMethod;
-import cn.shaviation.autotest.core.model.TestDataDef;
-import cn.shaviation.autotest.core.model.TestDataHelper;
-import cn.shaviation.autotest.core.model.TestScript;
-import cn.shaviation.autotest.core.model.TestScriptHelper;
-import cn.shaviation.autotest.core.util.IOUtils;
-import cn.shaviation.autotest.core.util.Objects;
-import cn.shaviation.autotest.core.util.Strings;
+import cn.shaviation.autotest.model.TestDataDef;
+import cn.shaviation.autotest.model.TestDataHelper;
+import cn.shaviation.autotest.model.TestScript;
+import cn.shaviation.autotest.model.TestScriptHelper;
+import cn.shaviation.autotest.util.IOUtils;
+import cn.shaviation.autotest.util.Objects;
+import cn.shaviation.autotest.util.Strings;
 
 public abstract class AutoTestProjects {
 

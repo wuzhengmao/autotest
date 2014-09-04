@@ -12,7 +12,7 @@ import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.IPackageFragment;
 import org.eclipse.jdt.core.IPackageFragmentRoot;
 
-import cn.shaviation.autotest.core.util.Objects;
+import cn.shaviation.autotest.util.Objects;
 
 public abstract class NonJavaResourceFinder {
 

@@ -6,7 +6,7 @@ import org.eclipse.jface.viewers.IStructuredSelection;
 import org.eclipse.jface.viewers.SelectionChangedEvent;
 import org.eclipse.jface.viewers.Viewer;
 
-import cn.shaviation.autotest.core.util.Objects;
+import cn.shaviation.autotest.util.Objects;
 
 public abstract class SelectionChangedListener implements
 		ISelectionChangedListener {

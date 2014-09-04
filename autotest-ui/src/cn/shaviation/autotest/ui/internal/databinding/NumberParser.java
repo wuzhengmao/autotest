@@ -5,8 +5,8 @@ import java.text.ParseException;
 
 import org.eclipse.core.databinding.conversion.Converter;
 
-import cn.shaviation.autotest.core.util.Objects;
-import cn.shaviation.autotest.core.util.Strings;
+import cn.shaviation.autotest.util.Objects;
+import cn.shaviation.autotest.util.Strings;
 
 public class NumberParser extends Converter {
 

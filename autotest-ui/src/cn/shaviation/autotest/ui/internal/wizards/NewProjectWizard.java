@@ -1,7 +1,10 @@
 package cn.shaviation.autotest.ui.internal.wizards;
 
 import java.io.File;
+import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResource;
@@ -37,13 +40,14 @@ import org.eclipse.ui.PlatformUI;
 import org.eclipse.ui.wizards.newresource.BasicNewProjectResourceWizard;
 import org.eclipse.ui.wizards.newresource.BasicNewResourceWizard;
 
+import cn.shavation.autotest.AutoTest;
 import cn.shaviation.autotest.core.AutoTestCore;
 import cn.shaviation.autotest.core.util.JavaUtils;
-import cn.shaviation.autotest.core.util.Logs;
 import cn.shaviation.autotest.core.util.Projects;
 import cn.shaviation.autotest.ui.AutoTestUI;
 import cn.shaviation.autotest.ui.internal.util.UIUtils;
 import cn.shaviation.autotest.ui.internal.util.WorkbenchRunnableAdapter;
+import cn.shaviation.autotest.util.Logs;
 
 public class NewProjectWizard extends Wizard implements INewWizard,
 		IExecutableExtension {
@@ -57,7 +61,9 @@ public class NewProjectWizard extends Wizard implements INewWizard,
 	private IConfigurationElement fConfigElement;
 
 	static {
-		ALLOW_PACKAGES = new String[] { "cn/shaviation/autotest/core/annotation/*" };
+		ALLOW_PACKAGES = new String[] { "cn/shaviation/autotest/*",
+				"cn/shaviation/autotest/annotation/*",
+				"cn/shaviation/autotest/model/*" };
 	}
 
 	public NewProjectWizard() {
@@ -106,45 +112,34 @@ public class NewProjectWizard extends Wizard implements INewWizard,
 		try {
 			monitor.beginTask("Creating...", 4);
 			this.fSecondPage.performFinish(new SubProgressMonitor(monitor, 2));
-			monitor.subTask("Add autotest-core to class path");
+			monitor.subTask("Add autotest-runtime to class path");
 			IJavaProject javaProject = getCreatedProject();
 			try {
-				String location = AutoTestCore.getDefault().getBundle()
+				String location = AutoTest.Plugin.getDefault().getBundle()
 						.getLocation();
 				int index = location.indexOf("file:/");
 				if (index >= 0) {
-					IClasspathEntry classpathEntry = null;
+					List<IClasspathEntry> classpathEntries = new ArrayList<IClasspathEntry>();
 					File path = new File(location.substring(index + 6));
 					if (path.isDirectory()) {
-						path = new File(path, "bin");
-					}
-					if (path.exists()) {
-						String lib = path.getCanonicalPath();
-						for (String name : JavaCore.getClasspathVariableNames()) {
-							IPath vp = JavaCore.getClasspathVariable(name);
-							if (vp != null && !vp.isEmpty()) {
-								String var = vp.toFile().getCanonicalPath();
-								if (lib.startsWith(var)) {
-									lib = lib.substring(var.length());
-									if (!lib.startsWith("/")
-											&& !lib.startsWith("\\")) {
-										lib = "/" + lib;
-									}
-									classpathEntry = JavaCore.newVariableEntry(
-											new Path(name + lib), null, null,
-											createAccessRules(), null, false);
-									break;
+						classpathEntries.add(createClasspathEntry(new File(
+								path, "bin")));
+						File libs = new File(path, "lib");
+						if (libs.exists() && libs.isDirectory()) {
+							for (File lib : libs.listFiles()) {
+								if (lib.getName().toLowerCase()
+										.endsWith(".jar")) {
+									classpathEntries
+											.add(createClasspathEntry(lib));
 								}
 							}
 						}
-						if (classpathEntry == null) {
-							classpathEntry = JavaCore.newLibraryEntry(new Path(
-									lib), null, null, createAccessRules(),
-									null, false);
-						}
-						JavaUtils.addClasspathEntries(javaProject,
-								new IClasspathEntry[] { classpathEntry }, null);
+					} else {
+						classpathEntries.add(createClasspathEntry(path));
 					}
+					JavaUtils.addClasspathEntries(javaProject, classpathEntries
+							.toArray(new IClasspathEntry[classpathEntries
+									.size()]), null);
 				}
 			} catch (Exception e) {
 				Logs.e(e);
@@ -152,6 +147,7 @@ public class NewProjectWizard extends Wizard implements INewWizard,
 				monitor.worked(1);
 			}
 			IProject project = javaProject.getProject();
+			project.setDefaultCharset("UTF-8", monitor);
 			if (!project.hasNature(AutoTestCore.NATURE_ID)) {
 				Projects.addNature(project, AutoTestCore.NATURE_ID,
 						new SubProgressMonitor(monitor, 1));
@@ -159,6 +155,26 @@ public class NewProjectWizard extends Wizard implements INewWizard,
 		} finally {
 			monitor.done();
 		}
+	}
+
+	private IClasspathEntry createClasspathEntry(File path) throws IOException {
+		String lib = path.getCanonicalPath();
+		for (String name : JavaCore.getClasspathVariableNames()) {
+			IPath vp = JavaCore.getClasspathVariable(name);
+			if (vp != null && !vp.isEmpty()) {
+				String var = vp.toFile().getCanonicalPath();
+				if (lib.startsWith(var)) {
+					lib = lib.substring(var.length());
+					if (!lib.startsWith("/") && !lib.startsWith("\\")) {
+						lib = "/" + lib;
+					}
+					return JavaCore.newVariableEntry(new Path(name + lib),
+							null, null, createAccessRules(), null, false);
+				}
+			}
+		}
+		return JavaCore.newLibraryEntry(new Path(lib), null, null,
+				createAccessRules(), null, false);
 	}
 
 	private IAccessRule[] createAccessRules() {
