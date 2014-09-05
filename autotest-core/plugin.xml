@@ -11,13 +11,18 @@
       </runtime>
       <builder id="cn.shaviation.autotest.core.builder" />
    </extension>
-   <extension
-         point="org.eclipse.ui.ide.projectNatureImages">
-      <image
+   <extension point="org.eclipse.ui.decorators">
+      <decorator
+            adaptable="true"
             icon="icons/nature.gif"
-            id="cn.shaviation.autotest.core.project.ico"
-            natureId="cn.shaviation.autotest.core.nature">
-      </image>
+            id="cn.shaviation.autotest.core.decorator"
+            lightweight="true"
+            location="TOP_LEFT"
+            state="true">
+         <enablement>
+            <objectState name="nature" value="cn.shaviation.autotest.core.nature"/>
+         </enablement>
+      </decorator>
    </extension>
    <extension
          id="builder"
@@ -37,4 +42,27 @@
       <super type="org.eclipse.core.resources.problemmarker" />
    </extension>
    
+   <extension
+         point="org.eclipse.debug.core.launchConfigurationTypes">
+      <launchConfigurationType
+            id="cn.shaviation.autotest.launching.AutoTestLaunchConfigType"
+            delegate="cn.shaviation.autotest.core.internal.launching.AutoTestLaunchDelegate"
+            name="Automatic Testing"
+            modes="run,debug"
+            sourceLocatorId="org.eclipse.jdt.launching.sourceLocator.JavaSourceLookupDirector"
+            sourcePathComputerId="org.eclipse.jdt.launching.sourceLookup.javaSourcePathComputer">
+      </launchConfigurationType>
+   </extension>
+   
+   <extension
+         point="org.eclipse.core.expressions.propertyTesters">
+      <propertyTester
+            properties="canLaunch"
+            namespace="cn.shaviation.autotest.launching"
+            type="org.eclipse.core.runtime.IAdaptable"
+            class="cn.shaviation.autotest.core.internal.launching.AutoTestPropertyTester"
+            id="cn.shaviation.autotest.launching.AutoTestPropertyTester">
+      </propertyTester>
+   </extension>
+
 </plugin>

@@ -6,7 +6,10 @@ Bundle-Version: 1.0.0.qualifier
 Bundle-Activator: cn.shaviation.autotest.core.AutoTestCore
 Require-Bundle: org.eclipse.core.runtime,
  org.eclipse.core.resources,
+ org.eclipse.core.expressions,
+ org.eclipse.debug.core,
  org.eclipse.jdt.core,
+ org.eclipse.jdt.launching,
  cn.shaviation.autotest.runtime;bundle-version="1.0.0"
 Bundle-ActivationPolicy: lazy
 Bundle-RequiredExecutionEnvironment: JavaSE-1.6

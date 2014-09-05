@@ -1,0 +1,73 @@
+package cn.shaviation.autotest.core.internal.launching;
+
+import org.eclipse.core.expressions.PropertyTester;
+import org.eclipse.core.resources.IFile;
+import org.eclipse.core.resources.IResource;
+import org.eclipse.core.resources.IResourceVisitor;
+import org.eclipse.core.runtime.CoreException;
+import org.eclipse.core.runtime.IAdaptable;
+import org.eclipse.jdt.core.IJavaProject;
+import org.eclipse.jdt.core.JavaCore;
+
+import cn.shaviation.autotest.core.AutoTestCore;
+import cn.shaviation.autotest.core.util.JavaUtils;
+import cn.shaviation.autotest.util.Logs;
+
+public class AutoTestPropertyTester extends PropertyTester {
+
+	@Override
+	public boolean test(Object receiver, String property, Object[] args,
+			Object expectedValue) {
+		if (!(receiver instanceof IAdaptable)) {
+			throw new IllegalArgumentException(
+					"Element must be of type 'IAdaptable', is " + receiver == null ? "null"
+							: receiver.getClass().getName());
+		}
+		IResource resource;
+		if ((receiver instanceof IResource)) {
+			resource = (IResource) receiver;
+		} else {
+			resource = (IResource) ((IAdaptable) receiver)
+					.getAdapter(IResource.class);
+		}
+		if (resource == null) {
+			return false;
+		} else if ("canLaunch".equals(property)) {
+			return canLaunch(resource);
+		}
+		throw new IllegalArgumentException("Unknown test property '" + property
+				+ "'");
+	}
+
+	private boolean canLaunch(IResource resource) {
+		try {
+			if (!resource.getProject().hasNature(JavaCore.NATURE_ID)) {
+				return false;
+			} else if (!resource.getProject().hasNature(AutoTestCore.NATURE_ID)) {
+				return false;
+			} else {
+				IJavaProject javaProject = JavaUtils.getJavaProject(resource
+						.getProject());
+
+				final boolean[] result = new boolean[] { false };
+				resource.accept(new IResourceVisitor() {
+					@Override
+					public boolean visit(IResource resource)
+							throws CoreException {
+						if (resource instanceof IFile
+								&& AutoTestCore.TEST_SCRIPT_FILE_EXTENSION
+										.equals(resource.getFileExtension())) {
+							result[0] = true;
+							return false;
+						}
+						return true;
+					}
+				});
+				return result[0];
+			}
+		} catch (CoreException e) {
+			Logs.e(e);
+			return false;
+		}
+	}
+}

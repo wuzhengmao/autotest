@@ -51,5 +51,39 @@
             id="cn.shaviation.autotest.ui.wizards.NewTestScriptWizard">
       </wizard>
    </extension>
-
+   
+   <extension
+         point="org.eclipse.debug.ui.launchConfigurationTypeImages">
+      <launchConfigurationTypeImage
+            configTypeID="cn.shaviation.autotest.launching.AutoTestLaunchConfigType"
+            icon="icons/script.png"
+            id="cn.shaviation.autotest.launching.AutoTestLaunchConfigTypeImage">
+      </launchConfigurationTypeImage>
+   </extension>
+   <extension
+         point="org.eclipse.debug.ui.launchShortcuts">
+      <shortcut
+            class="cn.shaviation.autotest.ui.internal.launching.AutoTestLaunchShortcut"
+            icon="icons/script.png"
+            id="cn.shaviation.autotest.launching.AutoTestLaunchShortcut"
+            label="Launch Automatic Testing"
+            modes="run,debug">
+         <configurationType
+               id="cn.shaviation.autotest.launching.AutoTestLaunchConfigType">
+         </configurationType>
+         <contextualLaunch>
+            <enablement>
+               <with variable="selection">
+                  <count value="1" />
+                  <iterate>
+                     <adapt type="org.eclipse.core.resources.IResource">
+                        <test property="cn.shaviation.autotest.launching.canLaunch" />
+                     </adapt>
+                  </iterate>
+               </with>
+            </enablement>
+         </contextualLaunch>
+      </shortcut>
+   </extension>
+   
 </plugin>
