@@ -20,7 +20,7 @@ public abstract class NonJavaResourceFinder {
 			INonJavaResourceVisitor visitor, IProgressMonitor monitor)
 			throws CoreException {
 		IPackageFragmentRoot[] packageFragmentRoots = javaProject
-				.getPackageFragmentRoots();
+				.getAllPackageFragmentRoots();
 		if (monitor != null) {
 			monitor.beginTask("Search...", packageFragmentRoots.length);
 		}

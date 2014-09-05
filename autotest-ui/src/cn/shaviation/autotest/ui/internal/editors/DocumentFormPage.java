@@ -4,7 +4,6 @@ import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 
 import org.eclipse.core.databinding.DataBindingContext;
-import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IStatus;
 import org.eclipse.jface.action.Action;
 import org.eclipse.jface.action.IToolBarManager;
@@ -37,6 +36,8 @@ import cn.shaviation.autotest.util.Strings;
 public abstract class DocumentFormPage<T> extends FormPage {
 
 	protected DefaultModifyListener defaultModifyListener = new DefaultModifyListener();
+	protected DocumentFormEditor<T> editor;
+	private T model;
 	private DataBindingContext dataBindingContext;
 	private boolean ignoreChange = false;
 	private boolean ignoreReload = false;
@@ -49,7 +50,7 @@ public abstract class DocumentFormPage<T> extends FormPage {
 		public void documentChanged(DocumentEvent event) {
 			if (!ignoreReload) {
 				needReload = true;
-				if (isActive() && getEditor().isActive()) {
+				if (isActive() && editor.isActive()) {
 					Display.getDefault().asyncExec(new Runnable() {
 						public void run() {
 							loadModel();
@@ -64,25 +65,14 @@ public abstract class DocumentFormPage<T> extends FormPage {
 	public DocumentFormPage(DocumentFormEditor<T> editor, String id,
 			String title) {
 		super(editor, id, title);
-	}
-
-	@SuppressWarnings("unchecked")
-	@Override
-	public DocumentFormEditor<T> getEditor() {
-		return (DocumentFormEditor<T>) super.getEditor();
-	}
-
-	@SuppressWarnings("unchecked")
-	@Override
-	public DocumentEditorInput<T> getEditorInput() {
-		return (DocumentEditorInput<T>) super.getEditorInput();
+		this.editor = editor;
 	}
 
 	@Override
 	public void setInput(IEditorInput input) {
 		super.setInput(input);
-		if (getEditorInput().getModel() == null) {
-			getEditorInput().setModel(createModel());
+		if (model == null) {
+			model = createModel();
 		}
 	}
 
@@ -94,7 +84,7 @@ public abstract class DocumentFormPage<T> extends FormPage {
 		toolBarManager.add(new Action("Refresh", UIUtils
 				.getImageDescriptor("refresh.gif")) {
 			public void run() {
-				getEditor().getSourcePage()
+				editor.getSourcePage()
 						.getAction(ITextEditorActionConstants.REFRESH).run();
 			}
 		});
@@ -124,8 +114,8 @@ public abstract class DocumentFormPage<T> extends FormPage {
 			documentProvider.getDocument(getEditorInput())
 					.removeDocumentListener(documentListener);
 		}
-		if (getEditorInput().getDocumentProvider() != null) {
-			getEditorInput().getDocumentProvider()
+		if (editor.getSourcePage().getDocumentProvider() != null) {
+			editor.getSourcePage().getDocumentProvider()
 					.getDocument(getEditorInput())
 					.addDocumentListener(documentListener);
 		}
@@ -140,13 +130,13 @@ public abstract class DocumentFormPage<T> extends FormPage {
 
 	private void loadModel() {
 		T model = createModel();
-		IStatus status = getEditor().checkDocumentStatus();
+		IStatus status = editor.checkDocumentStatus();
 		if (status != null) {
 			documentError(status.getMessage(), IMessageProvider.WARNING);
 			documentError = true;
 		} else {
 			try {
-				String source = getEditorInput().getDocument().get();
+				String source = editor.getSourcePage().getDocument().get();
 				if (!Strings.isEmpty(source)) {
 					model = convertSourceToModel(source);
 				} else {
@@ -160,24 +150,18 @@ public abstract class DocumentFormPage<T> extends FormPage {
 			}
 		}
 		ignoreChange = true;
-		mergeModel(model, getEditorInput().getModel());
+		mergeModel(model, this.model);
 		if (!documentError) {
 			if (dataBindingContext == null) {
 				dataBindingContext = new DataBindingContext();
-				bindControls(dataBindingContext, getEditorInput().getModel());
+				bindControls(dataBindingContext, this.model);
 			}
 		}
 		ignoreChange = false;
 		lastModifyTime = 0;
-		boolean readonly = documentError;
-		if (!readonly) {
-			try {
-				readonly = getEditorInput().getStorage().isReadOnly();
-			} catch (CoreException e) {
-			}
-		}
+		boolean readonly = documentError || editor.isReadonly();
 		enableControls(readonly);
-		postLoadModel(getEditorInput().getModel());
+		postLoadModel(this.model);
 	}
 
 	private void documentError(String message, int severity) {
@@ -247,19 +231,23 @@ public abstract class DocumentFormPage<T> extends FormPage {
 	protected void onFormChange() {
 		if (!ignoreChange) {
 			lastModifyTime = System.nanoTime();
-			if (!getEditor().isDirty()) {
+			if (!editor.isDirty()) {
 				ignoreReload = true;
 				try {
-					((IDocumentExtension4) getEditorInput().getDocument())
+					((IDocumentExtension4) editor.getSourcePage().getDocument())
 							.replace(0, 0, "", System.currentTimeMillis());
 				} catch (Exception e) {
-					getEditorInput().getDocument().set(
-							getEditorInput().getDocument().get());
+					editor.getSourcePage().getDocument()
+							.set(editor.getSourcePage().getDocument().get());
 				}
 				ignoreReload = false;
-				getEditor().editorDirtyStateChanged();
+				editor.editorDirtyStateChanged();
 			}
 		}
+	}
+
+	public T getModel() {
+		return model;
 	}
 
 	protected void setIgnoreChange(boolean ignoreChange) {

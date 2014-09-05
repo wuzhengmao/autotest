@@ -15,9 +15,15 @@ import org.eclipse.core.databinding.observable.list.ListChangeEvent;
 import org.eclipse.core.databinding.observable.list.ListDiffVisitor;
 import org.eclipse.core.databinding.observable.list.WritableList;
 import org.eclipse.core.databinding.observable.map.IObservableMap;
+import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IProject;
+import org.eclipse.core.resources.IStorage;
+import org.eclipse.core.runtime.CoreException;
 import org.eclipse.jdt.core.IAnnotation;
+import org.eclipse.jdt.core.IJarEntryResource;
 import org.eclipse.jdt.core.IJavaProject;
+import org.eclipse.jdt.core.IMethod;
+import org.eclipse.jdt.ui.JavaUI;
 import org.eclipse.jface.databinding.viewers.ObservableListContentProvider;
 import org.eclipse.jface.databinding.viewers.ObservableMapLabelProvider;
 import org.eclipse.jface.viewers.ArrayContentProvider;
@@ -52,20 +58,24 @@ import org.eclipse.swt.widgets.ScrollBar;
 import org.eclipse.swt.widgets.Scrollable;
 import org.eclipse.swt.widgets.Text;
 import org.eclipse.ui.IEditorInput;
+import org.eclipse.ui.IStorageEditorInput;
 import org.eclipse.ui.forms.IManagedForm;
 import org.eclipse.ui.forms.IMessageManager;
 import org.eclipse.ui.forms.widgets.FormToolkit;
 import org.eclipse.ui.forms.widgets.ScrolledForm;
 import org.eclipse.ui.forms.widgets.Section;
 import org.eclipse.ui.forms.widgets.TableWrapData;
+import org.eclipse.ui.ide.IDE;
 
 import cn.shaviation.autotest.core.jdt.AutoTestProjects;
+import cn.shaviation.autotest.core.jdt.NonJavaResourceFinder;
 import cn.shaviation.autotest.core.util.JavaUtils;
 import cn.shaviation.autotest.core.util.Validators;
 import cn.shaviation.autotest.model.Parameter;
 import cn.shaviation.autotest.model.TestScript;
 import cn.shaviation.autotest.model.TestScriptHelper;
 import cn.shaviation.autotest.model.TestStep;
+import cn.shaviation.autotest.ui.AutoTestUI;
 import cn.shaviation.autotest.ui.internal.databinding.Converters;
 import cn.shaviation.autotest.ui.internal.databinding.ListToStringConverter;
 import cn.shaviation.autotest.ui.internal.databinding.StringToListConverter;
@@ -73,9 +83,11 @@ import cn.shaviation.autotest.ui.internal.dialogs.TestDataSelectionDialog;
 import cn.shaviation.autotest.ui.internal.dialogs.TestMethodSelectionDialog;
 import cn.shaviation.autotest.ui.internal.dialogs.TestScriptSelectionDialog;
 import cn.shaviation.autotest.ui.internal.util.EnumLabelProvider;
+import cn.shaviation.autotest.ui.internal.util.JarEntryEditorInput;
 import cn.shaviation.autotest.ui.internal.util.NumberVerifyListener;
 import cn.shaviation.autotest.ui.internal.util.SelectionChangedListener;
 import cn.shaviation.autotest.ui.internal.util.UIUtils;
+import cn.shaviation.autotest.util.Logs;
 import cn.shaviation.autotest.util.Objects;
 import cn.shaviation.autotest.util.Strings;
 
@@ -99,9 +111,11 @@ public class TestScriptFormPage extends DocumentFormPage<TestScript> {
 	private Label invokeTargetLabel;
 	private Text invokeTargetText;
 	private Button invokeTargetButton;
+	private Button gotoInvokeTargetButton;
 	private Label testDataLabel;
 	private Text testDataText;
 	private Button testDataButton;
+	private Button gotoTestDataButton;
 	private Text loopTimesText;
 	private Text dependenceText;
 	private TableViewer paramTable;
@@ -127,8 +141,21 @@ public class TestScriptFormPage extends DocumentFormPage<TestScript> {
 	@Override
 	public void setInput(IEditorInput input) {
 		super.setInput(input);
-		IProject project = getEditorInput().getFile().getProject();
-		javaProject = JavaUtils.getJavaProject(project);
+		try {
+			IStorage storage = ((IStorageEditorInput) input).getStorage();
+			if (storage instanceof IFile) {
+				IProject project = ((IFile) storage).getProject();
+				javaProject = JavaUtils.getJavaProject(project);
+			} else if (storage instanceof IJarEntryResource) {
+				javaProject = ((IJarEntryResource) storage)
+						.getPackageFragmentRoot().getJavaProject();
+			} else {
+				javaProject = null;
+			}
+		} catch (CoreException e) {
+			Logs.e(e);
+			javaProject = null;
+		}
 	}
 
 	@Override
@@ -234,8 +261,7 @@ public class TestScriptFormPage extends DocumentFormPage<TestScript> {
 				tvc2.getColumn().setWidth(w > 80 ? w : 80);
 			}
 		});
-		final WritableList testSteps = (WritableList) getEditorInput()
-				.getModel().getTestSteps();
+		final WritableList testSteps = (WritableList) getModel().getTestSteps();
 		testSteps.addListChangeListener(new IListChangeListener() {
 			@Override
 			public void handleListChange(ListChangeEvent event) {
@@ -444,6 +470,9 @@ public class TestScriptFormPage extends DocumentFormPage<TestScript> {
 	}
 
 	private void setStepTableButtonStates() {
+		if (editor.isReadonly()) {
+			return;
+		}
 		int sel = stepTable.getTable().getSelectionIndex();
 		removeStepButton.setEnabled(sel >= 0);
 		moveStepUpButton.setEnabled(sel > 0);
@@ -453,7 +482,7 @@ public class TestScriptFormPage extends DocumentFormPage<TestScript> {
 
 	private void validateDependence() {
 		setError("testScript.testSteps", Validators.getErrorMessage(Validators
-				.validateProperty(getEditorInput().getModel(), "testSteps")));
+				.validateProperty(getModel(), "testSteps")));
 	}
 
 	private void validate(TestStep step, boolean withChildren) {
@@ -514,7 +543,7 @@ public class TestScriptFormPage extends DocumentFormPage<TestScript> {
 		detailSection.setLayoutData(new GridData(GridData.FILL_BOTH));
 		detailSection.setLayout(UIUtils.createClearTableWrapLayout(false, 1));
 		Composite client = toolkit.createComposite(detailSection);
-		client.setLayout(UIUtils.createSectionClientGridLayout(false, 3));
+		client.setLayout(UIUtils.createSectionClientGridLayout(false, 4));
 		detailSection.setClient(client);
 		toolkit.createLabel(client, "Type:").setLayoutData(new GridData());
 		invokeTypeCombo = new ComboViewer(client, SWT.DROP_DOWN | SWT.READ_ONLY);
@@ -536,35 +565,42 @@ public class TestScriptFormPage extends DocumentFormPage<TestScript> {
 							invokeTargetText.setText("");
 							invokeTargetText.setVisible(true);
 							invokeTargetButton.setVisible(true);
+							gotoInvokeTargetButton.setVisible(true);
 							testDataLabel.setVisible(true);
 							testDataText.setText("");
 							testDataText.setVisible(true);
 							testDataButton.setVisible(true);
+							gotoTestDataButton.setVisible(true);
 						} else if (type == TestStep.Type.Script) {
 							invokeTargetLabel.setText("Test Script:");
 							invokeTargetLabel.setVisible(true);
 							invokeTargetText.setText("");
 							invokeTargetText.setVisible(true);
 							invokeTargetButton.setVisible(true);
+							gotoInvokeTargetButton.setVisible(true);
 							testDataLabel.setVisible(false);
 							testDataText.setText("");
 							testDataText.setVisible(false);
 							testDataButton.setVisible(false);
+							gotoTestDataButton.setVisible(false);
 						} else {
 							invokeTargetLabel.setVisible(false);
 							invokeTargetText.setText("");
 							invokeTargetText.setVisible(false);
 							invokeTargetButton.setVisible(false);
+							gotoInvokeTargetButton.setVisible(false);
 							testDataLabel.setVisible(false);
 							testDataText.setText("");
 							testDataText.setVisible(false);
 							testDataButton.setVisible(false);
+							gotoTestDataButton.setVisible(false);
 						}
 					}
 				});
 		invokeTypeCombo.setContentProvider(new ArrayContentProvider());
 		invokeTypeCombo.setLabelProvider(new EnumLabelProvider());
 		invokeTypeCombo.setInput(TestStep.Type.values());
+		toolkit.createLabel(client, "").setLayoutData(new GridData());
 		toolkit.createLabel(client, "").setLayoutData(new GridData());
 		invokeTargetLabel = toolkit.createLabel(client, "Test Method:");
 		invokeTargetLabel.setLayoutData(new GridData());
@@ -590,6 +626,20 @@ public class TestScriptFormPage extends DocumentFormPage<TestScript> {
 				}
 			}
 		});
+		gotoInvokeTargetButton = toolkit.createButton(client, "Goto", SWT.PUSH);
+		gotoInvokeTargetButton.setLayoutData(new GridData(
+				GridData.HORIZONTAL_ALIGN_FILL));
+		gotoInvokeTargetButton.setVisible(false);
+		gotoInvokeTargetButton.addSelectionListener(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent event) {
+				if (testDataText.isVisible()) {
+					gotoTestMethod();
+				} else {
+					gotoTestScript();
+				}
+			}
+		});
 		testDataLabel = toolkit.createLabel(client, "Test Data:");
 		testDataLabel.setLayoutData(new GridData());
 		testDataLabel.setVisible(false);
@@ -609,6 +659,16 @@ public class TestScriptFormPage extends DocumentFormPage<TestScript> {
 				selectTestData();
 			}
 		});
+		gotoTestDataButton = toolkit.createButton(client, "Goto", SWT.PUSH);
+		gotoTestDataButton.setLayoutData(new GridData(
+				GridData.HORIZONTAL_ALIGN_FILL));
+		gotoTestDataButton.setVisible(false);
+		gotoTestDataButton.addSelectionListener(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent event) {
+				gotoTestData();
+			}
+		});
 		toolkit.createLabel(client, "Loops:").setLayoutData(new GridData());
 		loopTimesText = toolkit.createText(client, "1", SWT.RIGHT);
 		GridData gd_loopTimesText = new GridData();
@@ -617,6 +677,7 @@ public class TestScriptFormPage extends DocumentFormPage<TestScript> {
 		loopTimesText.setLayoutData(gd_loopTimesText);
 		loopTimesText.addModifyListener(defaultModifyListener);
 		loopTimesText.addVerifyListener(new NumberVerifyListener());
+		toolkit.createLabel(client, "").setLayoutData(new GridData());
 		toolkit.createLabel(client, "").setLayoutData(new GridData());
 		toolkit.createLabel(client, "Dependence:")
 				.setLayoutData(new GridData());
@@ -627,13 +688,14 @@ public class TestScriptFormPage extends DocumentFormPage<TestScript> {
 		dependenceText.addModifyListener(defaultModifyListener);
 		dependenceText.addVerifyListener(dependenceVerifyListener);
 		toolkit.createLabel(client, "").setLayoutData(new GridData());
+		toolkit.createLabel(client, "").setLayoutData(new GridData());
 		toolkit.createLabel(client, "Runtime Parameters:").setLayoutData(
 				new GridData(GridData.BEGINNING, GridData.CENTER, false, false,
-						3, 1));
+						4, 1));
 		paramTable = new TableViewer(client, SWT.HIDE_SELECTION
 				| SWT.FULL_SELECTION | SWT.V_SCROLL | toolkit.getBorderStyle());
 		paramTable.getTable().setLayoutData(
-				new GridData(GridData.FILL, GridData.FILL, true, true, 2, 1));
+				new GridData(GridData.FILL, GridData.FILL, true, true, 3, 1));
 		paramTable.getTable().setHeaderVisible(true);
 		paramTable.getTable().setLinesVisible(true);
 		toolkit.adapt(paramTable.getTable(), false, false);
@@ -751,7 +813,7 @@ public class TestScriptFormPage extends DocumentFormPage<TestScript> {
 
 			@Override
 			public boolean canModify(Object element, String property) {
-				return true;
+				return !editor.isReadonly();
 			}
 		});
 		Composite buttons = toolkit.createComposite(client);
@@ -830,6 +892,21 @@ public class TestScriptFormPage extends DocumentFormPage<TestScript> {
 		}
 	}
 
+	private void gotoTestMethod() {
+		if (Strings.isBlank(invokeTargetText.getText()) || !ensureJavaProject()) {
+			return;
+		}
+		IMethod method = AutoTestProjects.getTestMethod(javaProject,
+				invokeTargetText.getText().trim());
+		if (method != null) {
+			try {
+				JavaUI.openInEditor(method, true, true);
+			} catch (CoreException e) {
+				UIUtils.showError(this, "Open test method error", e);
+			}
+		}
+	}
+
 	private void selectTestData() {
 		if (!ensureJavaProject()) {
 			return;
@@ -839,6 +916,26 @@ public class TestScriptFormPage extends DocumentFormPage<TestScript> {
 		dialog.setInitialPattern(testDataText.getText());
 		if (dialog.open() == Window.OK) {
 			testDataText.setText(Objects.toString(dialog.getResult()[0]));
+		}
+	}
+
+	private void gotoTestData() {
+		if (Strings.isBlank(testDataText.getText()) || !ensureJavaProject()) {
+			return;
+		}
+		try {
+			Object resource = NonJavaResourceFinder.lookup(javaProject,
+					testDataText.getText().trim(), null);
+			if (resource instanceof IFile) {
+				IDE.openEditor(getEditorSite().getPage(), (IFile) resource,
+						AutoTestUI.TEST_DATA_EDITOR_ID, true);
+			} else if (resource instanceof IJarEntryResource) {
+				IDE.openEditor(getEditorSite().getPage(),
+						new JarEntryEditorInput((IJarEntryResource) resource),
+						AutoTestUI.TEST_DATA_EDITOR_ID, true);
+			}
+		} catch (CoreException e) {
+			UIUtils.showError(this, "Open test data error", e);
 		}
 	}
 
@@ -854,6 +951,26 @@ public class TestScriptFormPage extends DocumentFormPage<TestScript> {
 		}
 	}
 
+	private void gotoTestScript() {
+		if (Strings.isBlank(invokeTargetText.getText()) || !ensureJavaProject()) {
+			return;
+		}
+		try {
+			Object resource = NonJavaResourceFinder.lookup(javaProject,
+					invokeTargetText.getText().trim(), null);
+			if (resource instanceof IFile) {
+				IDE.openEditor(getEditorSite().getPage(), (IFile) resource,
+						AutoTestUI.TEST_SCRIPT_EDITOR_ID, true);
+			} else if (resource instanceof IJarEntryResource) {
+				IDE.openEditor(getEditorSite().getPage(),
+						new JarEntryEditorInput((IJarEntryResource) resource),
+						AutoTestUI.TEST_SCRIPT_EDITOR_ID, true);
+			}
+		} catch (CoreException e) {
+			UIUtils.showError(this, "Open test script error", e);
+		}
+	}
+
 	private boolean ensureJavaProject() {
 		if (javaProject == null) {
 			UIUtils.showError(getEditorSite().getShell(), "Error",
@@ -864,6 +981,9 @@ public class TestScriptFormPage extends DocumentFormPage<TestScript> {
 	}
 
 	private void setParamTableButtonStates() {
+		if (editor.isReadonly()) {
+			return;
+		}
 		int sel = paramTable.getTable().getSelectionIndex();
 		removeParamButton.setEnabled(sel >= 0);
 		moveParamUpButton.setEnabled(sel > 0);
@@ -966,6 +1086,9 @@ public class TestScriptFormPage extends DocumentFormPage<TestScript> {
 			if (detailSection.isVisible()) {
 				setParamTableButtonStates();
 			}
+		} else {
+			gotoInvokeTargetButton.setEnabled(true);
+			gotoTestDataButton.setEnabled(true);
 		}
 	}
 

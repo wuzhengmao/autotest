@@ -1,6 +1,7 @@
 package cn.shaviation.autotest.ui.internal.editors;
 
 import org.eclipse.core.runtime.CoreException;
+import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.IStatus;
 import org.eclipse.jface.dialogs.MessageDialog;
@@ -9,8 +10,8 @@ import org.eclipse.swt.events.ShellListener;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.ui.IEditorInput;
 import org.eclipse.ui.IEditorSite;
-import org.eclipse.ui.IFileEditorInput;
 import org.eclipse.ui.IPartListener;
+import org.eclipse.ui.IStorageEditorInput;
 import org.eclipse.ui.IWorkbenchPart;
 import org.eclipse.ui.PartInitException;
 import org.eclipse.ui.forms.editor.FormEditor;
@@ -60,12 +61,11 @@ public abstract class DocumentFormEditor<T> extends FormEditor {
 	@Override
 	public void init(IEditorSite site, IEditorInput editorInput)
 			throws PartInitException {
-		if (!(editorInput instanceof IFileEditorInput))
+		if (!(editorInput instanceof IStorageEditorInput)) {
 			throw new PartInitException(
-					"Invalid Input: Must be IFileEditorInput");
-		DocumentEditorInput<T> input = new DocumentEditorInput<T>(
-				(IFileEditorInput) editorInput);
-		super.init(site, input);
+					"Invalid Input: Must be IStorageEditorInput");
+		}
+		super.init(site, editorInput);
 		Display.getDefault().asyncExec(new Runnable() {
 			public void run() {
 				getEditorSite().getWorkbenchWindow().getPartService()
@@ -86,10 +86,9 @@ public abstract class DocumentFormEditor<T> extends FormEditor {
 		super.firePropertyChange(PROP_TITLE);
 	}
 
-	@SuppressWarnings("unchecked")
 	@Override
-	public DocumentEditorInput<T> getEditorInput() {
-		return (DocumentEditorInput<T>) super.getEditorInput();
+	public IStorageEditorInput getEditorInput() {
+		return (IStorageEditorInput) super.getEditorInput();
 	}
 
 	@Override
@@ -121,8 +120,7 @@ public abstract class DocumentFormEditor<T> extends FormEditor {
 
 	private void onActive() {
 		if (!ignoreCheck && checkDocumentStatus() == null) {
-			if (getEditorInput().getDocumentProvider().isDeleted(
-					getEditorInput())) {
+			if (sourcePage.getDocumentProvider().isDeleted(getEditorInput())) {
 				Display.getDefault().asyncExec(new Runnable() {
 					public void run() {
 						confirmRemoveDocument();
@@ -130,10 +128,9 @@ public abstract class DocumentFormEditor<T> extends FormEditor {
 				});
 				return;
 			} else if (!isDocumentSynchronized()
-					&& lastConfirmSyncTime < getEditorInput()
-							.getDocumentProvider().getModificationStamp(
-									getEditorInput())) {
-				lastConfirmSyncTime = getEditorInput().getDocumentProvider()
+					&& lastConfirmSyncTime < sourcePage.getDocumentProvider()
+							.getModificationStamp(getEditorInput())) {
+				lastConfirmSyncTime = sourcePage.getDocumentProvider()
 						.getModificationStamp(getEditorInput());
 				Display.getDefault().asyncExec(new Runnable() {
 					public void run() {
@@ -146,18 +143,34 @@ public abstract class DocumentFormEditor<T> extends FormEditor {
 		notifyPageActive(getActivePage());
 	}
 
+	public boolean isReadonly() {
+		try {
+			return getEditorInput().getStorage().isReadOnly();
+		} catch (CoreException e) {
+			return true;
+		}
+	}
+
+	public IPath getResourcePath() {
+		try {
+			return getEditorInput().getStorage().getFullPath();
+		} catch (CoreException e) {
+		}
+		return null;
+	}
+
 	private void confirmSynchronizeDocument() {
 		ignoreCheck = true;
 		if (MessageDialog
 				.openQuestion(
 						getEditorSite().getShell(),
-						"File Changed",
-						"The file '"
-								+ getEditorInput().getFile().getFullPath()
+						"Resource Changed",
+						"The resource '"
+								+ getResourcePath()
 								+ "' has been changed on the file system. Do you want to replace the editor contents with these changes?")) {
 			try {
-				((IDocumentProviderExtension) getEditorInput()
-						.getDocumentProvider()).synchronize(getEditorInput());
+				((IDocumentProviderExtension) sourcePage.getDocumentProvider())
+						.synchronize(getEditorInput());
 			} catch (CoreException e) {
 				UIUtils.showError(this, "Synchronize file failed!", e);
 			}
@@ -169,14 +182,14 @@ public abstract class DocumentFormEditor<T> extends FormEditor {
 		ignoreCheck = true;
 		if (new MessageDialog(
 				getEditorSite().getShell(),
-				"File Not Accessible",
+				"Resource Not Accessible",
 				null,
-				"The file '"
-						+ getEditorInput().getFile().getFullPath()
+				"The resource '"
+						+ getResourcePath()
 						+ "' has been deleted or is not accessible. Do you want to save your changes or close the editor without saving?",
 				MessageDialog.QUESTION, new String[] { "Save", "Close" }, 0)
 				.open() == 0) {
-			performSave(((IDocumentProviderExtension2) getEditorInput()
+			performSave(((IDocumentProviderExtension2) sourcePage
 					.getDocumentProvider()).getProgressMonitor());
 		} else {
 			close(false);
@@ -185,7 +198,7 @@ public abstract class DocumentFormEditor<T> extends FormEditor {
 	}
 
 	public boolean isDocumentSynchronized() {
-		IDocumentProvider provider = getEditorInput().getDocumentProvider();
+		IDocumentProvider provider = sourcePage.getDocumentProvider();
 		if (provider instanceof IDocumentProviderExtension3) {
 			return ((IDocumentProviderExtension3) provider)
 					.isSynchronized(getEditorInput());
@@ -194,8 +207,8 @@ public abstract class DocumentFormEditor<T> extends FormEditor {
 	}
 
 	public IStatus checkDocumentStatus() {
-		if (getEditorInput().getDocumentProvider() instanceof IDocumentProviderExtension) {
-			IDocumentProviderExtension extension = (IDocumentProviderExtension) getEditorInput()
+		if (sourcePage.getDocumentProvider() instanceof IDocumentProviderExtension) {
+			IDocumentProviderExtension extension = (IDocumentProviderExtension) sourcePage
 					.getDocumentProvider();
 			IStatus status = extension.getStatus(getEditorInput());
 			if (status != null && status.getSeverity() == IStatus.ERROR) {
@@ -220,8 +233,8 @@ public abstract class DocumentFormEditor<T> extends FormEditor {
 					.openQuestion(
 							getEditorSite().getShell(),
 							"Update conflict",
-							"The file '"
-									+ getEditorInput().getFile().getFullPath()
+							"The resource '"
+									+ getResourcePath()
 									+ "' has been changed on the file system. Do you want to overwrite the changes made on the file system?")) {
 				return;
 			}
@@ -243,10 +256,10 @@ public abstract class DocumentFormEditor<T> extends FormEditor {
 			return;
 		}
 		try {
-			beforeSave(getEditorInput().getModel());
+			beforeSave(editorPage.getModel());
 			sourcePage.reloadSource(true);
-			getEditorInput().getDocumentProvider().saveDocument(monitor,
-					getEditorInput(), getEditorInput().getDocument(), true);
+			sourcePage.getDocumentProvider().saveDocument(monitor,
+					getEditorInput(), sourcePage.getDocument(), true);
 		} catch (Exception e) {
 			UIUtils.showError(this, "Save failed!", e);
 			return;
@@ -273,7 +286,7 @@ public abstract class DocumentFormEditor<T> extends FormEditor {
 
 	@Override
 	public boolean isDirty() {
-		return getEditorInput().getDocumentProvider().canSaveDocument(
+		return sourcePage.getDocumentProvider().canSaveDocument(
 				getEditorInput());
 	}
 

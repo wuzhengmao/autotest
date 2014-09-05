@@ -175,7 +175,7 @@ public class TestDataFormPage extends DocumentFormPage<TestDataDef> {
 
 			@Override
 			public boolean canModify(Object element, String property) {
-				return true;
+				return !editor.isReadonly();
 			}
 		});
 		ObservableListContentProvider contentProvider = new ObservableListContentProvider();
@@ -183,8 +183,8 @@ public class TestDataFormPage extends DocumentFormPage<TestDataDef> {
 		groupTable.setLabelProvider(new ObservableMapLabelProvider(
 				PojoObservables.observeMap(contentProvider.getKnownElements(),
 						TestDataGroup.class, "name")));
-		final WritableList groupTableInput = (WritableList) getEditorInput()
-				.getModel().getDataList();
+		final WritableList groupTableInput = (WritableList) getModel()
+				.getDataList();
 		groupTableInput.addListChangeListener(new IListChangeListener() {
 			@Override
 			public void handleListChange(ListChangeEvent event) {
@@ -295,6 +295,9 @@ public class TestDataFormPage extends DocumentFormPage<TestDataDef> {
 	}
 
 	private void setGroupTableButtonStates() {
+		if (editor.isReadonly()) {
+			return;
+		}
 		int sel = groupTable.getTable().getSelectionIndex();
 		removeGroupButton.setEnabled(sel >= 0);
 		moveGroupUpButton.setEnabled(sel > 0);
@@ -340,7 +343,7 @@ public class TestDataFormPage extends DocumentFormPage<TestDataDef> {
 
 	private void validateGroups() {
 		setError("testDataGroups", Validators.getErrorMessage(Validators
-				.validateProperty(getEditorInput().getModel(), "dataList")));
+				.validateProperty(getModel(), "dataList")));
 	}
 
 	private void validateEntries(TestDataGroup group) {
@@ -500,7 +503,7 @@ public class TestDataFormPage extends DocumentFormPage<TestDataDef> {
 
 			@Override
 			public boolean canModify(Object element, String property) {
-				return true;
+				return !editor.isReadonly();
 			}
 		});
 		Composite buttons = toolkit.createComposite(client);
@@ -564,6 +567,9 @@ public class TestDataFormPage extends DocumentFormPage<TestDataDef> {
 	}
 
 	private void setEntryTableButtonStates() {
+		if (editor.isReadonly()) {
+			return;
+		}
 		int sel = entryTable.getTable().getSelectionIndex();
 		removeEntryButton.setEnabled(sel >= 0);
 		moveEntryUpButton.setEnabled(sel > 0);

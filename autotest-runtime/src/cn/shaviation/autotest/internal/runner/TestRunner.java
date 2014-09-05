@@ -122,7 +122,8 @@ public class TestRunner {
 							.getDataList().size() : 0)
 					+ " group(s) test data \""
 					+ (!Strings.isBlank(testDataDef.getName()) ? testDataDef
-							.getName() : testStep.getTestDataFile().trim());
+							.getName() : testStep.getTestDataFile().trim())
+					+ "\"";
 		}
 		System.out.println(msg);
 		for (int i = 0; i < testStep.getLoopTimes(); i++) {

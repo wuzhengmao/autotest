@@ -1,9 +1,9 @@
 package cn.shaviation.autotest.ui.internal.editors;
 
 import org.eclipse.core.runtime.CoreException;
+import org.eclipse.jface.text.IDocument;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.ui.IEditorInput;
-import org.eclipse.ui.IFileEditorInput;
 import org.eclipse.ui.editors.text.TextEditor;
 import org.eclipse.ui.texteditor.IDocumentProvider;
 
@@ -20,18 +20,8 @@ public abstract class DocumentSourcePage<T> extends TextEditor {
 		this.editor = editor;
 	}
 
-	@SuppressWarnings("unchecked")
-	@Override
-	public DocumentEditorInput<T> getEditorInput() {
-		return (DocumentEditorInput<T>) super.getEditorInput();
-	}
-
 	@Override
 	protected void doSetInput(IEditorInput input) throws CoreException {
-		if (!(input instanceof DocumentEditorInput)) {
-			getEditorInput().setFileEditorInput((IFileEditorInput) input);
-			input = getEditorInput();
-		}
 		super.doSetInput(input);
 		editor.setInput(input);
 		if (editor.getEditorPage() != null) {
@@ -47,20 +37,20 @@ public abstract class DocumentSourcePage<T> extends TextEditor {
 
 	@Override
 	protected void setDocumentProvider(IEditorInput input) {
+		IDocumentProvider documentProvider = getDocumentProvider();
 		super.setDocumentProvider(input);
-		onDocumentProviderChange();
+		onDocumentProviderChange(documentProvider);
 	}
 
 	@Override
 	protected void disposeDocumentProvider() {
+		IDocumentProvider documentProvider = getDocumentProvider();
 		super.disposeDocumentProvider();
-		onDocumentProviderChange();
+		onDocumentProviderChange(documentProvider);
 	}
 
-	private void onDocumentProviderChange() {
-		final IDocumentProvider documentProvider = getEditorInput()
-				.getDocumentProvider();
-		getEditorInput().setDocumentProvider(getDocumentProvider());
+	private void onDocumentProviderChange(
+			final IDocumentProvider documentProvider) {
 		Display.getDefault().asyncExec(new Runnable() {
 			public void run() {
 				editor.getEditorPage().onDocumentProviderChange(
@@ -73,6 +63,10 @@ public abstract class DocumentSourcePage<T> extends TextEditor {
 	public void close(boolean save) {
 		super.close(save);
 		editor.close(save);
+	}
+
+	public IDocument getDocument() {
+		return getDocumentProvider().getDocument(getEditorInput());
 	}
 
 	public void onActive() {
@@ -93,7 +87,7 @@ public abstract class DocumentSourcePage<T> extends TextEditor {
 	protected abstract String convertModelToSource(T model) throws Exception;
 
 	private void loadSource() throws Exception {
-		String source = convertModelToSource(getEditorInput().getModel());
-		getEditorInput().getDocument().set(source);
+		String source = convertModelToSource(editor.getEditorPage().getModel());
+		getDocument().set(source);
 	}
 }
