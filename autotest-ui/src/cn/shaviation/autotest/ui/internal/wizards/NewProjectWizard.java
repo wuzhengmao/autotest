@@ -6,6 +6,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.eclipse.core.resources.IFolder;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResource;
 import org.eclipse.core.resources.IWorkspaceRunnable;
@@ -110,10 +111,27 @@ public class NewProjectWizard extends Wizard implements INewWizard,
 	protected void finishPage(IProgressMonitor monitor)
 			throws InterruptedException, CoreException {
 		try {
-			monitor.beginTask("Creating...", 4);
+			monitor.beginTask("Creating...", 6);
 			this.fSecondPage.performFinish(new SubProgressMonitor(monitor, 2));
-			monitor.subTask("Add autotest-runtime to class path");
 			IJavaProject javaProject = getCreatedProject();
+			IProject project = javaProject.getProject();
+			monitor.subTask("Creating resources folder");
+			try {
+				IFolder resources = project.getFolder("resources");
+				resources.create(true, false, null);
+				IClasspathEntry classpathEntry = JavaCore
+						.newSourceEntry(resources.getFullPath());
+				JavaUtils.addClasspathEntries(javaProject,
+						new IClasspathEntry[] { classpathEntry }, null);
+			} catch (Exception e) {
+				Logs.e(e);
+			} finally {
+				monitor.worked(1);
+			}
+			monitor.subTask("Creating logs folder");
+			project.getFolder("logs").create(true, false,
+					new SubProgressMonitor(monitor, 1));
+			monitor.subTask("Add autotest-runtime to class path");
 			try {
 				String location = AutoTest.Plugin.getDefault().getBundle()
 						.getLocation();
@@ -146,11 +164,13 @@ public class NewProjectWizard extends Wizard implements INewWizard,
 			} finally {
 				monitor.worked(1);
 			}
-			IProject project = javaProject.getProject();
+			monitor.subTask("Setting project");
 			project.setDefaultCharset("UTF-8", monitor);
 			if (!project.hasNature(AutoTestCore.NATURE_ID)) {
 				Projects.addNature(project, AutoTestCore.NATURE_ID,
 						new SubProgressMonitor(monitor, 1));
+			} else {
+				monitor.worked(1);
 			}
 		} finally {
 			monitor.done();

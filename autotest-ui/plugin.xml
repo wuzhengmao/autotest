@@ -34,7 +34,9 @@
             category="cn.shaviation.autotest.ui.wizards"
             class="cn.shaviation.autotest.ui.internal.wizards.NewProjectWizard"
             id="cn.shaviation.autotest.ui.wizards.NewProjectWizard"
-            project="true">
+            preferredPerspectives="org.eclipse.jdt.ui.JavaPerspective,org.eclipse.jdt.ui.JavaBrowsingPerspective,org.eclipse.jdt.ui.JavaHierarchyPerspective"
+            project="true"
+            finalPerspective="org.eclipse.jdt.ui.JavaPerspective">
       </wizard>
       <wizard
             name="Test Data Definition file"
@@ -84,6 +86,21 @@
             </enablement>
          </contextualLaunch>
       </shortcut>
+   </extension>
+   <extension
+         point="org.eclipse.debug.ui.launchConfigurationTabGroups">
+      <launchConfigurationTabGroup
+            type="cn.shaviation.autotest.launching.AutoTestLaunchConfigType"
+            class="cn.shaviation.autotest.ui.internal.launching.AutoTestLaunchConfigTabGroup"
+            id="cn.shaviation.autotest.launching.AutoTestLaunchConfigTabGroup">
+            <launchMode 
+                  mode="debug"
+                  perspective="org.eclipse.debug.ui.DebugPerspective">
+            </launchMode>
+            <launchMode
+                  mode="run">
+            </launchMode>
+      </launchConfigurationTabGroup>
    </extension>
    
 </plugin>

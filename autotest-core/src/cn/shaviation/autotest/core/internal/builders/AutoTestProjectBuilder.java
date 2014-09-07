@@ -138,11 +138,12 @@ public class AutoTestProjectBuilder extends IncrementalProjectBuilder {
 
 	private void validate(IResource resource) {
 		if (resource instanceof IFile) {
-			if (AutoTestCore.TEST_DATA_FILE_EXTENSION.equals(resource
+			if (AutoTestCore.TEST_DATA_FILE_EXTENSION.equalsIgnoreCase(resource
 					.getFileExtension()) && !ignore(resource)) {
 				validateTestDataDef(resource);
-			} else if (AutoTestCore.TEST_SCRIPT_FILE_EXTENSION.equals(resource
-					.getFileExtension()) && !ignore(resource)) {
+			} else if (AutoTestCore.TEST_SCRIPT_FILE_EXTENSION
+					.equalsIgnoreCase(resource.getFileExtension())
+					&& !ignore(resource)) {
 				validateTestScript(resource);
 			}
 		}

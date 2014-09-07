@@ -2,14 +2,20 @@ package cn.shaviation.autotest.core.internal.launching;
 
 import org.eclipse.core.expressions.PropertyTester;
 import org.eclipse.core.resources.IFile;
+import org.eclipse.core.resources.IFolder;
+import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResource;
 import org.eclipse.core.resources.IResourceVisitor;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IAdaptable;
+import org.eclipse.jdt.core.IJarEntryResource;
+import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.JavaCore;
 
 import cn.shaviation.autotest.core.AutoTestCore;
+import cn.shaviation.autotest.core.jdt.INonJavaResourceVisitor;
+import cn.shaviation.autotest.core.jdt.NonJavaResourceFinder;
 import cn.shaviation.autotest.core.util.JavaUtils;
 import cn.shaviation.autotest.util.Logs;
 
@@ -41,14 +47,45 @@ public class AutoTestPropertyTester extends PropertyTester {
 
 	private boolean canLaunch(IResource resource) {
 		try {
-			if (!resource.getProject().hasNature(JavaCore.NATURE_ID)) {
+			if (!JavaUtils.isJavaProject(resource.getProject())) {
 				return false;
 			} else if (!resource.getProject().hasNature(AutoTestCore.NATURE_ID)) {
 				return false;
-			} else {
-				IJavaProject javaProject = JavaUtils.getJavaProject(resource
-						.getProject());
+			} else if (resource instanceof IProject) {
+				IJavaProject javaProject = JavaCore.create((IProject) resource);
+				final boolean[] result = new boolean[] { false };
+				NonJavaResourceFinder.search(javaProject,
+						AutoTestCore.TEST_SCRIPT_FILE_EXTENSION,
+						new INonJavaResourceVisitor() {
 
+							@Override
+							public boolean visit(String path, IFile resource)
+									throws CoreException {
+								result[0] = true;
+								return false;
+							}
+
+							@Override
+							public boolean visit(String path,
+									IJarEntryResource resource)
+									throws CoreException {
+								result[0] = true;
+								return false;
+							}
+						}, null);
+				return result[0];
+			} else {
+				IResource folder = resource instanceof IFile ? resource
+						.getParent() : resource;
+				if (!(folder instanceof IFolder)) {
+					return false;
+				}
+				IJavaElement javaElement = JavaCore.create(folder);
+				if (javaElement == null
+						|| ((javaElement.getElementType() != IJavaElement.PACKAGE_FRAGMENT) && (javaElement
+								.getElementType() != IJavaElement.PACKAGE_FRAGMENT_ROOT))) {
+					return false;
+				}
 				final boolean[] result = new boolean[] { false };
 				resource.accept(new IResourceVisitor() {
 					@Override
@@ -56,7 +93,8 @@ public class AutoTestPropertyTester extends PropertyTester {
 							throws CoreException {
 						if (resource instanceof IFile
 								&& AutoTestCore.TEST_SCRIPT_FILE_EXTENSION
-										.equals(resource.getFileExtension())) {
+										.equalsIgnoreCase(resource
+												.getFileExtension())) {
 							result[0] = true;
 							return false;
 						}

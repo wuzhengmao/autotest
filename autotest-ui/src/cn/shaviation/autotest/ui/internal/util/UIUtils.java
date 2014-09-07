@@ -12,10 +12,12 @@ import org.eclipse.core.databinding.observable.IObservable;
 import org.eclipse.core.databinding.observable.value.IObservableValue;
 import org.eclipse.core.databinding.observable.value.IValueChangeListener;
 import org.eclipse.core.databinding.observable.value.ValueChangeEvent;
+import org.eclipse.core.runtime.Assert;
 import org.eclipse.core.runtime.Status;
 import org.eclipse.jface.databinding.swt.WidgetProperties;
 import org.eclipse.jface.databinding.viewers.ViewerProperties;
 import org.eclipse.jface.dialogs.ErrorDialog;
+import org.eclipse.jface.layout.PixelConverter;
 import org.eclipse.jface.resource.ImageDescriptor;
 import org.eclipse.jface.resource.JFaceResources;
 import org.eclipse.jface.resource.LocalResourceManager;
@@ -24,12 +26,15 @@ import org.eclipse.jface.viewers.Viewer;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.CCombo;
 import org.eclipse.swt.custom.StyledText;
+import org.eclipse.swt.graphics.Font;
 import org.eclipse.swt.graphics.Image;
+import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Combo;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
+import org.eclipse.swt.widgets.Group;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.Text;
 import org.eclipse.ui.IEditorPart;
@@ -331,5 +336,70 @@ public abstract class UIUtils {
 			}
 		}
 		dataBindingContext.dispose();
+	}
+
+	public static Composite createComposite(Composite parent, Font font,
+			int columns, int hspan, int fill) {
+		Composite g = new Composite(parent, SWT.NONE);
+		g.setLayout(new GridLayout(columns, false));
+		g.setFont(font);
+		GridData gd = new GridData(fill);
+		gd.horizontalSpan = hspan;
+		g.setLayoutData(gd);
+		return g;
+	}
+
+	public static Group createGroup(Composite parent, String text, int columns,
+			int hspan, int fill) {
+		Group g = new Group(parent, SWT.None);
+		g.setLayout(new GridLayout(columns, false));
+		g.setText(text);
+		g.setFont(parent.getFont());
+		GridData gd = new GridData(fill);
+		gd.horizontalSpan = hspan;
+		g.setLayoutData(gd);
+		return g;
+	}
+
+	public static Text createSingleText(Composite parent, int hspan) {
+		Text t = new Text(parent, SWT.SINGLE | SWT.BORDER);
+		t.setFont(parent.getFont());
+		GridData gd = new GridData(GridData.FILL_HORIZONTAL);
+		gd.horizontalSpan = hspan;
+		t.setLayoutData(gd);
+		return t;
+	}
+
+	public static Button createCheckButton(Composite parent, String label,
+			Image image, boolean checked, int hspan) {
+		Button button = new Button(parent, SWT.CHECK);
+		button.setFont(parent.getFont());
+		button.setSelection(checked);
+		if (image != null) {
+			button.setImage(image);
+		}
+		if (label != null) {
+			button.setText(label);
+		}
+		GridData gd = new GridData();
+		gd.horizontalSpan = hspan;
+		button.setLayoutData(gd);
+		setButtonDimensionHint(button);
+		return button;
+	}
+
+	public static int getButtonWidthHint(Button button) {
+		PixelConverter converter = new PixelConverter(button);
+		int widthHint = converter.convertHorizontalDLUsToPixels(61);
+		return Math.max(widthHint, button.computeSize(-1, -1, true).x);
+	}
+
+	public static void setButtonDimensionHint(Button button) {
+		Assert.isNotNull(button);
+		Object gd = button.getLayoutData();
+		if ((gd instanceof GridData)) {
+			((GridData) gd).widthHint = getButtonWidthHint(button);
+			((GridData) gd).horizontalAlignment = 4;
+		}
 	}
 }

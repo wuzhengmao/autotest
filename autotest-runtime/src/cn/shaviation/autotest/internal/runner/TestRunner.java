@@ -1,6 +1,7 @@
 package cn.shaviation.autotest.internal.runner;
 
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -39,6 +40,12 @@ public class TestRunner {
 		if (resources.isEmpty()) {
 			throw new IllegalArgumentException("No test script found.");
 		}
+	}
+
+	public TestRunner(List<String> resources, boolean recursive, boolean silent) {
+		this.resources = resources;
+		this.recursive = recursive;
+		this.silent = silent;
 	}
 
 	public void run() throws Exception {
@@ -132,22 +139,36 @@ public class TestRunner {
 				if (testDataDef.getDataList() != null) {
 					for (int j = 0; j < testDataDef.getDataList().size(); j++) {
 						System.out.print(msg + " group " + (j + 1));
-						invokeTestMethod(testMethod, testDataDef.getDataList()
-								.get(j));
-						System.out.println(" - Pass");
+						try {
+							invokeTestMethod(testClass, testMethod, testDataDef
+									.getDataList().get(j));
+							System.out.println(" - Pass");
+						} catch (Throwable t) {
+							System.out.println(" - Error");
+							t.printStackTrace();
+						}
 					}
 				}
 			} else {
 				System.out.print(msg);
-				invokeTestMethod(testMethod, null);
-				System.out.println(" - Pass");
+				try {
+					invokeTestMethod(testClass, testMethod, null);
+					System.out.println(" - Pass");
+				} catch (Throwable t) {
+					System.out.println(" - Error");
+					t.printStackTrace();
+				}
 			}
 		}
 	}
 
-	private void invokeTestMethod(Method testMethod, TestDataGroup testDataGroup)
-			throws Exception {
-
+	private void invokeTestMethod(Class<?> testClass, Method testMethod,
+			TestDataGroup testDataGroup) throws Exception {
+		Object testObject = null;
+		if (!Modifier.isStatic(testMethod.getModifiers())) {
+			testObject = testClass.newInstance();
+		}
+		testMethod.invoke(testObject, new MethodModel());
 	}
 
 	private void runSubScript(TestStep testStep) throws Exception {

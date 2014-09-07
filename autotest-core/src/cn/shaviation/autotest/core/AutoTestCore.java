@@ -22,6 +22,9 @@ public class AutoTestCore extends Plugin {
 	public static final QualifiedName TEST_SCRIPT_NAME_KEY = new QualifiedName(
 			PLUGIN_ID, "testScriptName");
 
+	public static final String LAUNCH_CONFIG_ATTR_LOCATION = "cn.shaviation.autotest.launching.ATTR_LOCATION";
+	public static final String LAUNCH_CONFIG_ATTR_RECURSIVE = "cn.shaviation.autotest.launching.ATTR_RECURSIVE";
+
 	private static AutoTestCore plugin;
 
 	@Override

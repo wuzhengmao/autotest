@@ -12,14 +12,18 @@ import org.eclipse.jdt.core.JavaModelException;
 
 public abstract class JavaUtils {
 
-	public static IJavaProject getJavaProject(IProject project) {
+	public static boolean isJavaProject(IProject project) {
 		try {
 			if (project.hasNature(JavaCore.NATURE_ID)) {
-				return JavaCore.create(project);
+				return true;
 			}
 		} catch (CoreException e) {
 		}
-		return null;
+		return false;
+	}
+
+	public static IJavaProject getJavaProject(IProject project) {
+		return isJavaProject(project) ? JavaCore.create(project) : null;
 	}
 
 	public static void addClasspathEntries(IJavaProject project,

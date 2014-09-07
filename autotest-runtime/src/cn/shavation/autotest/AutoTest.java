@@ -1,5 +1,8 @@
 package cn.shavation.autotest;
 
+import java.util.Collections;
+import java.util.List;
+
 import org.osgi.framework.BundleContext;
 
 import cn.shaviation.autotest.internal.runner.TestRunner;
@@ -31,6 +34,13 @@ public class AutoTest {
 
 	public static void main(String[] args) throws Exception {
 		TestRunner runner = new TestRunner(args);
+		runner.run();
+	}
+
+	public static void run(List<String> resources, boolean recursive)
+			throws Exception {
+		TestRunner runner = new TestRunner(
+				Collections.unmodifiableList(resources), recursive, true);
 		runner.run();
 	}
 }

@@ -109,8 +109,9 @@ public abstract class NonJavaResourceFinder {
 				}
 			}
 		} else if (resource instanceof IFile
-				&& (fileExtension == null || fileExtension.equals(Objects
-						.toString(resource.getFileExtension())))) {
+				&& (fileExtension == null || fileExtension
+						.equalsIgnoreCase(Objects.toString(resource
+								.getFileExtension())))) {
 			if (!visitor.visit(path, (IFile) resource)) {
 				return false;
 			}
@@ -129,7 +130,7 @@ public abstract class NonJavaResourceFinder {
 				}
 			}
 		} else if (fileExtension == null
-				|| fileExtension.equals(getFileExtension(resource))) {
+				|| fileExtension.equalsIgnoreCase(getFileExtension(resource))) {
 			if (!visitor.visit(path, resource)) {
 				return false;
 			}
