@@ -1,5 +1,9 @@
 package cn.shaviation.autotest.core.jdt;
 
+import org.eclipse.core.resources.IContainer;
+import org.eclipse.core.resources.IFile;
+import org.eclipse.core.resources.IFolder;
+import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IProgressMonitor;
@@ -12,6 +16,8 @@ import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.IMemberValuePair;
 import org.eclipse.jdt.core.IMethod;
 import org.eclipse.jdt.core.IType;
+import org.eclipse.jdt.core.ITypeRoot;
+import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.search.IJavaSearchConstants;
 import org.eclipse.jdt.core.search.IJavaSearchScope;
@@ -24,6 +30,7 @@ import org.eclipse.jdt.core.search.TypeReferenceMatch;
 
 import cn.shaviation.autotest.annotation.TestMethod;
 import cn.shaviation.autotest.core.AutoTestCore;
+import cn.shaviation.autotest.core.util.JavaUtils;
 import cn.shaviation.autotest.model.TestDataDef;
 import cn.shaviation.autotest.model.TestDataHelper;
 import cn.shaviation.autotest.model.TestScript;
@@ -287,5 +294,113 @@ public abstract class AutoTestProjects {
 		} catch (CoreException e) {
 		}
 		return false;
+	}
+
+	public static String getResourceLocation(IResource resource,
+			String fileExtension, boolean matchPackage) {
+		if (JavaUtils.isJavaProject(resource.getProject())) {
+			if (resource instanceof IProject) {
+				if (matchPackage || Strings.isEmpty(fileExtension)) {
+					return "/";
+				}
+			} else if (resource instanceof IFile) {
+				if (isSourceFolder(resource.getParent())) {
+					if (Strings.isEmpty(fileExtension)
+							|| fileExtension.equalsIgnoreCase(resource
+									.getFileExtension())) {
+						return getPackagePath(resource.getParent())
+								+ resource.getName();
+					} else if (matchPackage) {
+						return getPackagePath(resource.getParent());
+					}
+				}
+			} else if (resource instanceof IFolder) {
+				if ((matchPackage || Strings.isEmpty(fileExtension))
+						&& isSourceFolder((IFolder) resource)) {
+					return getPackagePath((IFolder) resource);
+				}
+			}
+		}
+		return null;
+	}
+
+	private static boolean isSourceFolder(IContainer folder) {
+		IJavaElement javaElement = JavaCore.create(folder);
+		if (javaElement != null
+				&& ((javaElement.getElementType() == IJavaElement.PACKAGE_FRAGMENT) || (javaElement
+						.getElementType() == IJavaElement.PACKAGE_FRAGMENT_ROOT))) {
+			return true;
+		}
+		return false;
+	}
+
+	private static String getPackagePath(IContainer folder) {
+		IJavaElement element = JavaCore.create(folder);
+		return element != null ? getPackagePath(element) : null;
+	}
+
+	private static String getPackagePath(IJavaElement element) {
+		int type = element.getElementType();
+		if (type == IJavaElement.PACKAGE_FRAGMENT) {
+			return "/" + element.getElementName().replace('.', '/') + "/";
+		} else if (type == IJavaElement.PACKAGE_FRAGMENT_ROOT
+				|| type == IJavaElement.JAVA_PROJECT) {
+			return "/";
+		} else {
+			IJavaElement parent;
+			while ((parent = element.getParent()) != null) {
+				int t = parent.getElementType();
+				if (t == IJavaElement.PACKAGE_FRAGMENT
+						|| t == IJavaElement.PACKAGE_FRAGMENT_ROOT) {
+					return getPackagePath(parent);
+				}
+			}
+			return null;
+		}
+	}
+
+	public static String getResourceLocation(IJarEntryResource resource,
+			String fileExtension, boolean matchPackage) {
+		if (resource.isFile()) {
+			if (Strings.isEmpty(fileExtension)
+					|| resource.getName().toLowerCase()
+							.endsWith("." + fileExtension.toLowerCase())) {
+				return getResourceLocation(resource);
+			} else if (matchPackage) {
+				return getJarEntryResourceParentLocation(resource.getParent());
+			}
+		} else if (matchPackage || Strings.isEmpty(fileExtension)) {
+			return getJarEntryResourceParentLocation(resource);
+		}
+		return null;
+	}
+
+	private static String getResourceLocation(IJarEntryResource resource) {
+		return getJarEntryResourceParentLocation(resource.getParent())
+				+ resource.getName();
+	}
+
+	private static String getJarEntryResourceParentLocation(Object parent) {
+		if (parent instanceof IJavaElement) {
+			return getPackagePath((IJavaElement) parent);
+		} else {
+			return getResourceLocation((IJarEntryResource) parent) + '/';
+		}
+	}
+
+	public static String getResourceLocation(IJavaElement resource,
+			String fileExtension, boolean matchPackage) {
+		if (resource instanceof ITypeRoot) {
+			if (Strings.isEmpty(fileExtension)
+					|| "class".equalsIgnoreCase(fileExtension)) {
+				return getPackagePath(resource) + resource.getElementName()
+						+ ".class";
+			} else if (matchPackage) {
+				return getPackagePath(resource);
+			}
+		} else if (matchPackage || Strings.isEmpty(fileExtension)) {
+			return getPackagePath(resource);
+		}
+		return null;
 	}
 }

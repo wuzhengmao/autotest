@@ -8,6 +8,7 @@ public class AutoTestUI extends AbstractUIPlugin {
 	public static final String PLUGIN_ID = "cn.shaviation.autotest.ui"; //$NON-NLS-1$
 	public static final String TEST_DATA_EDITOR_ID = "cn.shaviation.autotest.ui.editors.TestDataEditor"; //$NON-NLS-1$
 	public static final String TEST_SCRIPT_EDITOR_ID = "cn.shaviation.autotest.ui.editors.TestScriptEditor"; //$NON-NLS-1$
+	public static final String LAUNCH_SHORTCUT_ID = "cn.shaviation.autotest.launching.AutoTestLaunchShortcut"; //$NON-NLS-1$
 
 	private static AutoTestUI plugin;
 

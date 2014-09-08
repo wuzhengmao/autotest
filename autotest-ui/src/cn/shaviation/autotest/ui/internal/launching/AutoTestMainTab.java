@@ -2,9 +2,11 @@ package cn.shaviation.autotest.ui.internal.launching;
 
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResource;
+import org.eclipse.core.resources.IWorkspace;
 import org.eclipse.core.resources.IWorkspaceRoot;
 import org.eclipse.core.resources.ResourcesPlugin;
 import org.eclipse.core.runtime.CoreException;
+import org.eclipse.core.runtime.IStatus;
 import org.eclipse.debug.core.ILaunchConfiguration;
 import org.eclipse.debug.core.ILaunchConfigurationWorkingCopy;
 import org.eclipse.debug.ui.AbstractLaunchConfigurationTab;
@@ -35,8 +37,11 @@ import cn.shaviation.autotest.ui.internal.util.ControlAccessibleListener;
 import cn.shaviation.autotest.ui.internal.util.UIUtils;
 import cn.shaviation.autotest.util.Logs;
 import cn.shaviation.autotest.util.Objects;
+import cn.shaviation.autotest.util.Strings;
 
 public class AutoTestMainTab extends AbstractLaunchConfigurationTab {
+
+	private static final String ID = "cn.shaviation.autotest.launching.AutoTestMainTab"; //$NON-NLS-1$
 
 	private Text projectText;
 	private Button projectButton;
@@ -164,6 +169,11 @@ public class AutoTestMainTab extends AbstractLaunchConfigurationTab {
 	}
 
 	@Override
+	public String getId() {
+		return ID;
+	}
+
+	@Override
 	public String getName() {
 		return "Main";
 	}
@@ -171,6 +181,42 @@ public class AutoTestMainTab extends AbstractLaunchConfigurationTab {
 	@Override
 	public Image getImage() {
 		return UIUtils.getImage("script.png");
+	}
+
+	@Override
+	public boolean isValid(ILaunchConfiguration launchConfig) {
+		setErrorMessage(null);
+		setMessage(null);
+		String projectName = projectText.getText().trim();
+		if (!projectName.isEmpty()) {
+			IWorkspace workspace = ResourcesPlugin.getWorkspace();
+			IStatus status = workspace.validateName(projectName,
+					IResource.PROJECT);
+			if (status.isOK()) {
+				IProject project = ResourcesPlugin.getWorkspace().getRoot()
+						.getProject(projectName);
+				if (!project.exists()) {
+					setErrorMessage("Project " + projectName
+							+ " does not exist");
+					return false;
+				}
+				if (!project.isOpen()) {
+					setErrorMessage("Project " + projectName + " is closed");
+					return false;
+				}
+			} else {
+				setErrorMessage("Illegal project name: " + status.getMessage());
+				return false;
+			}
+		} else {
+			setErrorMessage("Project not specified");
+			return false;
+		}
+		if (Strings.isBlank(resourceText.getText())) {
+			setErrorMessage("Test resource not specified");
+			return false;
+		}
+		return true;
 	}
 
 	@Override
@@ -226,7 +272,7 @@ public class AutoTestMainTab extends AbstractLaunchConfigurationTab {
 
 	@Override
 	public void setDefaults(ILaunchConfigurationWorkingCopy config) {
-		IResource resource = LaunchHelper.getContext();
+		Object resource = LaunchHelper.getContext();
 		if (resource != null) {
 			initializeJavaProject(resource, config);
 			initializeTestResource(resource, config);
@@ -238,10 +284,9 @@ public class AutoTestMainTab extends AbstractLaunchConfigurationTab {
 		config.setAttribute(AutoTestCore.LAUNCH_CONFIG_ATTR_RECURSIVE, true);
 	}
 
-	private void initializeJavaProject(IResource resource,
+	private void initializeJavaProject(Object resource,
 			ILaunchConfigurationWorkingCopy config) {
-		IProject project = resource.getProject();
-		IJavaProject javaProject = JavaCore.create(project);
+		IJavaProject javaProject = LaunchHelper.getJavaProject(resource);
 		String name = null;
 		if (javaProject != null && javaProject.exists()) {
 			name = javaProject.getElementName();
@@ -250,7 +295,7 @@ public class AutoTestMainTab extends AbstractLaunchConfigurationTab {
 				IJavaLaunchConfigurationConstants.ATTR_PROJECT_NAME, name);
 	}
 
-	private void initializeTestResource(IResource resource,
+	private void initializeTestResource(Object resource,
 			ILaunchConfigurationWorkingCopy config) {
 		String location = LaunchHelper.getResourceLocation(resource);
 		config.setAttribute(AutoTestCore.LAUNCH_CONFIG_ATTR_LOCATION, location);

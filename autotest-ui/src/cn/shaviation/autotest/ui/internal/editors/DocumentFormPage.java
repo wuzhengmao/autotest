@@ -80,14 +80,7 @@ public abstract class DocumentFormPage<T> extends FormPage {
 	protected void createFormContent(IManagedForm managedForm) {
 		FormToolkit toolkit = managedForm.getToolkit();
 		ScrolledForm form = managedForm.getForm();
-		IToolBarManager toolBarManager = form.getToolBarManager();
-		toolBarManager.add(new Action("Refresh", UIUtils
-				.getImageDescriptor("refresh.gif")) {
-			public void run() {
-				editor.getSourcePage()
-						.getAction(ITextEditorActionConstants.REFRESH).run();
-			}
-		});
+		createToolbarActions(form.getToolBarManager());
 		form.updateToolBar();
 		toolkit.decorateFormHeading(form.getForm());
 		form.getMessageManager().setMessagePrefixProvider(
@@ -97,6 +90,16 @@ public abstract class DocumentFormPage<T> extends FormPage {
 						return null;
 					}
 				});
+	}
+
+	protected void createToolbarActions(IToolBarManager toolBarManager) {
+		toolBarManager.add(new Action("Refresh", UIUtils
+				.getImageDescriptor("refresh.gif")) {
+			public void run() {
+				editor.getSourcePage()
+						.getAction(ITextEditorActionConstants.REFRESH).run();
+			}
+		});
 	}
 
 	protected void setError(String key, String error) {

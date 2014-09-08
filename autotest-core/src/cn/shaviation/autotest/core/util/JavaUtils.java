@@ -9,6 +9,7 @@ import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.IPackageFragmentRoot;
 import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.JavaModelException;
+import org.eclipse.jdt.launching.JavaRuntime;
 
 public abstract class JavaUtils {
 
@@ -134,5 +135,21 @@ public abstract class JavaUtils {
 			return false;
 		}
 		return false;
+	}
+
+	public static IPath getJREContainerPath(IProject project) {
+		try {
+			IJavaProject javaProject = getJavaProject(project);
+			if (javaProject != null) {
+				for (IClasspathEntry entry : javaProject.getRawClasspath()) {
+					if (JavaRuntime.JRE_CONTAINER.equals(entry.getPath()
+							.segment(0))) {
+						return entry.getPath();
+					}
+				}
+			}
+		} catch (JavaModelException e) {
+		}
+		return null;
 	}
 }

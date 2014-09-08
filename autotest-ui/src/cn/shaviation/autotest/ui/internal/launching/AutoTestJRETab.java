@@ -1,6 +1,5 @@
 package cn.shaviation.autotest.ui.internal.launching;
 
-import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IPath;
 import org.eclipse.debug.core.ILaunchConfiguration;
@@ -12,6 +11,8 @@ import org.eclipse.jdt.launching.IVMInstall;
 import org.eclipse.jdt.launching.JavaRuntime;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.widgets.Composite;
+
+import cn.shaviation.autotest.core.util.JavaUtils;
 
 public class AutoTestJRETab extends JavaJRETab {
 
@@ -47,10 +48,10 @@ public class AutoTestJRETab extends JavaJRETab {
 	@Override
 	public void setDefaults(ILaunchConfigurationWorkingCopy config) {
 		super.setDefaults(config);
-		IResource resource = LaunchHelper.getContext();
+		Object resource = LaunchHelper.getContext();
 		if (resource != null) {
-			IPath path = LaunchHelper
-					.getJREContainerPath(resource.getProject());
+			IPath path = JavaUtils.getJREContainerPath(LaunchHelper
+					.getProject(resource));
 			if (path != null) {
 				config.setAttribute(
 						IJavaLaunchConfigurationConstants.ATTR_JRE_CONTAINER_PATH,

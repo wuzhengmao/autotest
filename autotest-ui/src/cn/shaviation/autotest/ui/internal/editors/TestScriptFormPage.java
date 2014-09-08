@@ -24,6 +24,8 @@ import org.eclipse.jdt.core.IJarEntryResource;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.IMethod;
 import org.eclipse.jdt.ui.JavaUI;
+import org.eclipse.jface.action.Action;
+import org.eclipse.jface.action.IToolBarManager;
 import org.eclipse.jface.databinding.viewers.ObservableListContentProvider;
 import org.eclipse.jface.databinding.viewers.ObservableMapLabelProvider;
 import org.eclipse.jface.viewers.ArrayContentProvider;
@@ -82,6 +84,7 @@ import cn.shaviation.autotest.ui.internal.databinding.StringToListConverter;
 import cn.shaviation.autotest.ui.internal.dialogs.TestDataSelectionDialog;
 import cn.shaviation.autotest.ui.internal.dialogs.TestMethodSelectionDialog;
 import cn.shaviation.autotest.ui.internal.dialogs.TestScriptSelectionDialog;
+import cn.shaviation.autotest.ui.internal.launching.LaunchHelper;
 import cn.shaviation.autotest.ui.internal.util.EnumLabelProvider;
 import cn.shaviation.autotest.ui.internal.util.JarEntryEditorInput;
 import cn.shaviation.autotest.ui.internal.util.NumberVerifyListener;
@@ -176,6 +179,14 @@ public class TestScriptFormPage extends DocumentFormPage<TestScript> {
 		createDetailSection(toolkit, rightComposite);
 		detailSection.setVisible(false);
 		super.createFormContent(managedForm);
+	}
+
+	@Override
+	protected void createToolbarActions(IToolBarManager toolBarManager) {
+		for (Action action : LaunchHelper.getLaunchActions(getEditorInput())) {
+			toolBarManager.add(action);
+		}
+		super.createToolbarActions(toolBarManager);
 	}
 
 	private void createGeneralSection(FormToolkit toolkit, Composite container) {

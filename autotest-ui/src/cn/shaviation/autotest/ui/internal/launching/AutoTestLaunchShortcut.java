@@ -2,7 +2,6 @@ package cn.shaviation.autotest.ui.internal.launching;
 
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IProject;
-import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IPath;
 import org.eclipse.debug.core.DebugPlugin;
@@ -17,6 +16,7 @@ import org.eclipse.jface.viewers.IStructuredSelection;
 import org.eclipse.ui.IEditorPart;
 
 import cn.shaviation.autotest.core.AutoTestCore;
+import cn.shaviation.autotest.core.util.JavaUtils;
 import cn.shaviation.autotest.util.Logs;
 
 public class AutoTestLaunchShortcut implements ILaunchShortcut {
@@ -24,16 +24,22 @@ public class AutoTestLaunchShortcut implements ILaunchShortcut {
 	@Override
 	public void launch(ISelection selection, String mode) {
 		if (!selection.isEmpty() && selection instanceof IStructuredSelection) {
-			IResource resource = LaunchHelper
-					.getResource(((IStructuredSelection) selection)
-							.getFirstElement());
-			if (resource != null) {
-				IProject project = resource.getProject();
-				String location = LaunchHelper.getResourceLocation(resource);
-				if (project != null && location != null) {
-					launch(project, location, !(resource instanceof IFile),
-							mode);
-				}
+			launch(((IStructuredSelection) selection).getFirstElement(), mode);
+		}
+	}
+
+	@Override
+	public void launch(IEditorPart editor, String mode) {
+		launch(editor.getEditorInput(), mode);
+	}
+
+	private void launch(Object element, String mode) {
+		Object resource = LaunchHelper.getResource(element);
+		if (resource != null) {
+			IProject project = LaunchHelper.getProject(resource);
+			String location = LaunchHelper.getResourceLocation(resource);
+			if (project != null && location != null) {
+				launch(project, location, !(resource instanceof IFile), mode);
 			}
 		}
 	}
@@ -58,7 +64,7 @@ public class AutoTestLaunchShortcut implements ILaunchShortcut {
 					location);
 			workingCopy.setAttribute(AutoTestCore.LAUNCH_CONFIG_ATTR_RECURSIVE,
 					true);
-			IPath path = LaunchHelper.getJREContainerPath(project);
+			IPath path = JavaUtils.getJREContainerPath(project);
 			if (path != null) {
 				workingCopy
 						.setAttribute(
@@ -69,10 +75,5 @@ public class AutoTestLaunchShortcut implements ILaunchShortcut {
 		} catch (CoreException e) {
 			Logs.e(e);
 		}
-	}
-
-	@Override
-	public void launch(IEditorPart editor, String mode) {
-
 	}
 }

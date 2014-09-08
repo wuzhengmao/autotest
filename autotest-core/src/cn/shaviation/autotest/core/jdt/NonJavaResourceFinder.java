@@ -13,6 +13,7 @@ import org.eclipse.jdt.core.IPackageFragment;
 import org.eclipse.jdt.core.IPackageFragmentRoot;
 
 import cn.shaviation.autotest.util.Objects;
+import cn.shaviation.autotest.util.Strings;
 
 public abstract class NonJavaResourceFinder {
 
@@ -109,7 +110,7 @@ public abstract class NonJavaResourceFinder {
 				}
 			}
 		} else if (resource instanceof IFile
-				&& (fileExtension == null || fileExtension
+				&& (Strings.isEmpty(fileExtension) || fileExtension
 						.equalsIgnoreCase(Objects.toString(resource
 								.getFileExtension())))) {
 			if (!visitor.visit(path, (IFile) resource)) {
@@ -129,7 +130,7 @@ public abstract class NonJavaResourceFinder {
 					return false;
 				}
 			}
-		} else if (fileExtension == null
+		} else if (Strings.isEmpty(fileExtension)
 				|| fileExtension.equalsIgnoreCase(getFileExtension(resource))) {
 			if (!visitor.visit(path, resource)) {
 				return false;
