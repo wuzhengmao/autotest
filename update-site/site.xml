@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<site>
+   <description name="Automatic Testing Update Site">
+      Eclipse Update Site for Automatic Testing Plug-in
+   </description>
+   <feature url="features/cn.shaviation.autotest_1.0.0.qualifier.jar" id="cn.shaviation.autotest" version="1.0.0.qualifier">
+      <category name="AutoTest"/>
+   </feature>
+   <category-def name="AutoTest" label="Automatic Testing"/>
+</site>
