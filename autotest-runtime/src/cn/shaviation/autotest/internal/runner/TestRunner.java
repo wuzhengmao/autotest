@@ -70,7 +70,7 @@ public class TestRunner {
 		final List<TestStep> testSteps = testScript.getTestSteps();
 		System.out.println("Starting \""
 				+ (!Strings.isBlank(testScript.getName()) ? testScript
-						.getName() : resource) + "\"...");
+						.getName() : resource) + "\" >>>");
 		if (testSteps != null) {
 			final int[] counts = new int[4];
 			counts[0] = testSteps.size();
@@ -102,7 +102,7 @@ public class TestRunner {
 				}
 			});
 		}
-		System.out.println("Completed");
+		System.out.println("<<< Completed");
 	}
 
 	private void runTestMethod(TestStep testStep) throws Exception {

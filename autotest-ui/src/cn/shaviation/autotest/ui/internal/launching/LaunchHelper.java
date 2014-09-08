@@ -17,7 +17,6 @@ import org.eclipse.jface.action.Action;
 import org.eclipse.jface.viewers.ISelection;
 import org.eclipse.jface.viewers.IStructuredSelection;
 import org.eclipse.jface.viewers.StructuredSelection;
-import org.eclipse.ui.IEditorInput;
 import org.eclipse.ui.IEditorPart;
 import org.eclipse.ui.IStorageEditorInput;
 import org.eclipse.ui.IWorkbenchPage;
@@ -133,23 +132,22 @@ public abstract class LaunchHelper {
 		}
 	}
 
-	public static Action[] getLaunchActions(IEditorInput editorInput) {
+	public static Action[] getLaunchActions(IEditorPart part) {
 		IExtensionRegistry registry = Platform.getExtensionRegistry();
 		IConfigurationElement[] elements = registry
 				.getConfigurationElementsFor("org.eclipse.debug.ui.launchShortcuts");
 		for (IConfigurationElement element : elements) {
 			if (AutoTestUI.LAUNCH_SHORTCUT_ID
 					.equals(element.getAttribute("id"))) {
-				return new Action[] {
-						createAction(element, editorInput, "run"),
-						createAction(element, editorInput, "debug") };
+				return new Action[] { createAction(element, part, "run"),
+						createAction(element, part, "debug") };
 			}
 		}
 		return new Action[0];
 	}
 
 	private static Action createAction(final IConfigurationElement element,
-			final IEditorInput editorInput, final String mode) {
+			final IEditorPart part, final String mode) {
 		Action action = new Action(
 				"debug".equals(mode) ? "Launch in Debug mode" : "Launch") {
 			@Override
@@ -157,7 +155,9 @@ public abstract class LaunchHelper {
 				try {
 					ILaunchShortcut shortcut = (ILaunchShortcut) element
 							.createExecutableExtension("class");
-					shortcut.launch(new StructuredSelection(editorInput), mode);
+					shortcut.launch(
+							new StructuredSelection(part.getEditorInput()),
+							mode);
 				} catch (CoreException e) {
 					Logs.e(e);
 				}

@@ -183,7 +183,7 @@ public class TestScriptFormPage extends DocumentFormPage<TestScript> {
 
 	@Override
 	protected void createToolbarActions(IToolBarManager toolBarManager) {
-		for (Action action : LaunchHelper.getLaunchActions(getEditorInput())) {
+		for (Action action : LaunchHelper.getLaunchActions(this)) {
 			toolBarManager.add(action);
 		}
 		super.createToolbarActions(toolBarManager);

@@ -324,19 +324,25 @@ public abstract class AutoTestProjects {
 		return null;
 	}
 
-	private static boolean isSourceFolder(IContainer folder) {
-		IJavaElement javaElement = JavaCore.create(folder);
-		if (javaElement != null
-				&& ((javaElement.getElementType() == IJavaElement.PACKAGE_FRAGMENT) || (javaElement
-						.getElementType() == IJavaElement.PACKAGE_FRAGMENT_ROOT))) {
-			return true;
+	public static boolean isSourceFolder(IContainer folder) {
+		IJavaElement element = JavaCore.create(folder);
+		if (element != null) {
+			return (element.getElementType() == IJavaElement.PACKAGE_FRAGMENT)
+					|| (element.getElementType() == IJavaElement.PACKAGE_FRAGMENT_ROOT);
+		} else {
+			IContainer parent = folder.getParent();
+			return parent != null ? isSourceFolder(parent) : false;
 		}
-		return false;
 	}
 
 	private static String getPackagePath(IContainer folder) {
 		IJavaElement element = JavaCore.create(folder);
-		return element != null ? getPackagePath(element) : null;
+		if (element != null) {
+			return getPackagePath(element);
+		} else {
+			String path = getPackagePath(folder.getParent());
+			return path != null ? path + folder.getName() + "/" : null;
+		}
 	}
 
 	private static String getPackagePath(IJavaElement element) {

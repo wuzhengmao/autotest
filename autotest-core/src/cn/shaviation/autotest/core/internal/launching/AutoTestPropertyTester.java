@@ -9,11 +9,11 @@ import org.eclipse.core.resources.IResourceVisitor;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IAdaptable;
 import org.eclipse.jdt.core.IJarEntryResource;
-import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.JavaCore;
 
 import cn.shaviation.autotest.core.AutoTestCore;
+import cn.shaviation.autotest.core.jdt.AutoTestProjects;
 import cn.shaviation.autotest.core.jdt.INonJavaResourceVisitor;
 import cn.shaviation.autotest.core.jdt.NonJavaResourceFinder;
 import cn.shaviation.autotest.core.util.JavaUtils;
@@ -77,13 +77,8 @@ public class AutoTestPropertyTester extends PropertyTester {
 			} else {
 				IResource folder = resource instanceof IFile ? resource
 						.getParent() : resource;
-				if (!(folder instanceof IFolder)) {
-					return false;
-				}
-				IJavaElement javaElement = JavaCore.create(folder);
-				if (javaElement == null
-						|| ((javaElement.getElementType() != IJavaElement.PACKAGE_FRAGMENT) && (javaElement
-								.getElementType() != IJavaElement.PACKAGE_FRAGMENT_ROOT))) {
+				if (!(folder instanceof IFolder)
+						|| !AutoTestProjects.isSourceFolder((IFolder) folder)) {
 					return false;
 				}
 				final boolean[] result = new boolean[] { false };
