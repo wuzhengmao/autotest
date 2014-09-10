@@ -10,6 +10,8 @@ import cn.shaviation.autotest.internal.runner.TestRunner;
 public class AutoTest {
 
 	public static final String PLUGIN_ID = "cn.shaviation.autotest.runtime"; //$NON-NLS-1$
+	public static final String TEST_SCRIPT_FILE_EXTENSION = "tsc"; //$NON-NLS-1$
+	public static final String TEST_RESULT_FILE_EXTENSION = "trl"; //$NON-NLS-1$
 
 	public static class Plugin extends org.eclipse.core.runtime.Plugin {
 
@@ -37,10 +39,12 @@ public class AutoTest {
 		runner.run();
 	}
 
-	public static void run(List<String> resources, boolean recursive)
+	public static void run(List<String> resources, boolean recursive,
+			String logPath, String charset, ClassLoader classLoader)
 			throws Exception {
 		TestRunner runner = new TestRunner(
-				Collections.unmodifiableList(resources), recursive, true);
+				Collections.unmodifiableList(resources), recursive, true,
+				logPath, charset, classLoader);
 		runner.run();
 	}
 }

@@ -105,7 +105,8 @@ public class NewProjectWizard extends Wizard implements INewWizard,
 							0, classpathEntries.length);
 				}
 				IPath resourceFolderPath = new Path(getProjectName())
-						.makeAbsolute().append("resources");
+						.makeAbsolute().append(
+								AutoTestCore.DEFAULT_RESOURCE_FOLDER);
 				newClasspathEntries[classpathEntries.length] = JavaCore
 						.newSourceEntry(resourceFolderPath);
 				return newClasspathEntries;
@@ -142,8 +143,8 @@ public class NewProjectWizard extends Wizard implements INewWizard,
 			IJavaProject javaProject = getCreatedProject();
 			IProject project = javaProject.getProject();
 			monitor.subTask("Create logs folder");
-			project.getFolder("logs").create(true, false,
-					new SubProgressMonitor(monitor, 1));
+			project.getFolder(AutoTestCore.DEFAULT_LOG_FOLDER).create(true,
+					false, new SubProgressMonitor(monitor, 1));
 			monitor.subTask("Configure project");
 			project.setDefaultCharset("UTF-8", monitor);
 			if (!project.hasNature(AutoTestCore.NATURE_ID)) {
@@ -178,7 +179,9 @@ public class NewProjectWizard extends Wizard implements INewWizard,
 			File libs = new File(path, "lib");
 			if (libs.exists() && libs.isDirectory()) {
 				for (File lib : libs.listFiles()) {
-					if (lib.getName().toLowerCase().endsWith(".jar")) {
+					String libName = lib.getName().toLowerCase();
+					if (libName.endsWith(".jar")
+							&& libName.startsWith("jackson-")) {
 						try {
 							classpathEntries.add(createClasspathEntry(lib,
 									false));

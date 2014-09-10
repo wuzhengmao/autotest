@@ -64,6 +64,9 @@ public class AutoTestLaunchShortcut implements ILaunchShortcut {
 					location);
 			workingCopy.setAttribute(AutoTestCore.LAUNCH_CONFIG_ATTR_RECURSIVE,
 					true);
+			workingCopy.setAttribute(AutoTestCore.LAUNCH_CONFIG_ATTR_LOG_PATH,
+					project.getFolder(AutoTestCore.DEFAULT_LOG_FOLDER)
+							.getFullPath().toString());
 			IPath path = JavaUtils.getJREContainerPath(project);
 			if (path != null) {
 				workingCopy

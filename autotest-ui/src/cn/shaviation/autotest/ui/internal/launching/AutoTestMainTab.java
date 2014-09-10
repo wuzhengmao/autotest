@@ -1,12 +1,15 @@
 package cn.shaviation.autotest.ui.internal.launching;
 
+import org.eclipse.core.resources.IContainer;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResource;
 import org.eclipse.core.resources.IWorkspace;
 import org.eclipse.core.resources.IWorkspaceRoot;
 import org.eclipse.core.resources.ResourcesPlugin;
 import org.eclipse.core.runtime.CoreException;
+import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.IStatus;
+import org.eclipse.core.runtime.Path;
 import org.eclipse.debug.core.ILaunchConfiguration;
 import org.eclipse.debug.core.ILaunchConfigurationWorkingCopy;
 import org.eclipse.debug.ui.AbstractLaunchConfigurationTab;
@@ -29,6 +32,7 @@ import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Group;
 import org.eclipse.swt.widgets.Text;
+import org.eclipse.ui.dialogs.ContainerSelectionDialog;
 import org.eclipse.ui.dialogs.ElementListSelectionDialog;
 
 import cn.shaviation.autotest.core.AutoTestCore;
@@ -48,6 +52,9 @@ public class AutoTestMainTab extends AbstractLaunchConfigurationTab {
 	private Text resourceText;
 	private Button resourceButton;
 	private Button recursiveCheckButton;
+	private Text logPathText;
+	private Button logPathButton;
+	private Button saveLogCheckButton;
 	private WidgetListener widgetListener = new WidgetListener();
 
 	private class WidgetListener implements ModifyListener, SelectionListener {
@@ -64,7 +71,12 @@ public class AutoTestMainTab extends AbstractLaunchConfigurationTab {
 				handleProjectButtonSelected();
 			} else if (source == resourceButton) {
 				handleResourceButtonSelected();
+			} else if (source == logPathButton) {
+				handleLogPathButtonSelected();
 			} else {
+				if (source == saveLogCheckButton) {
+					updateLogPathStatus();
+				}
 				updateLaunchConfigurationDialog();
 			}
 		}
@@ -83,6 +95,7 @@ public class AutoTestMainTab extends AbstractLaunchConfigurationTab {
 		createProjectEditor(comp);
 		createVerticalSpacer(comp, 1);
 		createTestResourceEditor(comp);
+		createLogPathEditor(comp);
 		setControl(comp);
 	}
 
@@ -168,6 +181,40 @@ public class AutoTestMainTab extends AbstractLaunchConfigurationTab {
 		}
 	}
 
+	private void createLogPathEditor(Composite parent) {
+		Group group = UIUtils.createGroup(parent, "&Execution log:", 2, 1,
+				GridData.FILL_HORIZONTAL);
+		logPathText = UIUtils.createSingleText(group, 1);
+		logPathText.addModifyListener(widgetListener);
+		ControlAccessibleListener.addListener(logPathText, group.getText());
+		logPathButton = createPushButton(group, "Bro&wser...", null);
+		logPathButton.addSelectionListener(widgetListener);
+		saveLogCheckButton = UIUtils.createCheckButton(group,
+				"Save the test execution &log", null, true, 2);
+		saveLogCheckButton.addSelectionListener(widgetListener);
+	}
+
+	private void handleLogPathButtonSelected() {
+		String currentContainerString = logPathText.getText();
+		IContainer currentContainer = getContainer(currentContainerString);
+		ContainerSelectionDialog dialog = new ContainerSelectionDialog(
+				getShell(), currentContainer, false, "Folder Selection");
+		dialog.showClosedProjects(false);
+		dialog.open();
+		Object[] results = dialog.getResult();
+		if ((results != null) && (results.length > 0)
+				&& ((results[0] instanceof IPath))) {
+			IPath path = (IPath) results[0];
+			String containerName = path.toString();
+			logPathText.setText(containerName);
+		}
+	}
+
+	private IContainer getContainer(String path) {
+		Path containerPath = new Path(path);
+		return (IContainer) getWorkspaceRoot().findMember(containerPath);
+	}
+
 	@Override
 	public String getId() {
 		return ID;
@@ -216,6 +263,24 @@ public class AutoTestMainTab extends AbstractLaunchConfigurationTab {
 			setErrorMessage("Test resource not specified");
 			return false;
 		}
+		if (saveLogCheckButton.getSelection()) {
+			String path = logPathText.getText().trim();
+			if (Strings.isEmpty(path)) {
+				setErrorMessage("Execution log not specified");
+				return false;
+			} else {
+				IContainer container = getContainer(path);
+				if ((container == null)
+						|| (container.equals(ResourcesPlugin.getWorkspace()
+								.getRoot()))) {
+					setErrorMessage("Invalid execution log location");
+					return false;
+				} else if (!container.getProject().isOpen()) {
+					setErrorMessage("Cannot save execution log in a closed project.");
+					return false;
+				}
+			}
+		}
 		return true;
 	}
 
@@ -228,6 +293,9 @@ public class AutoTestMainTab extends AbstractLaunchConfigurationTab {
 				resourceText.getText().trim());
 		config.setAttribute(AutoTestCore.LAUNCH_CONFIG_ATTR_RECURSIVE,
 				recursiveCheckButton.getSelection());
+		config.setAttribute(AutoTestCore.LAUNCH_CONFIG_ATTR_LOG_PATH,
+				saveLogCheckButton.getSelection() ? logPathText.getText()
+						.trim() : "");
 	}
 
 	@Override
@@ -235,6 +303,7 @@ public class AutoTestMainTab extends AbstractLaunchConfigurationTab {
 		updateProjectFromConfig(config);
 		updateTestResourceFromConfig(config);
 		updateRecursiveFromConfig(config);
+		updateLogPathFromConfig(config);
 	}
 
 	private void updateProjectFromConfig(ILaunchConfiguration config) {
@@ -270,16 +339,42 @@ public class AutoTestMainTab extends AbstractLaunchConfigurationTab {
 		recursiveCheckButton.setSelection(recursive);
 	}
 
+	private void updateLogPathFromConfig(ILaunchConfiguration config) {
+		String location = "";
+		try {
+			location = config.getAttribute(
+					AutoTestCore.LAUNCH_CONFIG_ATTR_LOG_PATH, "");
+		} catch (CoreException e) {
+			setErrorMessage(e.getStatus().getMessage());
+		}
+		logPathText.setText(location);
+		saveLogCheckButton
+				.setSelection(!Strings.isBlank(logPathText.getText()));
+		updateLogPathStatus();
+	}
+
+	private void updateLogPathStatus() {
+		if (saveLogCheckButton.getSelection()) {
+			logPathText.setEnabled(true);
+			logPathButton.setEnabled(true);
+		} else {
+			logPathText.setEnabled(false);
+			logPathButton.setEnabled(false);
+		}
+	}
+
 	@Override
 	public void setDefaults(ILaunchConfigurationWorkingCopy config) {
 		Object resource = LaunchHelper.getContext();
 		if (resource != null) {
 			initializeJavaProject(resource, config);
 			initializeTestResource(resource, config);
+			initializeLogPath(resource, config);
 		} else {
 			config.setAttribute(
 					IJavaLaunchConfigurationConstants.ATTR_PROJECT_NAME, "");
 			config.setAttribute(AutoTestCore.LAUNCH_CONFIG_ATTR_LOCATION, "");
+			config.setAttribute(AutoTestCore.LAUNCH_CONFIG_ATTR_LOG_PATH, "");
 		}
 		config.setAttribute(AutoTestCore.LAUNCH_CONFIG_ATTR_RECURSIVE, true);
 	}
@@ -299,5 +394,17 @@ public class AutoTestMainTab extends AbstractLaunchConfigurationTab {
 			ILaunchConfigurationWorkingCopy config) {
 		String location = LaunchHelper.getResourceLocation(resource);
 		config.setAttribute(AutoTestCore.LAUNCH_CONFIG_ATTR_LOCATION, location);
+	}
+
+	private void initializeLogPath(Object resource,
+			ILaunchConfigurationWorkingCopy config) {
+		IJavaProject javaProject = LaunchHelper.getJavaProject(resource);
+		String path = null;
+		if (javaProject != null && javaProject.exists()) {
+			path = javaProject.getProject()
+					.getFolder(AutoTestCore.DEFAULT_LOG_FOLDER).getFullPath()
+					.toString();
+		}
+		config.setAttribute(AutoTestCore.LAUNCH_CONFIG_ATTR_LOG_PATH, path);
 	}
 }

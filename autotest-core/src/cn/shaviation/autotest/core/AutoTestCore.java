@@ -8,6 +8,8 @@ import org.eclipse.core.runtime.Plugin;
 import org.eclipse.core.runtime.QualifiedName;
 import org.osgi.framework.BundleContext;
 
+import cn.shavation.autotest.AutoTest;
+
 public class AutoTestCore extends Plugin {
 
 	public static final String PLUGIN_ID = "cn.shaviation.autotest.core"; //$NON-NLS-1$
@@ -15,7 +17,10 @@ public class AutoTestCore extends Plugin {
 	public static final String BUILDER_ID = "cn.shaviation.autotest.core.builder"; //$NON-NLS-1$
 	public static final String LAUNCH_CONFIG_TYPE = "cn.shaviation.autotest.launching.AutoTestLaunchConfigType"; //$NON-NLS-1$
 	public static final String TEST_DATA_FILE_EXTENSION = "tdd"; //$NON-NLS-1$
-	public static final String TEST_SCRIPT_FILE_EXTENSION = "tsc"; //$NON-NLS-1$
+	public static final String TEST_SCRIPT_FILE_EXTENSION = AutoTest.TEST_SCRIPT_FILE_EXTENSION;
+	public static final String TEST_RESULT_FILE_EXTENSION = AutoTest.TEST_RESULT_FILE_EXTENSION;
+	public static final String DEFAULT_RESOURCE_FOLDER = "resources"; //$NON-NLS-1$
+	public static final String DEFAULT_LOG_FOLDER = "logs"; //$NON-NLS-1$
 
 	public static final QualifiedName TEST_DATA_NAME_KEY = new QualifiedName(
 			PLUGIN_ID, "testDataName");
@@ -24,6 +29,7 @@ public class AutoTestCore extends Plugin {
 
 	public static final String LAUNCH_CONFIG_ATTR_LOCATION = "cn.shaviation.autotest.launching.ATTR_LOCATION";
 	public static final String LAUNCH_CONFIG_ATTR_RECURSIVE = "cn.shaviation.autotest.launching.ATTR_RECURSIVE";
+	public static final String LAUNCH_CONFIG_ATTR_LOG_PATH = "cn.shaviation.autotest.launching.ATTR_LOG_PATH";
 
 	private static AutoTestCore plugin;
 
