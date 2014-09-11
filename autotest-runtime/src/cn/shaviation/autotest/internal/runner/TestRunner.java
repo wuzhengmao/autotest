@@ -8,10 +8,12 @@ import java.io.OutputStreamWriter;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.net.URL;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -42,10 +44,10 @@ import cn.shaviation.autotest.util.Strings;
 public class TestRunner {
 
 	private List<String> resources = new ArrayList<String>();
+	private String charset;
 	private boolean recursive = false;
 	private boolean silent = false;
 	private String logPath;
-	private String charset;
 	private PathPatternResolver resolver;
 	private Map<Class<?>, Object> testObjects = new HashMap<Class<?>, Object>();
 
@@ -55,10 +57,10 @@ public class TestRunner {
 				recursive = true;
 			} else if ("-s".equals(args[i])) {
 				silent = true;
-			} else if ("-l".equals(args[i])) {
-				logPath = args[++i];
 			} else if ("-c".equals(args[i])) {
 				charset = args[++i];
+			} else if ("-l".equals(args[i])) {
+				logPath = args[++i];
 			} else if (args[i].startsWith("-")) {
 				throw new IllegalArgumentException(
 						"Unknown commond line switch: " + args[i]);
@@ -66,22 +68,35 @@ public class TestRunner {
 				resources.add(args[i]);
 			}
 		}
-		if (resources.isEmpty()) {
-			throw new IllegalArgumentException("No test script found.");
-		}
 		resolver = new ClassPathMatchingPatternResolver();
+		validateArgs();
 	}
 
-	public TestRunner(List<String> resources, boolean recursive,
-			boolean silent, String logPath, String charset,
+	public TestRunner(List<String> resources, String charset,
+			boolean recursive, boolean silent, String logPath,
 			ClassLoader classLoader) {
 		this.resources = resources;
+		this.charset = charset;
 		this.recursive = recursive;
 		this.silent = silent;
 		this.logPath = logPath;
-		this.charset = charset;
 		this.resolver = classLoader != null ? new ClassPathMatchingPatternResolver(
 				classLoader) : new ClassPathMatchingPatternResolver();
+		validateArgs();
+	}
+
+	private void validateArgs() {
+		if (!Strings.isEmpty(charset)) {
+			if (!Charset.isSupported(charset)) {
+				throw new IllegalArgumentException("Unsupport charset: "
+						+ charset);
+			}
+		} else {
+			charset = Charset.defaultCharset().name();
+		}
+		if (resources.isEmpty()) {
+			throw new IllegalArgumentException("No test script found");
+		}
 	}
 
 	private Set<String> resolveResources() throws IOException {
@@ -115,7 +130,7 @@ public class TestRunner {
 		return url;
 	}
 
-	public void run() throws Exception {
+	public void run() throws IOException {
 		TestContextImpl context = new TestContextImpl();
 		TestNodeImpl testNode = context.getTestExecution();
 		testNode.setName("Root");
@@ -126,11 +141,8 @@ public class TestRunner {
 			for (TestNodeImpl child : testNode.getChildren()) {
 				context.setTestNode(child);
 				child.start();
-				try {
-					run(child.getName(), context);
-				} catch (Throwable t) {
-					child.error(t);
-				}
+				System.out.println("Run test script: " + child.getName());
+				runTestScript("", child.getName(), context);
 			}
 			testNode.complete();
 		} catch (Throwable t) {
@@ -162,18 +174,11 @@ public class TestRunner {
 		}
 	}
 
-	private void run(String resource, TestContextImpl context) throws Throwable {
-		System.out.println("Run test script: " + resource);
-		runTestScript("", resource, context);
-	}
-
 	private void runTestScript(String prefix, String resource,
-			TestContextImpl context) throws Throwable {
-		final TestNodeImpl testNode = context.getTestNode();
+			TestContextImpl context) throws IOException {
 		String json = IOUtils.toString(getResource(resource).openStream(),
-				"utf-8");
+				charset);
 		TestScript testScript = TestScriptHelper.parse(json);
-		context.setTestScript(testScript);
 		String nodeName = testScript.getName();
 		if (Strings.isBlank(nodeName)) {
 			nodeName = resource;
@@ -184,84 +189,101 @@ public class TestRunner {
 		if (!Strings.isEmpty(prefix)) {
 			nodeName = prefix + ": " + nodeName;
 		}
-		testNode.setName(nodeName);
-		final List<TestStep> testSteps = testScript.getTestSteps();
-		if (testSteps != null) {
-			final Map<String, Integer> map = new HashMap<String, Integer>();
-			TestStepIterator.iterate(testSteps, new ITestStepVisitor() {
-				@Override
-				public boolean visit(TestStep testStep, int index) {
-					String nodeName = "Step " + index;
-					testNode.add(nodeName);
-					map.put(nodeName, index - 1);
-					return true;
-				}
-			});
-			for (int i = 0; i < testNode.getChildren().size(); i++) {
-				TestNodeImpl child = testNode.getChildren().get(i);
-				context.setTestStepIndex(map.get(child.getName()));
-				TestStep testStep = context.getTestStep();
-				if (testStep.getDependentSteps() != null
-						&& !testStep.getDependentSteps().isEmpty()) {
-					Set<Integer> set = new HashSet<Integer>(
-							testStep.getDependentSteps());
-					for (int j = i - 1; j >= 0; j--) {
-						TestNodeImpl check = testNode.getChildren().get(j);
-						String pf = check.getName().substring(0,
-								check.getName().indexOf(':'));
-						if (set.remove(map.get(pf) + 1)) {
-							if (check.getStatus() == Status.PASS) {
-								if (set.isEmpty()) {
+		context.getTestNode().setName(nodeName);
+		runTestScript(testScript, context);
+	}
+
+	private void runTestScript(TestScript testScript, TestContextImpl context) {
+		TestScript backTestScript = context.getTestScript();
+		int backTestStepIndex = context.getTestStepIndex();
+		final TestNodeImpl testNode = context.getTestNode();
+		try {
+			context.setTestScript(testScript);
+			final List<TestStep> testSteps = testScript.getTestSteps();
+			if (testSteps != null) {
+				final Map<String, Integer> map = new HashMap<String, Integer>();
+				TestStepIterator.iterate(testSteps, new ITestStepVisitor() {
+					@Override
+					public boolean visit(TestStep testStep, int index) {
+						String nodeName = "Step " + index;
+						testNode.add(nodeName);
+						map.put(nodeName, index - 1);
+						return true;
+					}
+				});
+				for (int i = 0; i < testNode.getChildren().size(); i++) {
+					TestNodeImpl child = testNode.getChildren().get(i);
+					context.setTestStepIndex(map.get(child.getName()));
+					TestStep testStep = context.getTestStep();
+					if (testStep.getDependentSteps() != null
+							&& !testStep.getDependentSteps().isEmpty()) {
+						Set<Integer> set = new HashSet<Integer>(
+								testStep.getDependentSteps());
+						for (int j = i - 1; j >= 0; j--) {
+							TestNodeImpl check = testNode.getChildren().get(j);
+							String pf = check.getName().substring(0,
+									check.getName().indexOf(':'));
+							if (set.remove(map.get(pf) + 1)) {
+								if (check.getStatus() == Status.PASS) {
+									if (set.isEmpty()) {
+										break;
+									}
+								} else {
+									child.block();
 									break;
 								}
-							} else {
-								child.block();
-								break;
 							}
 						}
-					}
-					if (child.getStatus() == Status.BLOCKED) {
-						continue;
-					}
-				}
-				context.setTestNode(child);
-				child.start();
-				try {
-					System.out.println("Go " + child.getName().toLowerCase()
-							+ "... "
-							+ (testNode.total() - testNode.count(null)) + "/"
-							+ testNode.total());
-					if (testStep.getParameters() != null) {
-						for (Parameter param : testStep.getParameters()) {
-							if (!Strings.isEmpty(param.getKey())) {
-								context.put(param.getKey(), param.getValue());
-							}
+						if (child.getStatus() == Status.BLOCKED) {
+							continue;
 						}
 					}
-					switch (testStep.getInvokeType()) {
-					case Method:
-						runTestMethod(child.getName(), testStep, context);
-						break;
-					case Script:
-						runSubScript(child.getName(), testStep, context);
-						break;
-					default:
-						child.error("Unknow test step type: "
-								+ testStep.getInvokeType());
-						break;
+					context.setTestNode(child);
+					child.start();
+					try {
+						System.out.println("Go "
+								+ child.getName().toLowerCase() + "... "
+								+ (testNode.total() - testNode.count(null))
+								+ "/" + testNode.total());
+						if (testStep.getParameters() != null) {
+							for (Parameter param : testStep.getParameters()) {
+								if (!Strings.isEmpty(param.getKey())) {
+									context.put(param.getKey(),
+											param.getValue());
+								}
+							}
+						}
+						switch (testStep.getInvokeType()) {
+						case Method:
+							runTestMethod(child.getName(), testStep, context);
+							break;
+						case Script:
+							runSubScript(child.getName(), testStep, context);
+							break;
+						default:
+							child.error("Unknow test step type: "
+									+ testStep.getInvokeType());
+							break;
+						}
+					} catch (Throwable t) {
+						child.error(t);
 					}
-				} catch (Throwable t) {
-					child.error(t);
 				}
 			}
+			testNode.complete();
+			System.out.println("<<< Completed");
+		} catch (Throwable t) {
+			testNode.error(t);
+		} finally {
+			context.setTestNode(testNode);
+			context.setTestScript(backTestScript);
+			context.setTestStepIndex(backTestStepIndex);
 		}
-		context.setTestNode(testNode);
-		testNode.complete();
-		System.out.println("<<< Completed");
 	}
 
 	private void runTestMethod(String prefix, TestStep testStep,
-			TestContextImpl context) throws Throwable {
+			TestContextImpl context) throws ClassNotFoundException,
+			NoSuchMethodException, IOException {
 		TestNodeImpl testNode = context.getTestNode();
 		String method = testStep.getInvokeTarget().trim();
 		int p = method.lastIndexOf('#');
@@ -285,7 +307,7 @@ public class TestRunner {
 		if (!Strings.isBlank(testStep.getTestDataFile())) {
 			String json = IOUtils
 					.toString(getResource(testStep.getTestDataFile().trim())
-							.openStream(), "utf-8");
+							.openStream(), charset);
 			testDataDef = TestDataHelper.parse(json);
 			msg += " with "
 					+ (testDataDef.getDataList() != null ? testDataDef
@@ -296,40 +318,58 @@ public class TestRunner {
 					+ "\"";
 		}
 		System.out.println(msg);
-		Map<String, Integer> map = new HashMap<String, Integer>();
+		Map<String, Integer> map = new LinkedHashMap<String, Integer>();
 		for (int i = 0; i < testStep.getLoopTimes(); i++) {
 			if (testDataDef != null && testDataDef.getDataList() != null
 					&& !testDataDef.getDataList().isEmpty()) {
 				for (int j = 0; j < testDataDef.getDataList().size(); j++) {
 					String loop = "Loop " + (i + 1) + " group " + (j + 1);
-					testNode.add(loop);
 					map.put(loop, j);
 				}
 			} else {
-				testNode.add("Loop " + (i + 1));
+				map.put("Loop " + (i + 1), null);
 			}
 		}
-		for (TestNodeImpl child : testNode.getChildren()) {
-			context.setTestNode(child);
-			child.start();
-			System.out.println(child.getName());
-			try {
+		if (map.size() > 1) {
+			testNode.addAll(map.keySet());
+			for (TestNodeImpl child : testNode.getChildren()) {
+				context.setTestNode(child);
+				child.start();
 				Integer i = map.get(child.getName());
-				invokeTestMethod(testClass, testMethod, i != null ? testDataDef
-						.getDataList().get(i) : null, context);
-				if (child.getStatus() == Status.PASS) {
-					System.out.println(" - Pass");
-				} else if (child.getStatus() == Status.FAILURE) {
-					System.out.println(" - Failure");
-				} else {
-					System.out.println();
-				}
-			} catch (Throwable t) {
-				System.out.println(" - Error");
-				child.error(t);
+				loopTestMethod(child.getName(), testClass, testMethod,
+						i != null ? testDataDef.getDataList().get(i) : null,
+						context);
 			}
+			context.setTestNode(testNode);
+			testNode.complete();
+		} else if (map.size() == 1) {
+			String loop = map.keySet().iterator().next();
+			Integer i = map.get(loop);
+			loopTestMethod(loop, testClass, testMethod, i != null ? testDataDef
+					.getDataList().get(i) : null, context);
+		} else {
+			testNode.error("Loop times shall larger than 0");
 		}
-		testNode.complete(true);
+	}
+
+	private void loopTestMethod(String loop, Class<?> testClass,
+			Method testMethod, TestDataGroup testDataGroup,
+			TestContextImpl context) {
+		TestNodeImpl testNode = context.getTestNode();
+		System.out.println(loop);
+		try {
+			invokeTestMethod(testClass, testMethod, testDataGroup, context);
+			if (testNode.getStatus() == Status.PASS) {
+				System.out.println(" - Pass");
+			} else if (testNode.getStatus() == Status.FAILURE) {
+				System.out.println(" - Failure");
+			} else {
+				testNode.error("Unexpected case");
+			}
+		} catch (Throwable t) {
+			System.out.println(" - Error");
+			testNode.error(t);
+		}
 	}
 
 	private void invokeTestMethod(Class<?> testClass, Method testMethod,
@@ -371,31 +411,42 @@ public class TestRunner {
 	}
 
 	private void runSubScript(String prefix, TestStep testStep,
-			TestContextImpl context) throws Throwable {
+			TestContextImpl context) throws IOException {
 		TestNodeImpl testNode = context.getTestNode();
-		String msg = "Execute sub script \""
-				+ testStep.getInvokeTarget().trim() + "\" "
+		String resource = testStep.getInvokeTarget().trim();
+		String json = IOUtils.toString(getResource(resource).openStream(),
+				charset);
+		TestScript testScript = TestScriptHelper.parse(json);
+		String nodeName = testScript.getName();
+		if (Strings.isBlank(nodeName)) {
+			nodeName = resource;
+		} else {
+			nodeName = nodeName.trim() + "(" + resource + ")";
+		}
+		String msg = "Execute sub script \"" + nodeName + "\" "
 				+ testStep.getLoopTimes() + " times";
 		System.out.println(msg);
-		for (int i = 0; i < testStep.getLoopTimes(); i++) {
-			testNode.add("Loop " + (i + 1));
+		if (!Strings.isEmpty(prefix)) {
+			nodeName = prefix + ": " + nodeName;
 		}
-		for (TestNodeImpl child : testNode.getChildren()) {
-			context.setTestNode(child);
-			child.start();
-			System.out.println(child.getName());
-			TestScript testScript = context.getTestScript();
-			int testStepIndex = context.getTestStepIndex();
-			try {
-				runTestScript(prefix, testStep.getInvokeTarget().trim(),
-						context);
-			} catch (Throwable t) {
-				child.error(t);
-			} finally {
-				context.setTestScript(testScript);
-				context.setTestStepIndex(testStepIndex);
+		testNode.setName(nodeName);
+		if (testStep.getLoopTimes() > 1) {
+			for (int i = 0; i < testStep.getLoopTimes(); i++) {
+				testNode.add("Loop " + (i + 1));
 			}
+			for (TestNodeImpl child : testNode.getChildren()) {
+				context.setTestNode(child);
+				child.start();
+				System.out.println(child.getName());
+				runTestScript(testScript, context);
+			}
+			context.setTestNode(testNode);
+			testNode.complete();
+		} else if (testStep.getLoopTimes() == 1) {
+			System.out.println("Loop 1");
+			runTestScript(testScript, context);
+		} else {
+			testNode.error("Loop times shall larger than 0");
 		}
-		testNode.complete(true);
 	}
 }

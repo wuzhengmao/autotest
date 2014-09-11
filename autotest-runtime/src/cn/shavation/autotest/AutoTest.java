@@ -43,8 +43,8 @@ public class AutoTest {
 			String logPath, String charset, ClassLoader classLoader)
 			throws Exception {
 		TestRunner runner = new TestRunner(
-				Collections.unmodifiableList(resources), recursive, true,
-				logPath, charset, classLoader);
+				Collections.unmodifiableList(resources), charset, recursive,
+				true, logPath, classLoader);
 		runner.run();
 	}
 }

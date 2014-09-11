@@ -48,8 +48,9 @@ public class AutoTestLaunchDelegate extends JavaLaunchDelegate {
 			IFolder folder = getLogFolder(configuration);
 			sb.append("-l ").append(folder.getRawLocation().toOSString())
 					.append(" ");
-			sb.append("-c ").append(folder.getDefaultCharset()).append(" ");
 		}
+		sb.append("-c ").append(getProject(configuration).getDefaultCharset())
+				.append(" ");
 		sb.append(configuration.getAttribute(
 				AutoTestCore.LAUNCH_CONFIG_ATTR_LOCATION, ""));
 		return sb.toString();

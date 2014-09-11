@@ -158,19 +158,6 @@ public class TestNodeImpl implements TestExecution, TestNode {
 				+ error + " Blocked:" + blocked;
 	}
 
-	public void complete(boolean mergeSingleChild) {
-		if (!mergeSingleChild || children == null || children.size() != 1) {
-			complete();
-		} else {
-			runTime = System.currentTimeMillis() - startTime;
-			TestNodeImpl child = children.get(0);
-			status = child.status;
-			description = child.description;
-			snapshot = child.snapshot;
-			children = child.children;
-		}
-	}
-
 	public void printOut() {
 		printOut("", "");
 	}

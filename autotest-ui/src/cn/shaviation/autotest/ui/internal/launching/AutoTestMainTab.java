@@ -270,9 +270,10 @@ public class AutoTestMainTab extends AbstractLaunchConfigurationTab {
 				return false;
 			} else {
 				IContainer container = getContainer(path);
-				if ((container == null)
-						|| (container.equals(ResourcesPlugin.getWorkspace()
-								.getRoot()))) {
+				if (container == null
+						|| container instanceof IProject
+						|| container.equals(ResourcesPlugin.getWorkspace()
+								.getRoot())) {
 					setErrorMessage("Invalid execution log location");
 					return false;
 				} else if (!container.getProject().isOpen()) {
