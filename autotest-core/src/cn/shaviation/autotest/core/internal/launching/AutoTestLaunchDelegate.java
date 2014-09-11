@@ -1,5 +1,8 @@
 package cn.shaviation.autotest.core.internal.launching;
 
+import java.io.IOException;
+import java.net.ServerSocket;
+
 import org.eclipse.core.resources.IContainer;
 import org.eclipse.core.resources.IFolder;
 import org.eclipse.core.resources.IProject;
@@ -42,17 +45,22 @@ public class AutoTestLaunchDelegate extends JavaLaunchDelegate {
 				AutoTestCore.LAUNCH_CONFIG_ATTR_RECURSIVE, true)) {
 			sb.append("-r ");
 		}
-		String logPath = configuration.getAttribute(
-				AutoTestCore.LAUNCH_CONFIG_ATTR_LOG_PATH, "");
-		if (!Strings.isBlank(logPath)) {
-			IFolder folder = getLogFolder(configuration);
+		IFolder folder = getLogFolder(configuration);
+		if (folder != null) {
 			sb.append("-l ").append(folder.getRawLocation().toOSString())
 					.append(" ");
 		}
 		sb.append("-c ").append(getProject(configuration).getDefaultCharset())
 				.append(" ");
-		sb.append(configuration.getAttribute(
-				AutoTestCore.LAUNCH_CONFIG_ATTR_LOCATION, ""));
+		int port = evaluatePort();
+		sb.append("-p ").append(port).append(" ");
+		String resource = configuration.getAttribute(
+				AutoTestCore.LAUNCH_CONFIG_ATTR_LOCATION, "");
+		if (Strings.isBlank(resource)) {
+			throw new CoreException(new Status(IStatus.ERROR,
+					AutoTestCore.PLUGIN_ID, "Test resource not specified"));
+		}
+		sb.append(resource.trim());
 		return sb.toString();
 	}
 
@@ -100,6 +108,24 @@ public class AutoTestLaunchDelegate extends JavaLaunchDelegate {
 			return folder;
 		}
 		return null;
+	}
+
+	private int evaluatePort() throws CoreException {
+		ServerSocket socket = null;
+		try {
+			socket = new ServerSocket(0);
+			return socket.getLocalPort();
+		} catch (IOException e) {
+		} finally {
+			if (socket != null) {
+				try {
+					socket.close();
+				} catch (IOException e) {
+				}
+			}
+		}
+		throw new CoreException(new Status(IStatus.ERROR,
+				AutoTestCore.PLUGIN_ID, "No socket available"));
 	}
 
 	public static class BackgroundResourceRefresher implements

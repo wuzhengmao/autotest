@@ -198,7 +198,7 @@ public class AutoTestMainTab extends AbstractLaunchConfigurationTab {
 		String currentContainerString = logPathText.getText();
 		IContainer currentContainer = getContainer(currentContainerString);
 		ContainerSelectionDialog dialog = new ContainerSelectionDialog(
-				getShell(), currentContainer, false, "Folder Selection");
+				getShell(), currentContainer, true, "Folder Selection");
 		dialog.showClosedProjects(false);
 		dialog.open();
 		Object[] results = dialog.getResult();

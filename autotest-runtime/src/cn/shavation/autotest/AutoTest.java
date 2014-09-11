@@ -44,7 +44,7 @@ public class AutoTest {
 			throws Exception {
 		TestRunner runner = new TestRunner(
 				Collections.unmodifiableList(resources), charset, recursive,
-				true, logPath, classLoader);
+				logPath, 0, classLoader);
 		runner.run();
 	}
 }

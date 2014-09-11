@@ -20,6 +20,25 @@
             class="cn.shaviation.autotest.ui.internal.editors.TestScriptEditor"
             id="cn.shaviation.autotest.ui.editors.TestScriptEditor">
       </editor>
+      <editor
+            name="Test Execution Viewer"
+            extensions="trl"
+            icon="icons/testexec.gif"
+            launcher="cn.shaviation.autotest.ui.internal.editors.TestExecutionViewEditorLauncher"
+            id="cn.shaviation.autotest.ui.editors.TestExecutionEditor">
+      </editor>
+   </extension>
+   
+   <extension
+         point="org.eclipse.ui.views">
+      <view
+            name="Automatic Testing"
+            icon="icons/testexec.gif"
+            category="org.eclipse.jdt.ui.java"
+            fastViewWidthRatio="0.40"
+            class="cn.shaviation.autotest.ui.internal.views.TestExecutionViewPart"
+            id="cn.shaviation.autotest.ui.views.TestExecutionViewPart">
+      </view>
    </extension>
    
    <extension

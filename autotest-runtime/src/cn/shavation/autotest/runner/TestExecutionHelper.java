@@ -1,6 +1,8 @@
-package cn.shaviation.autotest.model;
+package cn.shavation.autotest.runner;
 
 import java.io.IOException;
+import java.io.Reader;
+import java.io.Writer;
 import java.text.SimpleDateFormat;
 
 import cn.shaviation.autotest.internal.runner.TestNodeImpl;
@@ -27,7 +29,16 @@ public abstract class TestExecutionHelper {
 		return objectMapper.readValue(json, TestNodeImpl.class);
 	}
 
+	public static TestExecution parse(Reader reader) throws IOException {
+		return objectMapper.readValue(reader, TestNodeImpl.class);
+	}
+
 	public static String serialize(TestExecution execution) throws IOException {
 		return objectMapper.writeValueAsString(execution);
+	}
+
+	public static void serialize(Writer writer, TestExecution execution)
+			throws IOException {
+		objectMapper.writeValue(writer, execution);
 	}
 }

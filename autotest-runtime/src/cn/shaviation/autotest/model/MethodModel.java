@@ -2,6 +2,8 @@ package cn.shaviation.autotest.model;
 
 import java.util.Set;
 
+import cn.shavation.autotest.runner.TestContext;
+
 public interface MethodModel {
 
 	TestContext getTextContext();

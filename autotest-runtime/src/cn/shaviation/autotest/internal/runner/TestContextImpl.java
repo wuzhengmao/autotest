@@ -5,8 +5,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
+import cn.shavation.autotest.runner.TestContext;
 import cn.shaviation.autotest.model.MethodModel;
-import cn.shaviation.autotest.model.TestContext;
 import cn.shaviation.autotest.model.TestScript;
 import cn.shaviation.autotest.model.TestStep;
 

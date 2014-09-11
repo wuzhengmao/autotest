@@ -2,7 +2,7 @@
 <classpath>
 	<classpathentry exported="true" kind="lib" path="lib/validation-api-1.0.0.GA.jar"/>
 	<classpathentry exported="true" kind="lib" path="lib/jackson-annotations-2.2.3.jar" sourcepath="E:/m2/repository/com/fasterxml/jackson/core/jackson-annotations/2.2.3/jackson-annotations-2.2.3-sources.jar"/>
-	<classpathentry exported="true" kind="lib" path="lib/jackson-core-2.2.3.jar"/>
+	<classpathentry exported="true" kind="lib" path="lib/jackson-core-2.2.3.jar" sourcepath="E:/m2/repository/com/fasterxml/jackson/core/jackson-core/2.2.3/jackson-core-2.2.3-sources.jar"/>
 	<classpathentry exported="true" kind="lib" path="lib/jackson-databind-2.2.3.jar" sourcepath="E:/m2/repository/com/fasterxml/jackson/core/jackson-databind/2.2.3/jackson-databind-2.2.3-sources.jar"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/JavaSE-1.6"/>
 	<classpathentry kind="con" path="org.eclipse.pde.core.requiredPlugins"/>

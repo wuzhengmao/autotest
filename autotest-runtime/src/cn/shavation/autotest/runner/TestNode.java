@@ -1,4 +1,4 @@
-package cn.shaviation.autotest.model;
+package cn.shavation.autotest.runner;
 
 import java.util.List;
 

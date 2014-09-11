@@ -1,6 +1,8 @@
 package cn.shaviation.autotest.model;
 
 import java.io.IOException;
+import java.io.Reader;
+import java.io.Writer;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
@@ -26,8 +28,17 @@ public abstract class TestScriptHelper {
 		return objectMapper.readValue(json, TestScript.class);
 	}
 
+	public static TestScript parse(Reader reader) throws IOException {
+		return objectMapper.readValue(reader, TestScript.class);
+	}
+
 	public static String serialize(TestScript testScript) throws IOException {
 		return objectMapper.writeValueAsString(testScript);
+	}
+
+	public static void serialize(Writer writer, TestScript testScript)
+			throws IOException {
+		objectMapper.writeValue(writer, testScript);
 	}
 
 	public static TestScript createDefault() {

@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -20,6 +21,9 @@ import java.util.Map;
 import java.util.Set;
 
 import cn.shavation.autotest.AutoTest;
+import cn.shavation.autotest.runner.TestElement.Status;
+import cn.shavation.autotest.runner.TestExecution;
+import cn.shavation.autotest.runner.TestExecutionHelper;
 import cn.shaviation.autotest.annotation.Singleton;
 import cn.shaviation.autotest.annotation.TestMethod;
 import cn.shaviation.autotest.internal.pathmatch.PathPatternResolver;
@@ -30,15 +34,11 @@ import cn.shaviation.autotest.model.TestDataDef;
 import cn.shaviation.autotest.model.TestDataEntry;
 import cn.shaviation.autotest.model.TestDataGroup;
 import cn.shaviation.autotest.model.TestDataHelper;
-import cn.shaviation.autotest.model.TestElement.Status;
-import cn.shaviation.autotest.model.TestExecution;
-import cn.shaviation.autotest.model.TestExecutionHelper;
 import cn.shaviation.autotest.model.TestScript;
 import cn.shaviation.autotest.model.TestScriptHelper;
 import cn.shaviation.autotest.model.TestStep;
 import cn.shaviation.autotest.model.TestStepIterator;
 import cn.shaviation.autotest.model.TestStepIterator.ITestStepVisitor;
-import cn.shaviation.autotest.util.IOUtils;
 import cn.shaviation.autotest.util.Strings;
 
 public class TestRunner {
@@ -46,8 +46,8 @@ public class TestRunner {
 	private List<String> resources = new ArrayList<String>();
 	private String charset;
 	private boolean recursive = false;
-	private boolean silent = false;
 	private String logPath;
+	private int port = 0;
 	private PathPatternResolver resolver;
 	private Map<Class<?>, Object> testObjects = new HashMap<Class<?>, Object>();
 
@@ -55,12 +55,12 @@ public class TestRunner {
 		for (int i = 0; i < args.length; i++) {
 			if ("-r".equals(args[i])) {
 				recursive = true;
-			} else if ("-s".equals(args[i])) {
-				silent = true;
 			} else if ("-c".equals(args[i])) {
 				charset = args[++i];
 			} else if ("-l".equals(args[i])) {
 				logPath = args[++i];
+			} else if ("-p".equals(args[i])) {
+				port = Integer.parseInt(args[++i]);
 			} else if (args[i].startsWith("-")) {
 				throw new IllegalArgumentException(
 						"Unknown commond line switch: " + args[i]);
@@ -73,13 +73,12 @@ public class TestRunner {
 	}
 
 	public TestRunner(List<String> resources, String charset,
-			boolean recursive, boolean silent, String logPath,
-			ClassLoader classLoader) {
+			boolean recursive, String logPath, int port, ClassLoader classLoader) {
 		this.resources = resources;
 		this.charset = charset;
 		this.recursive = recursive;
-		this.silent = silent;
 		this.logPath = logPath;
+		this.port = port;
 		this.resolver = classLoader != null ? new ClassPathMatchingPatternResolver(
 				classLoader) : new ClassPathMatchingPatternResolver();
 		validateArgs();
@@ -168,17 +167,15 @@ public class TestRunner {
 			FileOutputStream fos = new FileOutputStream(file);
 			OutputStreamWriter writer = charset != null ? new OutputStreamWriter(
 					fos, charset) : new OutputStreamWriter(fos);
-			writer.write(TestExecutionHelper.serialize(testExecution));
-			writer.flush();
-			writer.close();
+			TestExecutionHelper.serialize(writer, testExecution);
 		}
 	}
 
 	private void runTestScript(String prefix, String resource,
 			TestContextImpl context) throws IOException {
-		String json = IOUtils.toString(getResource(resource).openStream(),
-				charset);
-		TestScript testScript = TestScriptHelper.parse(json);
+		InputStreamReader reader = new InputStreamReader(getResource(resource)
+				.openStream(), charset);
+		TestScript testScript = TestScriptHelper.parse(reader);
 		String nodeName = testScript.getName();
 		if (Strings.isBlank(nodeName)) {
 			nodeName = resource;
@@ -305,17 +302,16 @@ public class TestRunner {
 		testNode.setName(nodeName);
 		TestDataDef testDataDef = null;
 		if (!Strings.isBlank(testStep.getTestDataFile())) {
-			String json = IOUtils
-					.toString(getResource(testStep.getTestDataFile().trim())
-							.openStream(), charset);
-			testDataDef = TestDataHelper.parse(json);
+			String resource = testStep.getTestDataFile().trim();
+			InputStreamReader reader = new InputStreamReader(getResource(
+					resource).openStream(), charset);
+			testDataDef = TestDataHelper.parse(reader);
 			msg += " with "
 					+ (testDataDef.getDataList() != null ? testDataDef
 							.getDataList().size() : 0)
 					+ " group(s) test data \""
 					+ (!Strings.isBlank(testDataDef.getName()) ? testDataDef
-							.getName() : testStep.getTestDataFile().trim())
-					+ "\"";
+							.getName() : resource) + "\"";
 		}
 		System.out.println(msg);
 		Map<String, Integer> map = new LinkedHashMap<String, Integer>();
@@ -414,9 +410,9 @@ public class TestRunner {
 			TestContextImpl context) throws IOException {
 		TestNodeImpl testNode = context.getTestNode();
 		String resource = testStep.getInvokeTarget().trim();
-		String json = IOUtils.toString(getResource(resource).openStream(),
-				charset);
-		TestScript testScript = TestScriptHelper.parse(json);
+		InputStreamReader reader = new InputStreamReader(getResource(resource)
+				.openStream(), charset);
+		TestScript testScript = TestScriptHelper.parse(reader);
 		String nodeName = testScript.getName();
 		if (Strings.isBlank(nodeName)) {
 			nodeName = resource;

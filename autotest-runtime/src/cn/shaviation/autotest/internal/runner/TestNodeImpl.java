@@ -7,8 +7,8 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
-import cn.shaviation.autotest.model.TestExecution;
-import cn.shaviation.autotest.model.TestNode;
+import cn.shavation.autotest.runner.TestExecution;
+import cn.shavation.autotest.runner.TestNode;
 import cn.shaviation.autotest.util.Strings;
 
 public class TestNodeImpl implements TestExecution, TestNode {

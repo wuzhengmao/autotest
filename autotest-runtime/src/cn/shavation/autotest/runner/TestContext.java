@@ -1,7 +1,11 @@
-package cn.shaviation.autotest.model;
+package cn.shavation.autotest.runner;
 
 import java.util.Map;
 import java.util.Set;
+
+import cn.shaviation.autotest.model.MethodModel;
+import cn.shaviation.autotest.model.TestScript;
+import cn.shaviation.autotest.model.TestStep;
 
 public interface TestContext {
 
