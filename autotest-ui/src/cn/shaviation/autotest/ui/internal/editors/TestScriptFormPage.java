@@ -22,8 +22,6 @@ import org.eclipse.core.runtime.CoreException;
 import org.eclipse.jdt.core.IAnnotation;
 import org.eclipse.jdt.core.IJarEntryResource;
 import org.eclipse.jdt.core.IJavaProject;
-import org.eclipse.jdt.core.IMethod;
-import org.eclipse.jdt.ui.JavaUI;
 import org.eclipse.jface.action.Action;
 import org.eclipse.jface.action.IToolBarManager;
 import org.eclipse.jface.databinding.viewers.ObservableListContentProvider;
@@ -78,6 +76,7 @@ import cn.shaviation.autotest.model.TestScript;
 import cn.shaviation.autotest.model.TestScriptHelper;
 import cn.shaviation.autotest.model.TestStep;
 import cn.shaviation.autotest.ui.AutoTestUI;
+import cn.shaviation.autotest.ui.internal.actions.OpenTestMethodAction;
 import cn.shaviation.autotest.ui.internal.databinding.Converters;
 import cn.shaviation.autotest.ui.internal.databinding.ListToStringConverter;
 import cn.shaviation.autotest.ui.internal.databinding.StringToListConverter;
@@ -907,15 +906,8 @@ public class TestScriptFormPage extends DocumentFormPage<TestScript> {
 		if (Strings.isBlank(invokeTargetText.getText()) || !ensureJavaProject()) {
 			return;
 		}
-		IMethod method = AutoTestProjects.getTestMethod(javaProject,
-				invokeTargetText.getText().trim());
-		if (method != null) {
-			try {
-				JavaUI.openInEditor(method, true, true);
-			} catch (CoreException e) {
-				UIUtils.showError(this, "Open test method error", e);
-			}
-		}
+		new OpenTestMethodAction(getEditorSite().getShell(), javaProject,
+				invokeTargetText.getText().trim()).run();
 	}
 
 	private void selectTestData() {

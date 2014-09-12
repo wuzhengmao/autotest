@@ -6,7 +6,13 @@ public interface TestElement {
 		PASS, FAILURE, ERROR, BLOCKED, RUNNING
 	}
 
+	public static enum Type {
+		ROOT, SCRIPT, METHOD, LOOP
+	}
+
 	String getName();
+
+	Type getType();
 
 	Status getStatus();
 

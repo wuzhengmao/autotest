@@ -22,6 +22,7 @@ import java.util.Set;
 
 import cn.shavation.autotest.AutoTest;
 import cn.shavation.autotest.runner.TestElement.Status;
+import cn.shavation.autotest.runner.TestElement.Type;
 import cn.shavation.autotest.runner.TestExecution;
 import cn.shavation.autotest.runner.TestExecutionHelper;
 import cn.shaviation.autotest.annotation.Singleton;
@@ -133,10 +134,11 @@ public class TestRunner {
 		TestContextImpl context = new TestContextImpl();
 		TestNodeImpl testNode = context.getTestExecution();
 		testNode.setName("Root");
+		testNode.setType(Type.ROOT);
 		context.setTestNode(testNode);
 		testNode.start();
 		try {
-			testNode.addAll(resolveResources());
+			testNode.addAll(resolveResources(), Type.SCRIPT);
 			for (TestNodeImpl child : testNode.getChildren()) {
 				context.setTestNode(child);
 				child.start();
@@ -203,7 +205,16 @@ public class TestRunner {
 					@Override
 					public boolean visit(TestStep testStep, int index) {
 						String nodeName = "Step " + index;
-						testNode.add(nodeName);
+						Type type = null;
+						switch (testStep.getInvokeType()) {
+						case Method:
+							type = Type.METHOD;
+							break;
+						case Script:
+							type = Type.SCRIPT;
+							break;
+						}
+						testNode.add(nodeName, type);
 						map.put(nodeName, index - 1);
 						return true;
 					}
@@ -327,7 +338,7 @@ public class TestRunner {
 			}
 		}
 		if (map.size() > 1) {
-			testNode.addAll(map.keySet());
+			testNode.addAll(map.keySet(), Type.LOOP);
 			for (TestNodeImpl child : testNode.getChildren()) {
 				context.setTestNode(child);
 				child.start();
@@ -428,7 +439,7 @@ public class TestRunner {
 		testNode.setName(nodeName);
 		if (testStep.getLoopTimes() > 1) {
 			for (int i = 0; i < testStep.getLoopTimes(); i++) {
-				testNode.add("Loop " + (i + 1));
+				testNode.add("Loop " + (i + 1), Type.LOOP);
 			}
 			for (TestNodeImpl child : testNode.getChildren()) {
 				context.setTestNode(child);

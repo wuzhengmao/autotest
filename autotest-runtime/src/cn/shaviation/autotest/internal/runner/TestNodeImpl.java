@@ -14,6 +14,7 @@ import cn.shaviation.autotest.util.Strings;
 public class TestNodeImpl implements TestExecution, TestNode {
 
 	private String name;
+	private Type type;
 	private Status status;
 	private Long startTime;
 	private Long runTime;
@@ -24,6 +25,11 @@ public class TestNodeImpl implements TestExecution, TestNode {
 	@Override
 	public String getName() {
 		return name;
+	}
+
+	@Override
+	public Type getType() {
+		return type;
 	}
 
 	@Override
@@ -74,19 +80,24 @@ public class TestNodeImpl implements TestExecution, TestNode {
 		this.name = name;
 	}
 
-	public TestNodeImpl add(String name) {
+	public void setType(Type type) {
+		this.type = type;
+	}
+
+	public TestNodeImpl add(String name, Type type) {
 		if (children == null) {
 			children = new ArrayList<TestNodeImpl>();
 		}
 		TestNodeImpl node = new TestNodeImpl();
 		node.setName(name);
+		node.setType(type);
 		children.add(node);
 		return node;
 	}
 
-	public void addAll(Collection<String> names) {
+	public void addAll(Collection<String> names, Type type) {
 		for (String name : names) {
-			add(name);
+			add(name, type);
 		}
 	}
 
