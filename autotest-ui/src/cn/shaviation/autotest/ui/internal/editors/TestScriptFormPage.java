@@ -65,18 +65,17 @@ import org.eclipse.ui.forms.widgets.FormToolkit;
 import org.eclipse.ui.forms.widgets.ScrolledForm;
 import org.eclipse.ui.forms.widgets.Section;
 import org.eclipse.ui.forms.widgets.TableWrapData;
-import org.eclipse.ui.ide.IDE;
 
 import cn.shaviation.autotest.core.jdt.AutoTestProjects;
-import cn.shaviation.autotest.core.jdt.NonJavaResourceFinder;
 import cn.shaviation.autotest.core.util.JavaUtils;
 import cn.shaviation.autotest.core.util.Validators;
 import cn.shaviation.autotest.model.Parameter;
 import cn.shaviation.autotest.model.TestScript;
 import cn.shaviation.autotest.model.TestScriptHelper;
 import cn.shaviation.autotest.model.TestStep;
-import cn.shaviation.autotest.ui.AutoTestUI;
+import cn.shaviation.autotest.ui.internal.actions.OpenTestDataAction;
 import cn.shaviation.autotest.ui.internal.actions.OpenTestMethodAction;
+import cn.shaviation.autotest.ui.internal.actions.OpenTestScriptAction;
 import cn.shaviation.autotest.ui.internal.databinding.Converters;
 import cn.shaviation.autotest.ui.internal.databinding.ListToStringConverter;
 import cn.shaviation.autotest.ui.internal.databinding.StringToListConverter;
@@ -85,7 +84,6 @@ import cn.shaviation.autotest.ui.internal.dialogs.TestMethodSelectionDialog;
 import cn.shaviation.autotest.ui.internal.dialogs.TestScriptSelectionDialog;
 import cn.shaviation.autotest.ui.internal.launching.LaunchHelper;
 import cn.shaviation.autotest.ui.internal.util.EnumLabelProvider;
-import cn.shaviation.autotest.ui.internal.util.JarEntryEditorInput;
 import cn.shaviation.autotest.ui.internal.util.NumberVerifyListener;
 import cn.shaviation.autotest.ui.internal.util.SelectionChangedListener;
 import cn.shaviation.autotest.ui.internal.util.UIUtils;
@@ -903,11 +901,10 @@ public class TestScriptFormPage extends DocumentFormPage<TestScript> {
 	}
 
 	private void gotoTestMethod() {
-		if (Strings.isBlank(invokeTargetText.getText()) || !ensureJavaProject()) {
-			return;
+		if (!Strings.isBlank(invokeTargetText.getText()) && ensureJavaProject()) {
+			new OpenTestMethodAction(getEditorSite().getShell(), javaProject,
+					invokeTargetText.getText().trim()).run();
 		}
-		new OpenTestMethodAction(getEditorSite().getShell(), javaProject,
-				invokeTargetText.getText().trim()).run();
 	}
 
 	private void selectTestData() {
@@ -923,22 +920,9 @@ public class TestScriptFormPage extends DocumentFormPage<TestScript> {
 	}
 
 	private void gotoTestData() {
-		if (Strings.isBlank(testDataText.getText()) || !ensureJavaProject()) {
-			return;
-		}
-		try {
-			Object resource = NonJavaResourceFinder.lookup(javaProject,
-					testDataText.getText().trim(), null);
-			if (resource instanceof IFile) {
-				IDE.openEditor(getEditorSite().getPage(), (IFile) resource,
-						AutoTestUI.TEST_DATA_EDITOR_ID, true);
-			} else if (resource instanceof IJarEntryResource) {
-				IDE.openEditor(getEditorSite().getPage(),
-						new JarEntryEditorInput((IJarEntryResource) resource),
-						AutoTestUI.TEST_DATA_EDITOR_ID, true);
-			}
-		} catch (CoreException e) {
-			UIUtils.showError(this, "Open test data error", e);
+		if (!Strings.isBlank(testDataText.getText()) && ensureJavaProject()) {
+			new OpenTestDataAction(getEditorSite().getShell(), javaProject,
+					testDataText.getText().trim()).run();
 		}
 	}
 
@@ -955,22 +939,9 @@ public class TestScriptFormPage extends DocumentFormPage<TestScript> {
 	}
 
 	private void gotoTestScript() {
-		if (Strings.isBlank(invokeTargetText.getText()) || !ensureJavaProject()) {
-			return;
-		}
-		try {
-			Object resource = NonJavaResourceFinder.lookup(javaProject,
-					invokeTargetText.getText().trim(), null);
-			if (resource instanceof IFile) {
-				IDE.openEditor(getEditorSite().getPage(), (IFile) resource,
-						AutoTestUI.TEST_SCRIPT_EDITOR_ID, true);
-			} else if (resource instanceof IJarEntryResource) {
-				IDE.openEditor(getEditorSite().getPage(),
-						new JarEntryEditorInput((IJarEntryResource) resource),
-						AutoTestUI.TEST_SCRIPT_EDITOR_ID, true);
-			}
-		} catch (CoreException e) {
-			UIUtils.showError(this, "Open test script error", e);
+		if (!Strings.isBlank(invokeTargetText.getText()) && ensureJavaProject()) {
+			new OpenTestScriptAction(getEditorSite().getShell(), javaProject,
+					invokeTargetText.getText().trim()).run();
 		}
 	}
 

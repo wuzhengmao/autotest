@@ -5,7 +5,7 @@ import java.io.Reader;
 import java.io.Writer;
 import java.text.SimpleDateFormat;
 
-import cn.shaviation.autotest.internal.runner.TestNodeImpl;
+import cn.shaviation.autotest.internal.runner.TestExecutionImpl;
 
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.core.JsonParser;
@@ -26,11 +26,11 @@ public abstract class TestExecutionHelper {
 			.setDateFormat(new SimpleDateFormat("yyyyMMddHHmmssSSS"));
 
 	public static TestExecution parse(String json) throws IOException {
-		return objectMapper.readValue(json, TestNodeImpl.class);
+		return objectMapper.readValue(json, TestExecutionImpl.class);
 	}
 
 	public static TestExecution parse(Reader reader) throws IOException {
-		return objectMapper.readValue(reader, TestNodeImpl.class);
+		return objectMapper.readValue(reader, TestExecutionImpl.class);
 	}
 
 	public static String serialize(TestExecution execution) throws IOException {

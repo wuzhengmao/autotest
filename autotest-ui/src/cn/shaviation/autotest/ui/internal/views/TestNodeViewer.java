@@ -1,19 +1,22 @@
 package cn.shaviation.autotest.ui.internal.views;
 
 import java.util.AbstractList;
+import java.util.Arrays;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.ListIterator;
 
 import org.eclipse.jface.action.Action;
 import org.eclipse.jface.action.IMenuListener;
 import org.eclipse.jface.action.IMenuManager;
 import org.eclipse.jface.action.MenuManager;
-import org.eclipse.jface.viewers.IBaseLabelProvider;
+import org.eclipse.jface.action.Separator;
 import org.eclipse.jface.viewers.ISelectionChangedListener;
 import org.eclipse.jface.viewers.IStructuredSelection;
-import org.eclipse.jface.viewers.ITreeContentProvider;
 import org.eclipse.jface.viewers.SelectionChangedEvent;
+import org.eclipse.jface.viewers.StructuredSelection;
 import org.eclipse.jface.viewers.TreeViewer;
 import org.eclipse.jface.viewers.Viewer;
 import org.eclipse.jface.viewers.ViewerFilter;
@@ -23,11 +26,16 @@ import org.eclipse.swt.events.SelectionAdapter;
 import org.eclipse.swt.events.SelectionEvent;
 import org.eclipse.swt.events.SelectionListener;
 import org.eclipse.swt.widgets.Composite;
+import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Menu;
 
 import cn.shavation.autotest.runner.TestElement;
 import cn.shavation.autotest.runner.TestElement.Status;
-import cn.shavation.autotest.runner.TestNode;
+import cn.shavation.autotest.runner.TestElement.Type;
+import cn.shavation.autotest.runner.TestExecution;
+import cn.shaviation.autotest.ui.internal.actions.OpenTestMethodAction;
+import cn.shaviation.autotest.ui.internal.actions.OpenTestScriptAction;
+import cn.shaviation.autotest.ui.internal.actions.RerunTestAction;
 import cn.shaviation.autotest.ui.internal.views.TestExecutionTreeContentProvider.TreeNode;
 
 public class TestNodeViewer {
@@ -37,7 +45,7 @@ public class TestNodeViewer {
 		@Override
 		public boolean select(Viewer viewer, Object parentElement,
 				Object element) {
-			return select((TestElement) element);
+			return select(((TreeNode) element).getElement());
 		}
 
 		public boolean select(TestElement testElement) {
@@ -45,20 +53,21 @@ public class TestNodeViewer {
 			if (status == Status.FAILURE || status == Status.ERROR) {
 				return true;
 			}
-			return status == Status.RUNNING && !testRunSession.isRunning();
+			return status == Status.RUNNING
+					&& testExecution.getStatus() != Status.RUNNING;
 		}
 	}
 
-	private static class ReverseList extends AbstractList {
+	private static class ReverseList<T> extends AbstractList<T> {
 
-		private final List list;
+		private final List<T> list;
 
-		public ReverseList(List list) {
+		public ReverseList(List<T> list) {
 			this.list = list;
 		}
 
 		@Override
-		public Object get(int index) {
+		public T get(int index) {
 			return list.get(list.size() - index - 1);
 		}
 
@@ -83,16 +92,15 @@ public class TestNodeViewer {
 	private final TestExecutionViewPart testExecutionView;
 	private final Clipboard clipboard;
 	private TreeViewer treeViewer;
-	private ITreeContentProvider treeContentProvider;
-	private IBaseLabelProvider treeLabelProvider;
-	private SelectionProviderMediator selectionProvider;
-	private boolean treeHasFilter;
-	private TestRunSession testRunSession;
+	private TestExecutionTreeContentProvider treeContentProvider;
+	private TestExecutionTreeLabelProvider treeLabelProvider;
+	private boolean treeHasFilter = false;
+	private TestExecution testExecution;
 	private boolean treeNeedsRefresh;
-	private HashSet needUpdate;
-	private TestCaseElement fAutoScrollTarget;
-	private LinkedList autoClose;
-	private HashSet autoExpand;
+	private HashSet<TreeNode> needUpdate;
+	private TreeNode autoScrollTarget;
+	private LinkedList<TreeNode> autoClose;
+	private HashSet<TreeNode> autoExpand;
 
 	public TestNodeViewer(Composite parent, Clipboard clipboard,
 			TestExecutionViewPart testExecutionView) {
@@ -108,7 +116,8 @@ public class TestNodeViewer {
 		treeViewer.setUseHashlookup(true);
 		treeContentProvider = new TestExecutionTreeContentProvider();
 		treeViewer.setContentProvider(treeContentProvider);
-		treeLabelProvider = new TestExecutionTreeLabelProvider(testExecutionView);
+		treeLabelProvider = new TestExecutionTreeLabelProvider(
+				testExecutionView);
 		treeViewer.setLabelProvider(treeLabelProvider);
 		treeViewer.addSelectionChangedListener(new ISelectionChangedListener() {
 			@Override
@@ -138,424 +147,290 @@ public class TestNodeViewer {
 		treeViewer.getTree().setMenu(menu);
 	}
 
+	private String getInvokeTarget(TestElement testElement) {
+		String name = testElement.getName();
+		if (name.endsWith(")")) {
+			int i = name.lastIndexOf('(');
+			if (i >= 0) {
+				return name.substring(i + 1, name.length() - 1).trim();
+			}
+		}
+		int i = name.indexOf(':');
+		if (i > 0) {
+			return name.substring(i + 1).trim();
+		}
+		return name.trim();
+	}
+
 	void handleMenuAboutToShow(IMenuManager manager) {
 		IStructuredSelection selection = (IStructuredSelection) treeViewer
 				.getSelection();
 		if (!selection.isEmpty()) {
-			TestElement testElement = (TestElement) ((TreeNode)selection.getFirstElement()).getElement();
-			switch(testElement.getType()) {
+			TestElement testElement = (TestElement) ((TreeNode) selection
+					.getFirstElement()).getElement();
+			switch (testElement.getType()) {
 			case ROOT:
-				break;
-			case SCRIPT:
-				break;
-			}
-
-			String testLabel = testElement.getTestName();
-			String className = testElement.getClassName();
-			if ((testElement instanceof TestSuiteElement)) {
-				manager.add(new OpenTestAction(this.fTestRunnerPart, testLabel));
-				manager.add(new Separator());
-				if ((testClassExists(className))
-						&& (!this.fTestRunnerPart.lastLaunchIsKeptAlive())) {
-					manager.add(new RerunAction(
-							JUnitMessages.RerunAction_label_run,
-							this.fTestRunnerPart, testElement.getId(),
-							className, null, "run"));
-					manager.add(new RerunAction(
-							JUnitMessages.RerunAction_label_debug,
-							this.fTestRunnerPart, testElement.getId(),
-							className, null, "debug"));
-				}
-			} else {
-				TestCaseElement testCaseElement = (TestCaseElement) testElement;
-				String testMethodName = testCaseElement.getTestMethodName();
-				manager.add(new OpenTestAction(this.fTestRunnerPart,
-						testCaseElement));
-				manager.add(new Separator());
-				if (this.fTestRunnerPart.lastLaunchIsKeptAlive()) {
-					manager.add(new RerunAction(
-							JUnitMessages.RerunAction_label_rerun,
-							this.fTestRunnerPart, testElement.getId(),
-							className, testMethodName, "run"));
-				} else {
-					manager.add(new RerunAction(
-							JUnitMessages.RerunAction_label_run,
-							this.fTestRunnerPart, testElement.getId(),
-							className, testMethodName, "run"));
-					manager.add(new RerunAction(
-							JUnitMessages.RerunAction_label_debug,
-							this.fTestRunnerPart, testElement.getId(),
-							className, testMethodName, "debug"));
-				}
-			}
-			if (this.fLayoutMode == 1) {
+				manager.add(new RerunTestAction("&Run", testExecutionView
+						.getViewSite().getShell(), testExecutionView
+						.getLaunchedProject(), null, true, "run"));
+				manager.add(new RerunTestAction("&Debug", testExecutionView
+						.getViewSite().getShell(), testExecutionView
+						.getLaunchedProject(), null, true, "debug"));
 				manager.add(new Separator());
 				manager.add(new ExpandAllAction());
-			}
-		}
-		if ((this.fTestRunSession != null)
-				&& (this.fTestRunSession.getFailureCount()
-						+ this.fTestRunSession.getErrorCount() > 0)) {
-			if (this.fLayoutMode != 1) {
+				break;
+			case SCRIPT:
+				String testScript = getInvokeTarget(testElement);
+				manager.add(new OpenTestScriptAction(testExecutionView
+						.getViewSite().getShell(), testExecutionView
+						.getLaunchedProject(), testScript));
 				manager.add(new Separator());
+				manager.add(new RerunTestAction("&Run", testExecutionView
+						.getViewSite().getShell(), testExecutionView
+						.getLaunchedProject(), testScript, true, "run"));
+				manager.add(new RerunTestAction("&Debug", testExecutionView
+						.getViewSite().getShell(), testExecutionView
+						.getLaunchedProject(), testScript, true, "debug"));
+				manager.add(new Separator());
+				manager.add(new ExpandAllAction());
+				break;
+			case METHOD:
+				String testMethod = getInvokeTarget(testElement);
+				manager.add(new OpenTestMethodAction(testExecutionView
+						.getViewSite().getShell(), testExecutionView
+						.getLaunchedProject(), testMethod));
+				manager.add(new Separator());
+				manager.add(new ExpandAllAction());
+				break;
+			default:
+				manager.add(new ExpandAllAction());
+				break;
 			}
-			manager.add(new CopyFailureListAction(this.fTestRunnerPart,
-					this.fClipboard));
 		}
 		manager.add(new Separator("additions"));
 		manager.add(new Separator("additions-end"));
 	}
 
-	private boolean testClassExists(String className) {
-		IJavaProject project = this.fTestRunnerPart.getLaunchedProject();
-		if (project == null) {
-			return false;
-		}
-		try {
-			IType type = project.findType(className);
-			return type != null;
-		} catch (JavaModelException localJavaModelException) {
-		}
-		return false;
-	}
-
-	public Control getTestViewerControl() {
-		return this.fViewerbook;
-	}
-
-	public synchronized void registerActiveSession(TestRunSession testRunSession) {
-		this.fTestRunSession = testRunSession;
+	public synchronized void registerActiveSession(TestExecution testExecution) {
+		this.testExecution = testExecution;
 		registerAutoScrollTarget(null);
 		registerViewersRefresh();
 	}
 
 	void handleDefaultSelected() {
-		IStructuredSelection selection = (IStructuredSelection) this.fSelectionProvider
+		IStructuredSelection selection = (IStructuredSelection) treeViewer
 				.getSelection();
-		if (selection.size() != 1) {
-			return;
-		}
-		TestElement testElement = (TestElement) selection.getFirstElement();
-		OpenTestAction action;
-		if ((testElement instanceof TestSuiteElement)) {
-			action = new OpenTestAction(this.fTestRunnerPart,
-					testElement.getTestName());
-		} else {
-			OpenTestAction action;
-			if ((testElement instanceof TestCaseElement)) {
-				TestCaseElement testCase = (TestCaseElement) testElement;
-				action = new OpenTestAction(this.fTestRunnerPart, testCase);
-			} else {
-				throw new IllegalStateException(String.valueOf(testElement));
+		if (!selection.isEmpty()) {
+			TestElement testElement = (TestElement) ((TreeNode) selection
+					.getFirstElement()).getElement();
+			Action action = null;
+			switch (testElement.getType()) {
+			case SCRIPT:
+				String testScript = getInvokeTarget(testElement);
+				action = new OpenTestScriptAction(testExecutionView
+						.getViewSite().getShell(),
+						testExecutionView.getLaunchedProject(), testScript);
+				break;
+			case METHOD:
+				String testMethod = getInvokeTarget(testElement);
+				action = new OpenTestMethodAction(testExecutionView
+						.getViewSite().getShell(),
+						testExecutionView.getLaunchedProject(), testMethod);
+				break;
 			}
-		}
-		OpenTestAction action;
-		if (action.isEnabled()) {
-			action.run();
+			if (action != null && action.isEnabled()) {
+				action.run();
+			}
 		}
 	}
 
 	private void handleSelected() {
-		IStructuredSelection selection = (IStructuredSelection) this.fSelectionProvider
+		IStructuredSelection selection = (IStructuredSelection) treeViewer
 				.getSelection();
-		TestElement testElement = null;
-		if (selection.size() == 1) {
-			testElement = (TestElement) selection.getFirstElement();
+		if (!selection.isEmpty()) {
+			TestElement testElement = (TestElement) ((TreeNode) selection
+					.getFirstElement()).getElement();
+			testExecutionView.handleTestSelected(testElement);
 		}
-		this.fTestRunnerPart.handleTestSelected(testElement);
 	}
 
 	public synchronized void setShowTime(boolean showTime) {
 		try {
-			this.fViewerbook.setRedraw(false);
-			this.fTreeLabelProvider.setShowTime(showTime);
-			this.fTableLabelProvider.setShowTime(showTime);
+			treeViewer.getTree().setRedraw(false);
+			treeLabelProvider.setShowTime(showTime);
 		} finally {
-			this.fViewerbook.setRedraw(true);
+			treeViewer.getTree().setRedraw(true);
 		}
 	}
 
-	public synchronized void setShowFailuresOnly(boolean failuresOnly,
-			int layoutMode) {
+	public synchronized void setShowFailuresOnly(boolean failuresOnly) {
 		try {
-			this.fViewerbook.setRedraw(false);
-
+			treeViewer.getTree().setRedraw(false);
 			IStructuredSelection selection = null;
-			boolean switchLayout = layoutMode != this.fLayoutMode;
-			if (switchLayout) {
-				selection = (IStructuredSelection) this.fSelectionProvider
-						.getSelection();
-				if (layoutMode == 1) {
-					if (this.fTreeNeedsRefresh) {
-						clearUpdateAndExpansion();
-					}
-				} else if (this.fTableNeedsRefresh) {
-					clearUpdateAndExpansion();
-				}
-				this.fLayoutMode = layoutMode;
-				this.fViewerbook.showPage(getActiveViewer().getControl());
-			}
-			StructuredViewer viewer = getActiveViewer();
 			if (failuresOnly) {
-				if (!getActiveViewerHasFilter()) {
-					setActiveViewerNeedsRefresh(true);
-					setActiveViewerHasFilter(true);
-					viewer.setInput(null);
-					viewer.addFilter(this.fFailuresOnlyFilter);
+				if (!treeHasFilter) {
+					treeNeedsRefresh = true;
+					treeHasFilter = true;
+					treeViewer.setInput(null);
+					treeViewer.addFilter(failuresOnlyFilter);
 				}
-			} else if (getActiveViewerHasFilter()) {
-				setActiveViewerNeedsRefresh(true);
-				setActiveViewerHasFilter(false);
-				viewer.setInput(null);
-				viewer.removeFilter(this.fFailuresOnlyFilter);
+			} else if (treeHasFilter) {
+				treeNeedsRefresh = true;
+				treeHasFilter = false;
+				treeViewer.setInput(null);
+				treeViewer.removeFilter(failuresOnlyFilter);
 			}
 			processChangesInUI();
-			if (selection != null) {
-				StructuredSelection flatSelection = new StructuredSelection(
-						selection.toList());
-				this.fSelectionProvider.setSelection(flatSelection, true);
-			}
 		} finally {
-			this.fViewerbook.setRedraw(true);
-		}
-	}
-
-	private boolean getActiveViewerHasFilter() {
-		if (this.fLayoutMode == 1) {
-			return this.fTreeHasFilter;
-		}
-		return this.fTableHasFilter;
-	}
-
-	private void setActiveViewerHasFilter(boolean filter) {
-		if (this.fLayoutMode == 1) {
-			this.fTreeHasFilter = filter;
-		} else {
-			this.fTableHasFilter = filter;
-		}
-	}
-
-	private StructuredViewer getActiveViewer() {
-		if (this.fLayoutMode == 1) {
-			return this.fTreeViewer;
-		}
-		return this.fTableViewer;
-	}
-
-	private boolean getActiveViewerNeedsRefresh() {
-		if (this.fLayoutMode == 1) {
-			return this.fTreeNeedsRefresh;
-		}
-		return this.fTableNeedsRefresh;
-	}
-
-	private void setActiveViewerNeedsRefresh(boolean needsRefresh) {
-		if (this.fLayoutMode == 1) {
-			this.fTreeNeedsRefresh = needsRefresh;
-		} else {
-			this.fTableNeedsRefresh = needsRefresh;
+			treeViewer.getTree().setRedraw(true);
 		}
 	}
 
 	public void processChangesInUI() {
-		if (this.fTestRunSession == null) {
+		if (testExecution == null) {
 			registerViewersRefresh();
-			this.fTreeNeedsRefresh = false;
-			this.fTableNeedsRefresh = false;
-			this.fTreeViewer.setInput(null);
-			this.fTableViewer.setInput(null);
+			treeNeedsRefresh = false;
+			treeViewer.setInput(null);
 			return;
 		}
-		TestRoot testRoot = this.fTestRunSession.getTestRoot();
-
-		StructuredViewer viewer = getActiveViewer();
-		if (getActiveViewerNeedsRefresh()) {
+		if (treeNeedsRefresh) {
 			clearUpdateAndExpansion();
-			setActiveViewerNeedsRefresh(false);
-			viewer.setInput(testRoot);
+			treeNeedsRefresh = false;
+			treeViewer.setInput(new TreeNode(testExecution));
 		} else {
-			synchronized (this) {
-				Object[] toUpdate = this.fNeedUpdate.toArray();
-				this.fNeedUpdate.clear();
-			}
 			Object[] toUpdate;
-			if ((!this.fTreeNeedsRefresh) && (toUpdate.length > 0)) {
-				if (this.fTreeHasFilter) {
+			synchronized (this) {
+				toUpdate = needUpdate.toArray();
+				needUpdate.clear();
+			}
+			if (!treeNeedsRefresh && toUpdate.length > 0) {
+				if (treeHasFilter) {
 					for (int i = 0; i < toUpdate.length; i++) {
-						updateElementInTree((TestElement) toUpdate[i]);
+						updateElementInTree((TreeNode) toUpdate[i]);
 					}
 				} else {
-					HashSet toUpdateWithParents = new HashSet();
+					HashSet<Object> toUpdateWithParents = new HashSet<Object>();
 					toUpdateWithParents.addAll(Arrays.asList(toUpdate));
 					for (int i = 0; i < toUpdate.length; i++) {
-						TestElement parent = ((TestElement) toUpdate[i])
-								.getParent();
+						TreeNode parent = ((TreeNode) toUpdate[i]).getParent();
 						while (parent != null) {
 							toUpdateWithParents.add(parent);
 							parent = parent.getParent();
 						}
 					}
-					this.fTreeViewer
-							.update(toUpdateWithParents.toArray(), null);
-				}
-			}
-			if ((!this.fTableNeedsRefresh) && (toUpdate.length > 0)) {
-				if (this.fTableHasFilter) {
-					for (int i = 0; i < toUpdate.length; i++) {
-						updateElementInTable((TestElement) toUpdate[i]);
-					}
-				} else {
-					this.fTableViewer.update(toUpdate, null);
+					treeViewer.update(toUpdateWithParents.toArray(), null);
 				}
 			}
 		}
 		autoScrollInUI();
 	}
 
-	private void updateElementInTree(TestElement testElement) {
-		if (isShown(testElement)) {
-			updateShownElementInTree(testElement);
+	private void updateElementInTree(TreeNode treeNode) {
+		if (isShown(treeNode)) {
+			updateShownElementInTree(treeNode);
 		} else {
-			TestElement current = testElement;
+			TreeNode current = treeNode;
 			do {
-				if (this.fTreeViewer.testFindItem(current) != null) {
-					this.fTreeViewer.remove(current);
+				if (treeViewer.testFindItem(current) != null) {
+					treeViewer.remove(current);
 				}
 				current = current.getParent();
-				if ((current instanceof TestRoot)) {
+				if (current.getElement().getType() == Type.ROOT) {
 					break;
 				}
-			} while (!
-
-			isShown(current));
-			while ((current != null) && (!(current instanceof TestRoot))) {
-				this.fTreeViewer.update(current, null);
+			} while (!isShown(current));
+			while (current != null
+					&& current.getElement().getType() != Type.ROOT) {
+				treeViewer.update(current, null);
 				current = current.getParent();
 			}
 		}
 	}
 
-	private void updateShownElementInTree(TestElement testElement) {
-		if ((testElement == null) || ((testElement instanceof TestRoot))) {
+	private void updateShownElementInTree(TreeNode treeNode) {
+		if (treeNode == null || treeNode.getElement().getType() == Type.ROOT) {
 			return;
 		}
-		TestSuiteElement parent = testElement.getParent();
+		TreeNode parent = treeNode.getParent();
 		updateShownElementInTree(parent);
-		if (this.fTreeViewer.testFindItem(testElement) == null) {
-			this.fTreeViewer.add(parent, testElement);
+		if (treeViewer.testFindItem(treeNode) == null) {
+			treeViewer.add(parent, treeNode);
 		} else {
-			this.fTreeViewer.update(testElement, null);
+			treeViewer.update(treeNode, null);
 		}
 	}
 
-	private void updateElementInTable(TestElement element) {
-		if (isShown(element)) {
-			if (this.fTableViewer.testFindItem(element) == null) {
-				TestElement previous = getNextFailure(element, false);
-				int insertionIndex = -1;
-				if (previous != null) {
-					TableItem item = (TableItem) this.fTableViewer
-							.testFindItem(previous);
-					if (item != null) {
-						insertionIndex = this.fTableViewer.getTable().indexOf(
-								item);
-					}
-				}
-				this.fTableViewer.insert(element, insertionIndex);
-			} else {
-				this.fTableViewer.update(element, null);
-			}
-		} else {
-			this.fTableViewer.remove(element);
-		}
-	}
-
-	private boolean isShown(TestElement current) {
-		return this.fFailuresOnlyFilter.select(current);
+	private boolean isShown(TreeNode treeNode) {
+		return failuresOnlyFilter.select(treeNode.getElement());
 	}
 
 	private void autoScrollInUI() {
-		if (!this.fTestRunnerPart.isAutoScroll()) {
+		if (!testExecutionView.isAutoScroll()) {
 			clearAutoExpand();
-			this.fAutoClose.clear();
-			return;
-		}
-		if (this.fLayoutMode == 0) {
-			if (this.fAutoScrollTarget != null) {
-				this.fTableViewer.reveal(this.fAutoScrollTarget);
-			}
+			autoClose.clear();
 			return;
 		}
 		synchronized (this) {
-			for (Iterator iter = this.fAutoExpand.iterator(); iter.hasNext();) {
-				TestSuiteElement suite = (TestSuiteElement) iter.next();
-				this.fTreeViewer.setExpandedState(suite, true);
+			for (TreeNode treeNode : autoExpand) {
+				treeViewer.setExpandedState(treeNode, true);
 			}
 			clearAutoExpand();
 		}
-		TestCaseElement current = this.fAutoScrollTarget;
-		this.fAutoScrollTarget = null;
-
-		TestSuiteElement parent = current == null ? null
-				: (TestSuiteElement) this.fTreeContentProvider
-						.getParent(current);
-		if ((this.fAutoClose.isEmpty())
-				|| (!this.fAutoClose.getLast().equals(parent))) {
-			for (ListIterator iter = this.fAutoClose
-					.listIterator(this.fAutoClose.size()); iter.hasPrevious();) {
-				TestSuiteElement previousAutoOpened = (TestSuiteElement) iter
-						.previous();
+		TreeNode current = autoScrollTarget;
+		autoScrollTarget = null;
+		TreeNode parent = current == null ? null
+				: (TreeNode) treeContentProvider.getParent(current);
+		if (autoClose.isEmpty() || !autoClose.getLast().equals(parent)) {
+			for (ListIterator<TreeNode> iter = autoClose.listIterator(autoClose
+					.size()); iter.hasPrevious();) {
+				TreeNode previousAutoOpened = iter.previous();
 				if (previousAutoOpened.equals(parent)) {
 					break;
 				}
-				if (previousAutoOpened.getStatus() == TestElement.Status.OK) {
+				if (previousAutoOpened.getElement().getStatus() == Status.PASS) {
 					iter.remove();
-					this.fTreeViewer.collapseToLevel(previousAutoOpened, -1);
+					treeViewer.collapseToLevel(previousAutoOpened, -1);
 				}
 			}
-			while ((parent != null)
-					&& (!this.fTestRunSession.getTestRoot().equals(parent))
-					&& (!this.fTreeViewer.getExpandedState(parent))) {
-				this.fAutoClose.add(parent);
-				parent = (TestSuiteElement) this.fTreeContentProvider
-						.getParent(parent);
+			while (parent != null && !treeViewer.getInput().equals(parent)
+					&& !treeViewer.getExpandedState(parent)) {
+				autoClose.add(parent);
+				parent = (TreeNode) treeContentProvider.getParent(parent);
 			}
 		}
 		if (current != null) {
-			this.fTreeViewer.reveal(current);
+			treeViewer.reveal(current);
 		}
 	}
 
 	public void selectFirstFailure() {
-		TestCaseElement firstFailure = getNextChildFailure(
-				this.fTestRunSession.getTestRoot(), true);
+		TreeNode firstFailure = getNextChildFailure(
+				(TreeNode) treeViewer.getInput(), true);
 		if (firstFailure != null) {
-			getActiveViewer().setSelection(
-					new StructuredSelection(firstFailure), true);
+			treeViewer
+					.setSelection(new StructuredSelection(firstFailure), true);
 		}
 	}
 
 	public void selectFailure(boolean showNext) {
-		IStructuredSelection selection = (IStructuredSelection) getActiveViewer()
+		IStructuredSelection selection = (IStructuredSelection) treeViewer
 				.getSelection();
-		TestElement selected = (TestElement) selection.getFirstElement();
-		TestElement next;
-		TestElement next;
+		TreeNode selected = (TreeNode) selection.getFirstElement();
+		TreeNode next;
 		if (selected == null) {
-			next = getNextChildFailure(this.fTestRunSession.getTestRoot(),
+			next = getNextChildFailure((TreeNode) treeViewer.getInput(),
 					showNext);
 		} else {
 			next = getNextFailure(selected, showNext);
 		}
 		if (next != null) {
-			getActiveViewer().setSelection(new StructuredSelection(next), true);
+			treeViewer.setSelection(new StructuredSelection(next), true);
 		}
 	}
 
-	private TestElement getNextFailure(TestElement selected, boolean showNext) {
-		if ((selected instanceof TestSuiteElement)) {
-			TestElement nextChild = getNextChildFailure(
-					(TestSuiteElement) selected, showNext);
+	private TreeNode getNextFailure(TreeNode selected, boolean showNext) {
+		if (treeContentProvider.hasChildren(selected)) {
+			TreeNode nextChild = getNextChildFailure(selected, showNext);
 			if (nextChild != null) {
 				return nextChild;
 			}
@@ -563,84 +438,88 @@ public class TestNodeViewer {
 		return getNextFailureSibling(selected, showNext);
 	}
 
-	private TestCaseElement getNextFailureSibling(TestElement current,
-			boolean showNext) {
-		TestSuiteElement parent = current.getParent();
+	private TreeNode getNextFailureSibling(TreeNode current, boolean showNext) {
+		TreeNode parent = current.getParent();
 		if (parent == null) {
 			return null;
 		}
-		List siblings = Arrays.asList(parent.getChildren());
+		List<Object> siblings = Arrays.asList(treeContentProvider
+				.getChildren(parent));
 		if (!showNext) {
-			siblings = new ReverseList(siblings);
+			siblings = new ReverseList<Object>(siblings);
 		}
 		int nextIndex = siblings.indexOf(current) + 1;
 		for (int i = nextIndex; i < siblings.size(); i++) {
-			TestElement sibling = (TestElement) siblings.get(i);
-			if (sibling.getStatus().isErrorOrFailure()) {
-				if ((sibling instanceof TestCaseElement)) {
-					return (TestCaseElement) sibling;
+			TreeNode sibling = (TreeNode) siblings.get(i);
+			Status status = sibling.getElement().getStatus();
+			if (status == Status.ERROR || status == Status.FAILURE) {
+				if (!treeContentProvider.hasChildren(sibling)) {
+					return sibling;
 				}
-				return getNextChildFailure((TestSuiteElement) sibling, showNext);
+				return getNextChildFailure(sibling, showNext);
 			}
 		}
 		return getNextFailureSibling(parent, showNext);
 	}
 
-	private TestCaseElement getNextChildFailure(TestSuiteElement root,
-			boolean showNext) {
-		List children = Arrays.asList(root.getChildren());
+	private TreeNode getNextChildFailure(TreeNode root, boolean showNext) {
+		List<Object> children = Arrays.asList(treeContentProvider
+				.getChildren(root));
 		if (!showNext) {
-			children = new ReverseList(children);
+			children = new ReverseList<Object>(children);
 		}
 		for (int i = 0; i < children.size(); i++) {
-			TestElement child = (TestElement) children.get(i);
-			if (child.getStatus().isErrorOrFailure()) {
-				if ((child instanceof TestCaseElement)) {
-					return (TestCaseElement) child;
+			TreeNode child = (TreeNode) children.get(i);
+			Status status = child.getElement().getStatus();
+			if (status == Status.ERROR || status == Status.FAILURE) {
+				if (!treeContentProvider.hasChildren(child)) {
+					return child;
 				}
-				return getNextChildFailure((TestSuiteElement) child, showNext);
+				return getNextChildFailure(child, showNext);
 			}
 		}
 		return null;
 	}
 
+	public Control getControl() {
+		return treeViewer.getTree();
+	}
+
 	public synchronized void registerViewersRefresh() {
-		this.fTreeNeedsRefresh = true;
-		this.fTableNeedsRefresh = true;
+		treeNeedsRefresh = true;
 		clearUpdateAndExpansion();
 	}
 
 	private void clearUpdateAndExpansion() {
-		this.fNeedUpdate = new LinkedHashSet();
-		this.fAutoClose = new LinkedList();
-		this.fAutoExpand = new HashSet();
+		needUpdate = new LinkedHashSet<TreeNode>();
+		autoClose = new LinkedList<TreeNode>();
+		autoExpand = new HashSet<TreeNode>();
 	}
 
-	public synchronized void registerTestAdded(TestElement testElement) {
-		this.fTreeNeedsRefresh = true;
-		this.fTableNeedsRefresh = true;
+	public synchronized void registerTestAdded(TreeNode treeNode) {
+		treeNeedsRefresh = true;
 	}
 
-	public synchronized void registerViewerUpdate(TestElement testElement) {
-		this.fNeedUpdate.add(testElement);
+	public synchronized void registerViewerUpdate(TreeNode treeNode) {
+		needUpdate.add(treeNode);
 	}
 
 	private synchronized void clearAutoExpand() {
-		this.fAutoExpand.clear();
+		autoExpand.clear();
 	}
 
-	public void registerAutoScrollTarget(TestCaseElement testCaseElement) {
-		this.fAutoScrollTarget = testCaseElement;
+	public void registerAutoScrollTarget(TreeNode treeNode) {
+		autoScrollTarget = treeNode;
 	}
 
-	public synchronized void registerFailedForAutoScroll(TestElement testElement) {
-		Object parent = this.fTreeContentProvider.getParent(testElement);
+	public synchronized void registerFailedForAutoScroll(TreeNode treeNode) {
+		Object parent = treeContentProvider.getParent(treeNode);
 		if (parent != null) {
-			this.fAutoExpand.add(parent);
+			autoExpand.add((TreeNode) parent);
 		}
 	}
 
 	public void expandFirstLevel() {
-		this.fTreeViewer.expandToLevel(2);
+		treeViewer.expandToLevel(2);
 	}
 }

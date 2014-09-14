@@ -12,14 +12,14 @@ import cn.shaviation.autotest.model.TestStep;
 
 public class TestContextImpl implements TestContext {
 
-	private TestNodeImpl testExecution = new TestNodeImpl();
+	private TestExecutionImpl testExecution = new TestExecutionImpl();
 	private TestScript testScript;
 	private int testStepIndex;
 	private TestNodeImpl testNode;
 	private Map<String, String> map = new HashMap<String, String>();
 
 	@Override
-	public TestNodeImpl getTestExecution() {
+	public TestExecutionImpl getTestExecution() {
 		return testExecution;
 	}
 

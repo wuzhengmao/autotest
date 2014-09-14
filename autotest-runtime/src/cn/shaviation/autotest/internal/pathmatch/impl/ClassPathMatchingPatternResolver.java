@@ -70,9 +70,7 @@ public class ClassPathMatchingPatternResolver implements PathPatternResolver {
 		this.pathMatcher = pathMatcher;
 	}
 
-	/**
-	 * Return the PathMatcher that this resource pattern resolver uses.
-	 */
+	@Override
 	public PathMatcher getPathMatcher() {
 		return pathMatcher;
 	}

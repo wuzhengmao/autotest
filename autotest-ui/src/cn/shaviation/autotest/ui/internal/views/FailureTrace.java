@@ -17,6 +17,7 @@ import org.eclipse.swt.widgets.TableItem;
 
 import cn.shavation.autotest.runner.TestElement;
 import cn.shavation.autotest.runner.TestElement.Status;
+import cn.shaviation.autotest.ui.internal.actions.OpenEditorAtLineAction;
 import cn.shaviation.autotest.util.Strings;
 
 public class FailureTrace implements IMenuListener {
@@ -97,7 +98,9 @@ public class FailureTrace implements IMenuListener {
 			lineNumber = lineNumber.substring(lineNumber.indexOf(':') + 1,
 					lineNumber.lastIndexOf(')'));
 			int line = Integer.valueOf(lineNumber).intValue();
-			return new OpenEditorAtLineAction(testExecutionView, testName, line);
+			return new OpenEditorAtLineAction(testExecutionView.getViewSite()
+					.getShell(), testExecutionView.getLaunchedProject(),
+					testName, line);
 		} catch (NumberFormatException localNumberFormatException) {
 		} catch (IndexOutOfBoundsException localIndexOutOfBoundsException) {
 		}

@@ -14,6 +14,7 @@
    <extension point="org.eclipse.ui.decorators">
       <decorator
             adaptable="true"
+            label="Automatic Testing Project Nature Decorator"
             icon="icons/nature.gif"
             id="cn.shaviation.autotest.core.decorator"
             lightweight="true"

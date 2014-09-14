@@ -102,7 +102,11 @@ public class TestRunner {
 	private Set<String> resolveResources() throws IOException {
 		Set<String> locations = new LinkedHashSet<String>();
 		for (String resource : resources) {
-			if (resource.endsWith("/")) {
+			if (resolver.getPathMatcher().isPattern(resource)) {
+				for (String location : resolver.resolve(resource)) {
+					locations.add(location);
+				}
+			} else if (resource.endsWith("/")) {
 				if (recursive) {
 					resource += "**/";
 				}
@@ -132,28 +136,26 @@ public class TestRunner {
 
 	public void run() throws IOException {
 		TestContextImpl context = new TestContextImpl();
-		TestNodeImpl testNode = context.getTestExecution();
-		testNode.setName("Root");
-		testNode.setType(Type.ROOT);
-		context.setTestNode(testNode);
-		testNode.start();
+		TestExecutionImpl execution = context.getTestExecution();
+		context.setTestNode(execution);
+		execution.start();
 		try {
-			testNode.addAll(resolveResources(), Type.SCRIPT);
-			for (TestNodeImpl child : testNode.getChildren()) {
+			execution.addAll(resolveResources(), Type.SCRIPT);
+			for (TestNodeImpl child : execution.getChildren()) {
 				context.setTestNode(child);
 				child.start();
 				System.out.println("Run test script: " + child.getName());
 				runTestScript("", child.getName(), context);
 			}
-			testNode.complete();
+			execution.complete();
 		} catch (Throwable t) {
-			testNode.error(t);
+			execution.error(t);
 		} finally {
-			context.setTestNode(testNode);
+			context.setTestNode(execution);
 		}
-		testNode.printOut();
+		execution.printOut();
 		if (!Strings.isBlank(logPath)) {
-			saveLog(testNode);
+			saveLog(execution);
 		}
 	}
 

@@ -6,6 +6,7 @@ import org.eclipse.jface.viewers.ITreeContentProvider;
 import org.eclipse.jface.viewers.Viewer;
 
 import cn.shavation.autotest.runner.TestElement;
+import cn.shavation.autotest.runner.TestExecution;
 import cn.shavation.autotest.runner.TestNode;
 
 public class TestExecutionTreeContentProvider implements ITreeContentProvider {
@@ -17,8 +18,8 @@ public class TestExecutionTreeContentProvider implements ITreeContentProvider {
 		private TreeNode parent;
 		private TestElement element;
 
-		public TreeNode(TestElement element) {
-			this.element = element;
+		public TreeNode(TestExecution execution) {
+			this.element = execution;
 		}
 
 		public TreeNode(TreeNode parent, TestElement element) {

@@ -1,4 +1,4 @@
-package cn.shaviation.autotest.ui.internal.views;
+package cn.shaviation.autotest.ui.internal.actions;
 
 import java.lang.reflect.InvocationTargetException;
 import java.util.HashSet;
@@ -28,49 +28,43 @@ import cn.shaviation.autotest.util.Logs;
 
 public abstract class OpenEditorAction extends Action {
 
+	private Shell shell;
+	protected IJavaProject javaProject;
 	protected String className;
-	protected TestExecutionViewPart testExecutionView;
-	private final boolean fActivate;
+	private final boolean activate;
 
-	protected OpenEditorAction(TestExecutionViewPart testExecutionView,
+	protected OpenEditorAction(Shell shell, IJavaProject javaProject,
 			String className) {
-		this(testExecutionView, className, true);
+		this(shell, javaProject, className, true);
 	}
 
-	public OpenEditorAction(TestExecutionViewPart testExecutionView,
+	public OpenEditorAction(Shell shell, IJavaProject javaProject,
 			String className, boolean activate) {
 		super("&Go to File");
+		this.shell = shell;
+		this.javaProject = javaProject;
 		this.className = className;
-		this.testExecutionView = testExecutionView;
-		this.fActivate = activate;
+		this.activate = activate;
 	}
 
 	@Override
 	public void run() {
 		IEditorPart editor = null;
 		try {
-			IJavaElement element = findElement(getLaunchedProject(), className);
+			IJavaElement element = findElement(javaProject, className);
 			if (element == null) {
-				UIUtils.showError(getShell(), "Cannot Open Editor", "Class \""
+				UIUtils.showError(shell, "Cannot Open Editor", "Class \""
 						+ className + "\" not found in selected project");
 				return;
 			}
-			editor = JavaUI.openInEditor(element, this.fActivate, false);
+			editor = JavaUI.openInEditor(element, activate, false);
 		} catch (CoreException e) {
-			UIUtils.showError(getShell(), "Error", "Cannot open editor", e);
+			UIUtils.showError(shell, "Error", "Cannot open editor", e);
 			return;
 		}
 		if (editor instanceof ITextEditor) {
 			reveal((ITextEditor) editor);
 		}
-	}
-
-	protected Shell getShell() {
-		return testExecutionView.getSite().getShell();
-	}
-
-	protected IJavaProject getLaunchedProject() {
-		return testExecutionView.getLaunchedProject();
 	}
 
 	protected String getClassName() {

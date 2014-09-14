@@ -1,18 +1,20 @@
-package cn.shaviation.autotest.ui.internal.views;
+package cn.shaviation.autotest.ui.internal.actions;
 
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jface.text.BadLocationException;
 import org.eclipse.jface.text.IDocument;
+import org.eclipse.swt.widgets.Shell;
 import org.eclipse.ui.texteditor.ITextEditor;
 
 public class OpenEditorAtLineAction extends OpenEditorAction {
+
 	private int lineNumber;
 
-	public OpenEditorAtLineAction(TestExecutionViewPart testExecutionView,
+	public OpenEditorAtLineAction(Shell shell, IJavaProject javaProject,
 			String className, int line) {
-		super(testExecutionView, className);
+		super(shell, javaProject, className);
 		this.lineNumber = line;
 	}
 

@@ -6,5 +6,7 @@ public interface PathPatternResolver {
 
 	ClassLoader getClassLoader();
 
+	PathMatcher getPathMatcher();
+
 	String[] resolve(String locationPattern) throws IOException;
 }

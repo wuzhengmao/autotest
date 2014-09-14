@@ -7,12 +7,19 @@ import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IAdaptable;
 import org.eclipse.core.runtime.IConfigurationElement;
 import org.eclipse.core.runtime.IExtensionRegistry;
+import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.Platform;
+import org.eclipse.debug.core.DebugPlugin;
+import org.eclipse.debug.core.ILaunchConfigurationType;
+import org.eclipse.debug.core.ILaunchConfigurationWorkingCopy;
+import org.eclipse.debug.core.ILaunchManager;
+import org.eclipse.debug.ui.DebugUITools;
 import org.eclipse.debug.ui.ILaunchShortcut;
 import org.eclipse.jdt.core.IJarEntryResource;
 import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.JavaModelException;
+import org.eclipse.jdt.launching.IJavaLaunchConfigurationConstants;
 import org.eclipse.jface.action.Action;
 import org.eclipse.jface.viewers.ISelection;
 import org.eclipse.jface.viewers.IStructuredSelection;
@@ -166,5 +173,34 @@ public abstract class LaunchHelper {
 		action.setToolTipText(action.getText());
 		action.setImageDescriptor(UIUtils.getImageDescriptor(mode + "_exc.gif"));
 		return action;
+	}
+
+	public static void launch(IProject project, String location,
+			boolean recursive, String mode) throws CoreException {
+		ILaunchManager launchManager = DebugPlugin.getDefault()
+				.getLaunchManager();
+		ILaunchConfigurationType launchConfigType = launchManager
+				.getLaunchConfigurationType(AutoTestCore.LAUNCH_CONFIG_TYPE);
+		ILaunchConfigurationWorkingCopy workingCopy = launchConfigType
+				.newInstance(null,
+						"Launching automatic testing on " + project.getName()
+								+ "-" + location.replace('/', '-'));
+		workingCopy.setAttribute(
+				IJavaLaunchConfigurationConstants.ATTR_PROJECT_NAME,
+				project.getName());
+		workingCopy.setAttribute(AutoTestCore.LAUNCH_CONFIG_ATTR_LOCATION,
+				location);
+		workingCopy.setAttribute(AutoTestCore.LAUNCH_CONFIG_ATTR_RECURSIVE,
+				true);
+		workingCopy.setAttribute(AutoTestCore.LAUNCH_CONFIG_ATTR_LOG_PATH,
+				project.getFolder(AutoTestCore.DEFAULT_LOG_FOLDER)
+						.getFullPath().toString());
+		IPath path = JavaUtils.getJREContainerPath(project);
+		if (path != null) {
+			workingCopy.setAttribute(
+					IJavaLaunchConfigurationConstants.ATTR_JRE_CONTAINER_PATH,
+					path.toPortableString());
+		}
+		DebugUITools.launch(workingCopy, mode);
 	}
 }
