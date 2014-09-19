@@ -243,7 +243,8 @@ public class TestExecutionViewPart extends ViewPart {
 				.getImageDescriptor("relaunch.gif"));
 		rerunAction.setToolTipText("Rerun Last Test Execution");
 		rerunAction.setEnabled(false);
-		failuresOnlyFilterAction = new Action("", Action.AS_CHECK_BOX) {
+		failuresOnlyFilterAction = new Action("Show &Failures Only",
+				Action.AS_CHECK_BOX) {
 			@Override
 			public void run() {
 				setShowFailuresOnly(isChecked());
@@ -398,7 +399,7 @@ public class TestExecutionViewPart extends ViewPart {
 
 	}
 
-	public void init(IFile file) {
+	public void open(IFile file) {
 		try {
 			testExecution = TestExecutionHelper.parse(new InputStreamReader(
 					file.getContents(true), file.getCharset()));
