@@ -20,6 +20,7 @@ import org.eclipse.debug.core.ILaunch;
 import org.eclipse.debug.core.ILaunchConfiguration;
 import org.eclipse.debug.core.RefreshUtil;
 import org.eclipse.debug.core.model.IProcess;
+import org.eclipse.jdt.launching.IJavaLaunchConfigurationConstants;
 import org.eclipse.jdt.launching.IVMRunner;
 import org.eclipse.jdt.launching.JavaLaunchDelegate;
 import org.eclipse.jdt.launching.VMRunnerConfiguration;
@@ -41,26 +42,37 @@ public class AutoTestLaunchDelegate extends JavaLaunchDelegate {
 	public String getProgramArguments(ILaunchConfiguration configuration)
 			throws CoreException {
 		StringBuilder sb = new StringBuilder();
+		String projectName = configuration.getAttribute(
+				IJavaLaunchConfigurationConstants.ATTR_PROJECT_NAME, "");
+		if (Strings.isBlank(projectName)) {
+			throw new CoreException(new Status(IStatus.ERROR,
+					AutoTestCore.PLUGIN_ID, "Project not specified"));
+		}
+		sb.append("-j ").append(Strings.encodeUrl(projectName.trim()))
+				.append(" ");
 		if (configuration.getAttribute(
 				AutoTestCore.LAUNCH_CONFIG_ATTR_RECURSIVE, true)) {
 			sb.append("-r ");
 		}
 		IFolder folder = getLogFolder(configuration);
 		if (folder != null) {
-			sb.append("-l ").append(folder.getRawLocation().toOSString())
-					.append(" ");
+			sb.append("-l ")
+					.append(Strings.encodeUrl(folder.getRawLocation()
+							.toOSString())).append(" ");
 		}
 		sb.append("-c ").append(getProject(configuration).getDefaultCharset())
 				.append(" ");
 		int port = evaluatePort();
 		sb.append("-p ").append(port).append(" ");
-		String resource = configuration.getAttribute(
+		String location = configuration.getAttribute(
 				AutoTestCore.LAUNCH_CONFIG_ATTR_LOCATION, "");
-		if (Strings.isBlank(resource)) {
+		if (Strings.isBlank(location)) {
 			throw new CoreException(new Status(IStatus.ERROR,
 					AutoTestCore.PLUGIN_ID, "Test resource not specified"));
 		}
-		sb.append(resource.trim());
+		for (String resource : Strings.split(location, ",")) {
+			sb.append(Strings.encodeUrl(resource.trim()));
+		}
 		return sb.toString();
 	}
 
@@ -100,8 +112,19 @@ public class AutoTestLaunchDelegate extends JavaLaunchDelegate {
 				AutoTestCore.LAUNCH_CONFIG_ATTR_LOG_PATH, "");
 		if (!Strings.isBlank(logPath)) {
 			IProject project = getProject(configuration);
-			IFolder folder = (IFolder) project.getWorkspace().getRoot()
-					.getFolder(new Path(logPath.trim()));
+			IFolder folder;
+			if (!logPath.startsWith("file:")) {
+				folder = (IFolder) project.getWorkspace().getRoot()
+						.getFolder(new Path(logPath.trim()));
+			} else {
+				folder = (IFolder) project
+						.getWorkspace()
+						.getRoot()
+						.getFolder(
+								new Path(logPath.substring(5).trim())
+										.makeRelativeTo(project.getWorkspace()
+												.getRoot().getRawLocation()));
+			}
 			if (!folder.exists()) {
 				folder.create(true, false, null);
 			}

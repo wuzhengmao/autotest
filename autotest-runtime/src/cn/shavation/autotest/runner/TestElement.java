@@ -3,7 +3,7 @@ package cn.shavation.autotest.runner;
 public interface TestElement {
 
 	public static enum Status {
-		PASS, FAILURE, ERROR, BLOCKED, RUNNING
+		PASS, FAILURE, ERROR, BLOCKED, RUNNING, STOPPED
 	}
 
 	public static enum Type {

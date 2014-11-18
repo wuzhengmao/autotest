@@ -14,24 +14,25 @@ public class RerunTestAction extends Action {
 	private IJavaProject javaProject;
 	private String location;
 	private boolean recursive;
+	private String logPath;
 	private String mode;
 
 	public RerunTestAction(String text, Shell shell, IJavaProject javaProject,
-			String location, boolean recursive, String mode) {
+			String location, boolean recursive, String logPath, String mode) {
 		super(text);
 		this.shell = shell;
 		this.javaProject = javaProject;
 		this.location = location;
 		this.recursive = recursive;
+		this.logPath = logPath;
 		this.mode = mode;
 	}
 
 	@Override
 	public void run() {
-		// FIXME: log path?
 		try {
 			LaunchHelper.launch(javaProject.getProject(), location, recursive,
-					mode);
+					logPath, mode);
 		} catch (CoreException e) {
 			UIUtils.showError(shell, "Launch Failed", e.getMessage(), e);
 		}

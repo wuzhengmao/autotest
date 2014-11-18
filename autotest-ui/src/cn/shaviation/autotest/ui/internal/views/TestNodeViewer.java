@@ -21,7 +21,6 @@ import org.eclipse.jface.viewers.TreeViewer;
 import org.eclipse.jface.viewers.Viewer;
 import org.eclipse.jface.viewers.ViewerFilter;
 import org.eclipse.swt.SWT;
-import org.eclipse.swt.dnd.Clipboard;
 import org.eclipse.swt.events.SelectionAdapter;
 import org.eclipse.swt.events.SelectionEvent;
 import org.eclipse.swt.events.SelectionListener;
@@ -37,6 +36,7 @@ import cn.shaviation.autotest.ui.internal.actions.OpenTestMethodAction;
 import cn.shaviation.autotest.ui.internal.actions.OpenTestScriptAction;
 import cn.shaviation.autotest.ui.internal.actions.RerunTestAction;
 import cn.shaviation.autotest.ui.internal.views.TestExecutionTreeContentProvider.TreeNode;
+import cn.shaviation.autotest.util.Strings;
 
 public class TestNodeViewer {
 
@@ -90,7 +90,6 @@ public class TestNodeViewer {
 
 	private final FailuresOnlyFilter failuresOnlyFilter = new FailuresOnlyFilter();
 	private final TestExecutionViewPart testExecutionView;
-	private final Clipboard clipboard;
 	private TreeViewer treeViewer;
 	private TestExecutionTreeContentProvider treeContentProvider;
 	private TestExecutionTreeLabelProvider treeLabelProvider;
@@ -102,10 +101,9 @@ public class TestNodeViewer {
 	private LinkedList<TreeNode> autoClose;
 	private HashSet<TreeNode> autoExpand;
 
-	public TestNodeViewer(Composite parent, Clipboard clipboard,
+	public TestNodeViewer(Composite parent,
 			TestExecutionViewPart testExecutionView) {
 		this.testExecutionView = testExecutionView;
-		this.clipboard = clipboard;
 		createTestViewers(parent);
 		registerViewersRefresh();
 		initContextMenu();
@@ -166,31 +164,44 @@ public class TestNodeViewer {
 		IStructuredSelection selection = (IStructuredSelection) treeViewer
 				.getSelection();
 		if (!selection.isEmpty()) {
-			TestElement testElement = (TestElement) ((TreeNode) selection
-					.getFirstElement()).getElement();
+			TestElement testElement = ((TreeNode) selection.getFirstElement())
+					.getElement();
 			switch (testElement.getType()) {
 			case ROOT:
-				manager.add(new RerunTestAction("&Run", testExecutionView
-						.getViewSite().getShell(), testExecutionView
-						.getLaunchedProject(), null, true, "run"));
-				manager.add(new RerunTestAction("&Debug", testExecutionView
-						.getViewSite().getShell(), testExecutionView
-						.getLaunchedProject(), null, true, "debug"));
+				manager.add(new Action("&Run") {
+					@Override
+					public void run() {
+						testExecutionView.rerunTest("run");
+					}
+				});
+				manager.add(new Action("&Debug") {
+					@Override
+					public void run() {
+						testExecutionView.rerunTest("debug");
+					}
+				});
 				manager.add(new Separator());
 				manager.add(new ExpandAllAction());
 				break;
 			case SCRIPT:
 				String testScript = getInvokeTarget(testElement);
+				String logPath = testExecution.getArgs().get(
+						TestExecution.ARG_LOG_PATH);
+				if (!Strings.isBlank(logPath)) {
+					logPath = "file:" + logPath;
+				}
 				manager.add(new OpenTestScriptAction(testExecutionView
 						.getViewSite().getShell(), testExecutionView
 						.getLaunchedProject(), testScript));
 				manager.add(new Separator());
 				manager.add(new RerunTestAction("&Run", testExecutionView
 						.getViewSite().getShell(), testExecutionView
-						.getLaunchedProject(), testScript, true, "run"));
+						.getLaunchedProject(), testScript, false, logPath,
+						"run"));
 				manager.add(new RerunTestAction("&Debug", testExecutionView
 						.getViewSite().getShell(), testExecutionView
-						.getLaunchedProject(), testScript, true, "debug"));
+						.getLaunchedProject(), testScript, false, logPath,
+						"debug"));
 				manager.add(new Separator());
 				manager.add(new ExpandAllAction());
 				break;
@@ -211,7 +222,7 @@ public class TestNodeViewer {
 		manager.add(new Separator("additions-end"));
 	}
 
-	public synchronized void registerActiveSession(TestExecution testExecution) {
+	public synchronized void registerActiveTest(TestExecution testExecution) {
 		this.testExecution = testExecution;
 		registerAutoScrollTarget(null);
 		registerViewersRefresh();
@@ -221,8 +232,8 @@ public class TestNodeViewer {
 		IStructuredSelection selection = (IStructuredSelection) treeViewer
 				.getSelection();
 		if (!selection.isEmpty()) {
-			TestElement testElement = (TestElement) ((TreeNode) selection
-					.getFirstElement()).getElement();
+			TestElement testElement = ((TreeNode) selection.getFirstElement())
+					.getElement();
 			Action action = null;
 			switch (testElement.getType()) {
 			case SCRIPT:
@@ -248,8 +259,8 @@ public class TestNodeViewer {
 		IStructuredSelection selection = (IStructuredSelection) treeViewer
 				.getSelection();
 		if (!selection.isEmpty()) {
-			TestElement testElement = (TestElement) ((TreeNode) selection
-					.getFirstElement()).getElement();
+			TestElement testElement = ((TreeNode) selection.getFirstElement())
+					.getElement();
 			testExecutionView.handleTestSelected(testElement);
 		}
 	}
@@ -266,7 +277,6 @@ public class TestNodeViewer {
 	public synchronized void setShowFailuresOnly(boolean failuresOnly) {
 		try {
 			treeViewer.getTree().setRedraw(false);
-			IStructuredSelection selection = null;
 			if (failuresOnly) {
 				if (!treeHasFilter) {
 					treeNeedsRefresh = true;

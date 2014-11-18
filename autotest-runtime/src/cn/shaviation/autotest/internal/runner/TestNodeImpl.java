@@ -66,10 +66,12 @@ public class TestNodeImpl implements TestNode {
 	@Override
 	public int count(Status status) {
 		int count = 0;
-		for (TestNodeImpl node : children) {
-			if ((status == null && node.getStatus() == null)
-					|| (status != null && status.equals(node.getStatus()))) {
-				count++;
+		if (children != null) {
+			for (TestNodeImpl node : children) {
+				if ((status == null && node.getStatus() == null)
+						|| (status != null && status.equals(node.getStatus()))) {
+					count++;
+				}
 			}
 		}
 		return count;

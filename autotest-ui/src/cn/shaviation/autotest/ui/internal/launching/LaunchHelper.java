@@ -35,6 +35,7 @@ import cn.shaviation.autotest.core.util.JavaUtils;
 import cn.shaviation.autotest.ui.AutoTestUI;
 import cn.shaviation.autotest.ui.internal.util.UIUtils;
 import cn.shaviation.autotest.util.Logs;
+import cn.shaviation.autotest.util.Strings;
 
 public abstract class LaunchHelper {
 
@@ -177,6 +178,14 @@ public abstract class LaunchHelper {
 
 	public static void launch(IProject project, String location,
 			boolean recursive, String mode) throws CoreException {
+		launch(project, location, recursive,
+				project.getFolder(AutoTestCore.DEFAULT_LOG_FOLDER)
+						.getFullPath().toString(), mode);
+	}
+
+	public static void launch(IProject project, String location,
+			boolean recursive, String logPath, String mode)
+			throws CoreException {
 		ILaunchManager launchManager = DebugPlugin.getDefault()
 				.getLaunchManager();
 		ILaunchConfigurationType launchConfigType = launchManager
@@ -191,10 +200,11 @@ public abstract class LaunchHelper {
 		workingCopy.setAttribute(AutoTestCore.LAUNCH_CONFIG_ATTR_LOCATION,
 				location);
 		workingCopy.setAttribute(AutoTestCore.LAUNCH_CONFIG_ATTR_RECURSIVE,
-				true);
-		workingCopy.setAttribute(AutoTestCore.LAUNCH_CONFIG_ATTR_LOG_PATH,
-				project.getFolder(AutoTestCore.DEFAULT_LOG_FOLDER)
-						.getFullPath().toString());
+				recursive);
+		if (!Strings.isBlank(logPath)) {
+			workingCopy.setAttribute(AutoTestCore.LAUNCH_CONFIG_ATTR_LOG_PATH,
+					logPath);
+		}
 		IPath path = JavaUtils.getJREContainerPath(project);
 		if (path != null) {
 			workingCopy.setAttribute(

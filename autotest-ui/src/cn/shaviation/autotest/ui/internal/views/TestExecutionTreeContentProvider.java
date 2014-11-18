@@ -13,7 +13,7 @@ public class TestExecutionTreeContentProvider implements ITreeContentProvider {
 
 	private final TreeNode[] NO_CHILDREN = new TreeNode[0];
 
-	public static class TreeNode {
+	public static final class TreeNode {
 
 		private TreeNode parent;
 		private TestElement element;
@@ -25,6 +25,17 @@ public class TestExecutionTreeContentProvider implements ITreeContentProvider {
 		public TreeNode(TreeNode parent, TestElement element) {
 			this.parent = parent;
 			this.element = element;
+		}
+
+		@Override
+		public int hashCode() {
+			return element.hashCode();
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			return obj instanceof TreeNode
+					&& element.equals(((TreeNode) obj).element);
 		}
 
 		public TreeNode getParent() {

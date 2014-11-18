@@ -1,8 +1,6 @@
 package cn.shaviation.autotest.ui.internal.views;
 
 import org.eclipse.swt.SWT;
-import org.eclipse.swt.events.DisposeEvent;
-import org.eclipse.swt.events.DisposeListener;
 import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
@@ -31,21 +29,10 @@ public class CounterPanel extends Composite {
 		gridLayout.makeColumnsEqualWidth = false;
 		gridLayout.marginWidth = 0;
 		setLayout(gridLayout);
-		numberOfRuns = createLabel("Runs:", null, " 0/0  ");
+		numberOfRuns = createLabel("Runs:", null, " 0/0 ");
 		numberOfErrors = createLabel("Errors:", errorIcon, " 0 ");
 		numberOfFailures = createLabel("Failures:", failureIcon, " 0 ");
 		numberOfBlocked = createLabel("Blocked:", blockedIcon, " 0 ");
-		addDisposeListener(new DisposeListener() {
-			public void widgetDisposed(DisposeEvent e) {
-				disposeIcons();
-			}
-		});
-	}
-
-	private void disposeIcons() {
-		errorIcon.dispose();
-		failureIcon.dispose();
-		blockedIcon.dispose();
 	}
 
 	private Text createLabel(String name, Image image, String init) {

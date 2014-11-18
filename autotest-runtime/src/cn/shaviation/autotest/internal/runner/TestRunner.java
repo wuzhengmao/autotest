@@ -44,6 +44,7 @@ import cn.shaviation.autotest.util.Strings;
 
 public class TestRunner {
 
+	private String project;
 	private List<String> resources = new ArrayList<String>();
 	private String charset;
 	private boolean recursive = false;
@@ -54,19 +55,21 @@ public class TestRunner {
 
 	public TestRunner(String[] args) {
 		for (int i = 0; i < args.length; i++) {
-			if ("-r".equals(args[i])) {
+			if ("-j".equals(args[i])) {
+				project = Strings.decodeUrl(args[++i]);
+			} else if ("-r".equals(args[i])) {
 				recursive = true;
 			} else if ("-c".equals(args[i])) {
 				charset = args[++i];
 			} else if ("-l".equals(args[i])) {
-				logPath = args[++i];
+				logPath = Strings.decodeUrl(args[++i]);
 			} else if ("-p".equals(args[i])) {
 				port = Integer.parseInt(args[++i]);
 			} else if (args[i].startsWith("-")) {
 				throw new IllegalArgumentException(
 						"Unknown commond line switch: " + args[i]);
 			} else {
-				resources.add(args[i]);
+				resources.add(Strings.decodeUrl(args[i]));
 			}
 		}
 		resolver = new ClassPathMatchingPatternResolver();
@@ -138,6 +141,7 @@ public class TestRunner {
 		TestContextImpl context = new TestContextImpl();
 		TestExecutionImpl execution = context.getTestExecution();
 		context.setTestNode(execution);
+		saveArgs(execution);
 		execution.start();
 		try {
 			execution.addAll(resolveResources(), Type.SCRIPT);
@@ -157,6 +161,14 @@ public class TestRunner {
 		if (!Strings.isBlank(logPath)) {
 			saveLog(execution);
 		}
+	}
+
+	private void saveArgs(TestExecutionImpl execution) {
+		execution.put(TestExecution.ARG_PROJECT, project);
+		execution
+				.put(TestExecution.ARG_LOCATION, Strings.merge(resources, ","));
+		execution.put(TestExecution.ARG_RECURSIVE, String.valueOf(recursive));
+		execution.put(TestExecution.ARG_LOG_PATH, logPath);
 	}
 
 	private void saveLog(TestExecution testExecution) throws IOException {

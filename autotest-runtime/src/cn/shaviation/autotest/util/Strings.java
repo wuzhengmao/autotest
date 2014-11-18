@@ -1,5 +1,8 @@
 package cn.shaviation.autotest.util;
 
+import java.io.UnsupportedEncodingException;
+import java.net.URLDecoder;
+import java.net.URLEncoder;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -154,5 +157,21 @@ public abstract class Strings {
 
 	public static String formatHMS(Date date) {
 		return new SimpleDateFormat("HHmmss").format(date);
+	}
+
+	public static String encodeUrl(String url) {
+		try {
+			return URLEncoder.encode(url, "UTF-8");
+		} catch (UnsupportedEncodingException e) {
+			return url;
+		}
+	}
+
+	public static String decodeUrl(String url) {
+		try {
+			return URLDecoder.decode(url, "UTF-8");
+		} catch (UnsupportedEncodingException e) {
+			return url;
+		}
 	}
 }

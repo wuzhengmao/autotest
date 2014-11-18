@@ -95,7 +95,11 @@ public class TestExecutionTreeLabelProvider extends LabelProvider implements
 		if (!Strings.isEmpty(detail)) {
 			label = label + " [" + detail + "]";
 		}
-		return addElapsedTime(label, testElement.getRunTime() / 1000d);
+		if (testElement.getRunTime() != null) {
+			return addElapsedTime(label, testElement.getRunTime() / 1000d);
+		} else {
+			return label;
+		}
 	}
 
 	@Override

@@ -5,13 +5,18 @@ import java.io.InputStreamReader;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.ResourcesPlugin;
+import org.eclipse.core.runtime.CoreException;
+import org.eclipse.core.runtime.IProgressMonitor;
+import org.eclipse.core.runtime.IStatus;
+import org.eclipse.core.runtime.jobs.ILock;
+import org.eclipse.core.runtime.jobs.Job;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.JavaCore;
-import org.eclipse.jdt.launching.IJavaLaunchConfigurationConstants;
 import org.eclipse.jdt.ui.ISharedImages;
 import org.eclipse.jdt.ui.JavaUI;
 import org.eclipse.jface.action.Action;
 import org.eclipse.jface.action.IMenuManager;
+import org.eclipse.jface.action.IStatusLineManager;
 import org.eclipse.jface.action.IToolBarManager;
 import org.eclipse.jface.action.Separator;
 import org.eclipse.swt.SWT;
@@ -27,20 +32,32 @@ import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.ui.IActionBars;
+import org.eclipse.ui.IEditorActionBarContributor;
+import org.eclipse.ui.IEditorPart;
 import org.eclipse.ui.IMemento;
+import org.eclipse.ui.IViewPart;
 import org.eclipse.ui.IViewSite;
+import org.eclipse.ui.IWorkbenchPage;
+import org.eclipse.ui.IWorkbenchPart;
+import org.eclipse.ui.IWorkbenchWindow;
 import org.eclipse.ui.PartInitException;
 import org.eclipse.ui.actions.ActionFactory;
+import org.eclipse.ui.part.EditorActionBarContributor;
 import org.eclipse.ui.part.ViewPart;
 import org.eclipse.ui.progress.IWorkbenchSiteProgressService;
+import org.eclipse.ui.progress.UIJob;
 
 import cn.shavation.autotest.runner.TestElement;
+import cn.shavation.autotest.runner.TestElement.Status;
 import cn.shavation.autotest.runner.TestExecution;
 import cn.shavation.autotest.runner.TestExecutionHelper;
-import cn.shaviation.autotest.ui.internal.actions.RerunTestAction;
+import cn.shavation.autotest.runner.TestNode;
+import cn.shaviation.autotest.ui.AutoTestUI;
+import cn.shaviation.autotest.ui.internal.launching.LaunchHelper;
 import cn.shaviation.autotest.ui.internal.util.EmptyLayout;
 import cn.shaviation.autotest.ui.internal.util.ImageUtils;
 import cn.shaviation.autotest.ui.internal.util.UIUtils;
+import cn.shaviation.autotest.util.Logs;
 import cn.shaviation.autotest.util.Strings;
 
 public class TestExecutionViewPart extends ViewPart {
@@ -55,6 +72,7 @@ public class TestExecutionViewPart extends ViewPart {
 	private SashForm sashForm;
 	private TestNodeViewer testNodeViewer;
 	private FailureTrace failureTrace;
+	private volatile String infoMessage;
 	private Action nextAction;
 	private Action prevAction;
 	private Action stopAction;
@@ -65,10 +83,14 @@ public class TestExecutionViewPart extends ViewPart {
 	private Action copyAction;
 
 	private TestExecution testExecution;
+	private TestElement selectedElement;
 	private IMemento memento;
 	private boolean disposed = false;
 	private int currentOrientation;
 	private boolean autoScroll;
+	private UpdateUIJob updateJob;
+	private TestIsRunningJob testIsRunningJob;
+	private ILock testIsRunningLock;
 	Image scriptIcon;
 	Image scriptPassIcon;
 	Image scriptErrorIcon;
@@ -232,9 +254,12 @@ public class TestExecutionViewPart extends ViewPart {
 		stopAction.setImageDescriptor(UIUtils.getImageDescriptor("stop.gif"));
 		stopAction.setToolTipText("Stop Test Execution");
 		stopAction.setEnabled(false);
-		// FIXME
-		rerunAction = new RerunTestAction("Rerun Test", getViewSite()
-				.getShell(), getLaunchedProject(), "???", true, "run");
+		rerunAction = new Action("Rerun Test") {
+			@Override
+			public void run() {
+				rerunTest("run");
+			}
+		};
 		rerunAction.setDisabledImageDescriptor(UIUtils
 				.getImageDescriptor("relaunch_disabled.gif"));
 		rerunAction.setHoverImageDescriptor(UIUtils
@@ -306,7 +331,7 @@ public class TestExecutionViewPart extends ViewPart {
 			}
 		});
 		top.setTopLeft(empty);
-		testNodeViewer = new TestNodeViewer(top, clipboard, this);
+		testNodeViewer = new TestNodeViewer(top, this);
 		top.setContent(testNodeViewer.getControl());
 		ViewForm bottom = new ViewForm(sashForm, SWT.NONE);
 		CLabel label = new CLabel(bottom, SWT.NONE);
@@ -396,13 +421,14 @@ public class TestExecutionViewPart extends ViewPart {
 		if (testNodeViewer != null) {
 			testNodeViewer.getControl().setFocus();
 		}
-
 	}
 
 	public void open(IFile file) {
 		try {
-			testExecution = TestExecutionHelper.parse(new InputStreamReader(
-					file.getContents(true), file.getCharset()));
+			TestExecution testExecution = TestExecutionHelper
+					.parse(new InputStreamReader(file.getContents(true), file
+							.getCharset()));
+			setActiveTestExecution(testExecution);
 		} catch (Exception e) {
 			UIUtils.showError(getViewSite().getShell(), "Error",
 					"Cannot open \"" + file.getRawLocation().toOSString()
@@ -412,8 +438,7 @@ public class TestExecutionViewPart extends ViewPart {
 
 	public IJavaProject getLaunchedProject() {
 		String projectName = testExecution != null ? testExecution.getArgs()
-				.get(IJavaLaunchConfigurationConstants.ATTR_PROJECT_NAME)
-				: null;
+				.get(TestExecution.ARG_PROJECT) : null;
 		if (!Strings.isBlank(projectName)) {
 			IProject project = ResourcesPlugin.getWorkspace().getRoot()
 					.getProject(projectName);
@@ -436,19 +461,16 @@ public class TestExecutionViewPart extends ViewPart {
 	}
 
 	private void disposeImages() {
-		scriptIcon.dispose();
 		scriptPassIcon.dispose();
 		scriptErrorIcon.dispose();
 		scriptFailureIcon.dispose();
 		scriptBlockedIcon.dispose();
 		scriptRunningIcon.dispose();
-		methodIcon.dispose();
 		methodPassIcon.dispose();
 		methodErrorIcon.dispose();
 		methodFailureIcon.dispose();
 		methodBlockedIcon.dispose();
 		methodRunningIcon.dispose();
-		loopIcon.dispose();
 		loopPassIcon.dispose();
 		loopErrorIcon.dispose();
 		loopFailureIcon.dispose();
@@ -460,11 +482,51 @@ public class TestExecutionViewPart extends ViewPart {
 		return disposed || counterPanel.isDisposed();
 	}
 
-	public void handleTestSelected(final TestElement testElement) {
+	private IStatusLineManager getStatusLine() {
+		IViewSite site = getViewSite();
+		IWorkbenchPage page = site.getPage();
+		IWorkbenchPart activePart = page.getActivePart();
+		if ((activePart instanceof IViewPart)) {
+			IViewPart activeViewPart = (IViewPart) activePart;
+			IViewSite activeViewSite = activeViewPart.getViewSite();
+			return activeViewSite.getActionBars().getStatusLineManager();
+		}
+		if ((activePart instanceof IEditorPart)) {
+			IEditorPart activeEditorPart = (IEditorPart) activePart;
+			IEditorActionBarContributor contributor = activeEditorPart
+					.getEditorSite().getActionBarContributor();
+			if ((contributor instanceof EditorActionBarContributor)) {
+				return ((EditorActionBarContributor) contributor)
+						.getActionBars().getStatusLineManager();
+			}
+		}
+		return getViewSite().getActionBars().getStatusLineManager();
+	}
+
+	private void clearStatus() {
+		getStatusLine().setMessage(null);
+		getStatusLine().setErrorMessage(null);
+	}
+
+	protected void doShowInfoMessage() {
+		if (infoMessage != null) {
+			setContentDescription(infoMessage);
+			infoMessage = null;
+		}
+	}
+
+	protected void registerInfoMessage(String message) {
+		infoMessage = message;
+	}
+
+	public void handleTestSelected(TestElement testElement) {
+		selectedElement = testElement;
 		postSyncRunnable(new Runnable() {
+			@Override
 			public void run() {
 				if (!isDisposed()) {
-					failureTrace.showFailure(testElement);
+					refreshCounters();
+					failureTrace.showFailure(selectedElement);
 				}
 			}
 		});
@@ -473,6 +535,262 @@ public class TestExecutionViewPart extends ViewPart {
 	private void postSyncRunnable(Runnable r) {
 		if (!isDisposed()) {
 			getViewSite().getShell().getDisplay().syncExec(r);
+		}
+	}
+
+	public void showTestExecutionView() {
+		IWorkbenchWindow window = getSite().getWorkbenchWindow();
+		IWorkbenchPage page = window.getActivePage();
+		TestExecutionViewPart viewer = null;
+		if (page != null) {
+			try {
+				viewer = (TestExecutionViewPart) page
+						.findView(AutoTestUI.TEST_EXECUTION_VIEW_ID);
+				if (viewer == null) {
+					IWorkbenchPart activePart = page.getActivePart();
+					viewer = (TestExecutionViewPart) page.showView(
+							AutoTestUI.TEST_EXECUTION_VIEW_ID, null,
+							IWorkbenchPage.VIEW_VISIBLE);
+					page.activate(activePart);
+				} else {
+					page.bringToTop(viewer);
+				}
+			} catch (PartInitException pie) {
+				Logs.e(pie);
+			}
+		}
+	}
+
+	private void setActiveTestExecution(TestExecution testExecution) {
+		if (this.testExecution == testExecution) {
+			return;
+		}
+		this.testExecution = testExecution;
+		selectedElement = testExecution;
+		testNodeViewer.registerActiveTest(testExecution);
+		if (sashForm.isDisposed()) {
+			stopUpdateJobs();
+			return;
+		}
+		if (testExecution == null) {
+			clearStatus();
+			failureTrace.clear();
+			registerInfoMessage(" ");
+			stopUpdateJobs();
+			stopAction.setEnabled(false);
+			rerunAction.setEnabled(false);
+		} else {
+			showTestExecutionView();
+			clearStatus();
+			failureTrace.clear();
+			registerInfoMessage(testExecution.getName());
+			rerunAction.setEnabled(true);
+			if (isRunning()) {
+				startUpdateJobs();
+				stopAction.setEnabled(true);
+			} else {
+				stopUpdateJobs();
+				stopAction.setEnabled(false);
+				testNodeViewer.expandFirstLevel();
+			}
+		}
+	}
+
+	private class UpdateUIJob extends UIJob {
+		private boolean running = true;
+
+		public UpdateUIJob(String name) {
+			super(name);
+			setSystem(true);
+		}
+
+		@Override
+		public IStatus runInUIThread(IProgressMonitor monitor) {
+			if (!isDisposed()) {
+				processChangesInUI();
+			}
+			schedule(200L);
+			return org.eclipse.core.runtime.Status.OK_STATUS;
+		}
+
+		@Override
+		public boolean shouldSchedule() {
+			return running;
+		}
+
+		public void stop() {
+			running = false;
+		}
+	}
+
+	private class TestIsRunningJob extends Job {
+
+		public TestIsRunningJob(String name) {
+			super(name);
+			setSystem(true);
+		}
+
+		@Override
+		public IStatus run(IProgressMonitor monitor) {
+			testIsRunningLock.acquire();
+			return org.eclipse.core.runtime.Status.OK_STATUS;
+		}
+
+		@Override
+		public boolean belongsTo(Object family) {
+			return family == FAMILY_AUTOTEST_RUN;
+		}
+	}
+
+	private void startUpdateJobs() {
+		postSyncProcessChanges();
+		if (updateJob != null) {
+			return;
+		}
+		testIsRunningJob = new TestIsRunningJob("AutoTest Starter Job");
+		testIsRunningLock = Job.getJobManager().newLock();
+		testIsRunningLock.acquire();
+		getProgressService().schedule(testIsRunningJob);
+		updateJob = new UpdateUIJob("Update AutoTest");
+		updateJob.schedule(200L);
+	}
+
+	private void stopUpdateJobs() {
+		if (updateJob != null) {
+			updateJob.stop();
+			updateJob = null;
+		}
+		if (testIsRunningJob != null && testIsRunningLock != null) {
+			testIsRunningLock.release();
+			testIsRunningJob = null;
+		}
+		postSyncProcessChanges();
+	}
+
+	private void processChangesInUI() {
+		if (sashForm.isDisposed()) {
+			return;
+		}
+		doShowInfoMessage();
+		refreshCounters();
+		boolean hasErrorsOrFailures = hasErrorsOrFailures();
+		nextAction.setEnabled(hasErrorsOrFailures);
+		prevAction.setEnabled(hasErrorsOrFailures);
+		testNodeViewer.processChangesInUI();
+	}
+
+	private void postSyncProcessChanges() {
+		postSyncRunnable(new Runnable() {
+			@Override
+			public void run() {
+				processChangesInUI();
+			}
+		});
+	}
+
+	private void refreshCounters() {
+		int runningCount;
+		int passCount;
+		int errorCount;
+		int failureCount;
+		int blockedCount;
+		int startedCount;
+		int totalCount;
+		boolean hasErrorsOrFailures;
+		boolean stopped;
+		if (testExecution != null && selectedElement != null) {
+			Status status = selectedElement.getStatus();
+			if (selectedElement instanceof TestNode
+					&& ((TestNode) selectedElement).total() > 0) {
+				runningCount = ((TestNode) selectedElement)
+						.count(Status.RUNNING);
+				passCount = ((TestNode) selectedElement).count(Status.PASS);
+				errorCount = ((TestNode) selectedElement).count(Status.ERROR);
+				failureCount = ((TestNode) selectedElement)
+						.count(Status.FAILURE);
+				blockedCount = ((TestNode) selectedElement)
+						.count(Status.BLOCKED);
+				startedCount = runningCount + passCount + errorCount
+						+ failureCount + blockedCount;
+				totalCount = ((TestNode) selectedElement).total();
+			} else {
+				runningCount = status == Status.RUNNING ? 1 : 0;
+				passCount = status == Status.PASS ? 1 : 0;
+				errorCount = status == Status.ERROR ? 1 : 0;
+				failureCount = status == Status.FAILURE ? 1 : 0;
+				blockedCount = status == Status.BLOCKED ? 1 : 0;
+				startedCount = 1;
+				totalCount = 1;
+			}
+			hasErrorsOrFailures = status == Status.ERROR
+					|| status == Status.FAILURE;
+			stopped = status == Status.BLOCKED || status == Status.STOPPED;
+		} else {
+			runningCount = 0;
+			passCount = 0;
+			errorCount = 0;
+			failureCount = 0;
+			blockedCount = 0;
+			startedCount = 0;
+			totalCount = 0;
+			hasErrorsOrFailures = false;
+			stopped = false;
+		}
+		counterPanel.setTotal(totalCount);
+		counterPanel.setRunValue(startedCount);
+		counterPanel.setErrorValue(errorCount);
+		counterPanel.setFailureValue(failureCount);
+		counterPanel.setBlockedValue(blockedCount);
+		int ticksDone;
+		if (startedCount == 0) {
+			ticksDone = 0;
+		} else {
+			if (startedCount == totalCount) {
+				ticksDone = totalCount;
+			} else {
+				ticksDone = startedCount - 1;
+			}
+		}
+		progressBar.reset(hasErrorsOrFailures, stopped, ticksDone, totalCount);
+	}
+
+	private boolean isRunning() {
+		if (testExecution == null) {
+			return false;
+		}
+		return testExecution.count(Status.PASS)
+				+ testExecution.count(Status.ERROR)
+				+ testExecution.count(Status.FAILURE)
+				+ testExecution.count(Status.BLOCKED) < testExecution.total();
+	}
+
+	private boolean hasErrorsOrFailures() {
+		return getErrorsPlusFailures() > 0;
+	}
+
+	private int getErrorsPlusFailures() {
+		return testExecution != null ? testExecution.count(Status.ERROR)
+				+ testExecution.count(Status.FAILURE) : 0;
+	}
+
+	public void rerunTest(String mode) {
+		if (testExecution == null) {
+			return;
+		}
+		try {
+			String logPath = testExecution.getArgs().get(
+					TestExecution.ARG_LOG_PATH);
+			if (!Strings.isBlank(logPath)) {
+				logPath = "file:" + logPath;
+			}
+			LaunchHelper.launch(
+					getLaunchedProject().getProject(),
+					testExecution.getArgs().get(TestExecution.ARG_LOCATION),
+					Boolean.parseBoolean(testExecution.getArgs().get(
+							TestExecution.ARG_RECURSIVE)), logPath, mode);
+		} catch (CoreException e) {
+			UIUtils.showError(getViewSite().getShell(), "Launch Failed",
+					e.getMessage(), e);
 		}
 	}
 

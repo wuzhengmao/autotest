@@ -1,8 +1,6 @@
 package cn.shaviation.autotest.ui.internal.views;
 
 import org.eclipse.swt.SWT;
-import org.eclipse.swt.events.DisposeEvent;
-import org.eclipse.swt.events.DisposeListener;
 import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.widgets.Table;
 import org.eclipse.swt.widgets.TableItem;
@@ -18,12 +16,6 @@ public class FailureTableDisplay {
 
 	public FailureTableDisplay(Table table) {
 		this.table = table;
-		table.getParent().addDisposeListener(new DisposeListener() {
-			@Override
-			public void widgetDisposed(DisposeEvent e) {
-				disposeIcons();
-			}
-		});
 	}
 
 	public void addTraceLine(int lineType, String label) {
@@ -49,15 +41,6 @@ public class FailureTableDisplay {
 
 	public Table getTable() {
 		return table;
-	}
-
-	private void disposeIcons() {
-		if (exceptionIcon != null && !exceptionIcon.isDisposed()) {
-			exceptionIcon.dispose();
-		}
-		if (stackIcon != null && !stackIcon.isDisposed()) {
-			stackIcon.dispose();
-		}
 	}
 
 	TableItem newTableItem() {

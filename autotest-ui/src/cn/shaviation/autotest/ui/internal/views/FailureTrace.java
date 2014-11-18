@@ -17,6 +17,7 @@ import org.eclipse.swt.widgets.TableItem;
 
 import cn.shavation.autotest.runner.TestElement;
 import cn.shavation.autotest.runner.TestElement.Status;
+import cn.shavation.autotest.runner.TestNode;
 import cn.shaviation.autotest.ui.internal.actions.OpenEditorAtLineAction;
 import cn.shaviation.autotest.util.Strings;
 
@@ -118,7 +119,10 @@ public class FailureTrace implements IMenuListener {
 	public void showFailure(TestElement failure) {
 		this.failure = failure;
 		String trace = "";
-		if (failure != null) {
+		if (failure != null
+				&& (failure.getStatus() == Status.ERROR || failure.getStatus() == Status.FAILURE)
+				&& (!(failure instanceof TestNode) || ((TestNode) failure)
+						.total() == 0)) {
 			trace = failure.getDescription();
 		}
 		if (this.inputTrace != trace) {
