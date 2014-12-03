@@ -6,12 +6,16 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
 
 import cn.shavation.autotest.runner.TestNode;
 import cn.shaviation.autotest.util.Strings;
 
 public class TestNodeImpl implements TestNode {
 
+	private static final AtomicLong SEQ = new AtomicLong();
+
+	private long id;
 	private String name;
 	private Type type;
 	private Status status;
@@ -20,6 +24,10 @@ public class TestNodeImpl implements TestNode {
 	private String description;
 	private String snapshot;
 	private List<TestNodeImpl> children;
+
+	public TestNodeImpl() {
+		id = SEQ.incrementAndGet();
+	}
 
 	@Override
 	public String getName() {
@@ -75,6 +83,10 @@ public class TestNodeImpl implements TestNode {
 			}
 		}
 		return count;
+	}
+
+	public long getId() {
+		return id;
 	}
 
 	public void setName(String name) {

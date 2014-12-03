@@ -5,6 +5,7 @@ import java.util.List;
 
 import org.osgi.framework.BundleContext;
 
+import cn.shaviation.autotest.internal.runner.RemoteTestConnector;
 import cn.shaviation.autotest.internal.runner.TestRunner;
 
 public class AutoTest {
@@ -35,7 +36,19 @@ public class AutoTest {
 	}
 
 	public static void main(String[] args) throws Exception {
+		int port = 0;
+		for (int i = 0; i < args.length; i++) {
+			if ("-p".equals(args[i])) {
+				port = Integer.parseInt(args[++i]);
+				break;
+			}
+		}
 		TestRunner runner = new TestRunner(args);
+		if (port > 0) {
+			RemoteTestConnector connector = new RemoteTestConnector(runner);
+			runner.setConnector(connector);
+			connector.connect(port);
+		}
 		runner.run();
 	}
 
@@ -44,7 +57,7 @@ public class AutoTest {
 			throws Exception {
 		TestRunner runner = new TestRunner(
 				Collections.unmodifiableList(resources), charset, recursive,
-				logPath, 0, classLoader);
+				logPath, classLoader);
 		runner.run();
 	}
 }

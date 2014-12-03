@@ -1,7 +1,7 @@
 package cn.shaviation.autotest.ui.internal.actions;
 
 import org.eclipse.core.runtime.CoreException;
-import org.eclipse.jdt.core.IJavaProject;
+import org.eclipse.debug.core.ILaunch;
 import org.eclipse.jface.action.Action;
 import org.eclipse.swt.widgets.Shell;
 
@@ -11,28 +11,25 @@ import cn.shaviation.autotest.ui.internal.util.UIUtils;
 public class RerunTestAction extends Action {
 
 	private Shell shell;
-	private IJavaProject javaProject;
+	private ILaunch launch;
 	private String location;
 	private boolean recursive;
-	private String logPath;
 	private String mode;
 
-	public RerunTestAction(String text, Shell shell, IJavaProject javaProject,
-			String location, boolean recursive, String logPath, String mode) {
+	public RerunTestAction(String text, Shell shell, ILaunch launch,
+			String location, boolean recursive, String mode) {
 		super(text);
 		this.shell = shell;
-		this.javaProject = javaProject;
+		this.launch = launch;
 		this.location = location;
 		this.recursive = recursive;
-		this.logPath = logPath;
 		this.mode = mode;
 	}
 
 	@Override
 	public void run() {
 		try {
-			LaunchHelper.launch(javaProject.getProject(), location, recursive,
-					logPath, mode);
+			LaunchHelper.relaunch(launch, location, recursive, mode);
 		} catch (CoreException e) {
 			UIUtils.showError(shell, "Launch Failed", e.getMessage(), e);
 		}

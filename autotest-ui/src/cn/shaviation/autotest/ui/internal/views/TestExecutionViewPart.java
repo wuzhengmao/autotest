@@ -3,15 +3,12 @@ package cn.shaviation.autotest.ui.internal.views;
 import java.io.InputStreamReader;
 
 import org.eclipse.core.resources.IFile;
-import org.eclipse.core.resources.IProject;
-import org.eclipse.core.resources.ResourcesPlugin;
-import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.jobs.ILock;
 import org.eclipse.core.runtime.jobs.Job;
+import org.eclipse.debug.core.ILaunch;
 import org.eclipse.jdt.core.IJavaProject;
-import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.ui.ISharedImages;
 import org.eclipse.jdt.ui.JavaUI;
 import org.eclipse.jface.action.Action;
@@ -52,15 +49,17 @@ import cn.shavation.autotest.runner.TestElement.Status;
 import cn.shavation.autotest.runner.TestExecution;
 import cn.shavation.autotest.runner.TestExecutionHelper;
 import cn.shavation.autotest.runner.TestNode;
+import cn.shaviation.autotest.core.ITestSessionListener;
+import cn.shaviation.autotest.core.TestSession;
 import cn.shaviation.autotest.ui.AutoTestUI;
 import cn.shaviation.autotest.ui.internal.launching.LaunchHelper;
 import cn.shaviation.autotest.ui.internal.util.EmptyLayout;
 import cn.shaviation.autotest.ui.internal.util.ImageUtils;
 import cn.shaviation.autotest.ui.internal.util.UIUtils;
 import cn.shaviation.autotest.util.Logs;
-import cn.shaviation.autotest.util.Strings;
 
-public class TestExecutionViewPart extends ViewPart {
+public class TestExecutionViewPart extends ViewPart implements
+		ITestSessionListener {
 
 	public static final Object FAMILY_AUTOTEST_RUN = new Object();
 
@@ -82,6 +81,7 @@ public class TestExecutionViewPart extends ViewPart {
 	private Action showTimeAction;
 	private Action copyAction;
 
+	private TestSession session;
 	private TestExecution testExecution;
 	private TestElement selectedElement;
 	private IMemento memento;
@@ -244,7 +244,10 @@ public class TestExecutionViewPart extends ViewPart {
 		stopAction = new Action("Stop Test") {
 			@Override
 			public void run() {
-				testNodeViewer.selectFailure(false);
+				if (session != null) {
+					session.stop();
+				}
+				setEnabled(false);
 			}
 		};
 		stopAction.setDisabledImageDescriptor(UIUtils
@@ -257,7 +260,7 @@ public class TestExecutionViewPart extends ViewPart {
 		rerunAction = new Action("Rerun Test") {
 			@Override
 			public void run() {
-				rerunTest("run");
+				rerunTest(null);
 			}
 		};
 		rerunAction.setDisabledImageDescriptor(UIUtils
@@ -428,6 +431,7 @@ public class TestExecutionViewPart extends ViewPart {
 			TestExecution testExecution = TestExecutionHelper
 					.parse(new InputStreamReader(file.getContents(true), file
 							.getCharset()));
+			setActiveTestSession(null);
 			setActiveTestExecution(testExecution);
 		} catch (Exception e) {
 			UIUtils.showError(getViewSite().getShell(), "Error",
@@ -437,17 +441,7 @@ public class TestExecutionViewPart extends ViewPart {
 	}
 
 	public IJavaProject getLaunchedProject() {
-		String projectName = testExecution != null ? testExecution.getArgs()
-				.get(TestExecution.ARG_PROJECT) : null;
-		if (!Strings.isBlank(projectName)) {
-			IProject project = ResourcesPlugin.getWorkspace().getRoot()
-					.getProject(projectName);
-			IJavaProject javaProject = JavaCore.create(project);
-			if (javaProject != null && javaProject.exists()) {
-				return javaProject;
-			}
-		}
-		return null;
+		return session != null ? session.getProject() : null;
 	}
 
 	@Override
@@ -561,13 +555,33 @@ public class TestExecutionViewPart extends ViewPart {
 		}
 	}
 
+	public void setActiveTestSession(TestSession session) {
+		if (this.session == session) {
+			return;
+		}
+		this.session = session;
+		testNodeViewer.registerActiveTestSession(session);
+		setActiveTestExecution(session != null ? session.getTestExecution()
+				: null);
+	}
+
+	@Override
+	public void onStart() {
+		setActiveTestExecution(session.getTestExecution());
+	}
+
+	@Override
+	public void onComplete() {
+
+	}
+
 	private void setActiveTestExecution(TestExecution testExecution) {
 		if (this.testExecution == testExecution) {
 			return;
 		}
 		this.testExecution = testExecution;
 		selectedElement = testExecution;
-		testNodeViewer.registerActiveTest(testExecution);
+		testNodeViewer.registerActiveTestExecution(testExecution);
 		if (sashForm.isDisposed()) {
 			stopUpdateJobs();
 			return;
@@ -584,13 +598,16 @@ public class TestExecutionViewPart extends ViewPart {
 			clearStatus();
 			failureTrace.clear();
 			registerInfoMessage(testExecution.getName());
-			rerunAction.setEnabled(true);
-			if (isRunning()) {
+			if (session != null && !session.isDone()) {
 				startUpdateJobs();
 				stopAction.setEnabled(true);
+				rerunAction.setEnabled(false);
 			} else {
 				stopUpdateJobs();
 				stopAction.setEnabled(false);
+				if (session != null) {
+					rerunAction.setEnabled(true);
+				}
 				testNodeViewer.expandFirstLevel();
 			}
 		}
@@ -754,16 +771,6 @@ public class TestExecutionViewPart extends ViewPart {
 		progressBar.reset(hasErrorsOrFailures, stopped, ticksDone, totalCount);
 	}
 
-	private boolean isRunning() {
-		if (testExecution == null) {
-			return false;
-		}
-		return testExecution.count(Status.PASS)
-				+ testExecution.count(Status.ERROR)
-				+ testExecution.count(Status.FAILURE)
-				+ testExecution.count(Status.BLOCKED) < testExecution.total();
-	}
-
 	private boolean hasErrorsOrFailures() {
 		return getErrorsPlusFailures() > 0;
 	}
@@ -774,24 +781,14 @@ public class TestExecutionViewPart extends ViewPart {
 	}
 
 	public void rerunTest(String mode) {
-		if (testExecution == null) {
+		if (session == null) {
 			return;
 		}
-		try {
-			String logPath = testExecution.getArgs().get(
-					TestExecution.ARG_LOG_PATH);
-			if (!Strings.isBlank(logPath)) {
-				logPath = "file:" + logPath;
-			}
-			LaunchHelper.launch(
-					getLaunchedProject().getProject(),
-					testExecution.getArgs().get(TestExecution.ARG_LOCATION),
-					Boolean.parseBoolean(testExecution.getArgs().get(
-							TestExecution.ARG_RECURSIVE)), logPath, mode);
-		} catch (CoreException e) {
-			UIUtils.showError(getViewSite().getShell(), "Launch Failed",
-					e.getMessage(), e);
+		ILaunch launch = session.getLaunch();
+		if (launch == null) {
+			return;
 		}
+		LaunchHelper.relaunch(launch, mode);
 	}
 
 	public boolean isAutoScroll() {

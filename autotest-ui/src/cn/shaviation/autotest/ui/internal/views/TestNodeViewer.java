@@ -32,11 +32,11 @@ import cn.shavation.autotest.runner.TestElement;
 import cn.shavation.autotest.runner.TestElement.Status;
 import cn.shavation.autotest.runner.TestElement.Type;
 import cn.shavation.autotest.runner.TestExecution;
+import cn.shaviation.autotest.core.TestSession;
 import cn.shaviation.autotest.ui.internal.actions.OpenTestMethodAction;
 import cn.shaviation.autotest.ui.internal.actions.OpenTestScriptAction;
 import cn.shaviation.autotest.ui.internal.actions.RerunTestAction;
 import cn.shaviation.autotest.ui.internal.views.TestExecutionTreeContentProvider.TreeNode;
-import cn.shaviation.autotest.util.Strings;
 
 public class TestNodeViewer {
 
@@ -94,6 +94,7 @@ public class TestNodeViewer {
 	private TestExecutionTreeContentProvider treeContentProvider;
 	private TestExecutionTreeLabelProvider treeLabelProvider;
 	private boolean treeHasFilter = false;
+	private TestSession session;
 	private TestExecution testExecution;
 	private boolean treeNeedsRefresh;
 	private HashSet<TreeNode> needUpdate;
@@ -185,24 +186,19 @@ public class TestNodeViewer {
 				break;
 			case SCRIPT:
 				String testScript = getInvokeTarget(testElement);
-				String logPath = testExecution.getArgs().get(
-						TestExecution.ARG_LOG_PATH);
-				if (!Strings.isBlank(logPath)) {
-					logPath = "file:" + logPath;
-				}
 				manager.add(new OpenTestScriptAction(testExecutionView
 						.getViewSite().getShell(), testExecutionView
 						.getLaunchedProject(), testScript));
 				manager.add(new Separator());
-				manager.add(new RerunTestAction("&Run", testExecutionView
-						.getViewSite().getShell(), testExecutionView
-						.getLaunchedProject(), testScript, false, logPath,
-						"run"));
-				manager.add(new RerunTestAction("&Debug", testExecutionView
-						.getViewSite().getShell(), testExecutionView
-						.getLaunchedProject(), testScript, false, logPath,
-						"debug"));
-				manager.add(new Separator());
+				if (session != null) {
+					manager.add(new RerunTestAction("&Run", testExecutionView
+							.getViewSite().getShell(), session.getLaunch(),
+							testScript, false, "run"));
+					manager.add(new RerunTestAction("&Debug", testExecutionView
+							.getViewSite().getShell(), session.getLaunch(),
+							testScript, false, "debug"));
+					manager.add(new Separator());
+				}
 				manager.add(new ExpandAllAction());
 				break;
 			case METHOD:
@@ -222,7 +218,11 @@ public class TestNodeViewer {
 		manager.add(new Separator("additions-end"));
 	}
 
-	public synchronized void registerActiveTest(TestExecution testExecution) {
+	public void registerActiveTestSession(TestSession session) {
+		this.session = session;
+	}
+
+	public void registerActiveTestExecution(TestExecution testExecution) {
 		this.testExecution = testExecution;
 		registerAutoScrollTarget(null);
 		registerViewersRefresh();

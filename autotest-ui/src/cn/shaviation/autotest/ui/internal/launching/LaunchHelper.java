@@ -10,6 +10,8 @@ import org.eclipse.core.runtime.IExtensionRegistry;
 import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.Platform;
 import org.eclipse.debug.core.DebugPlugin;
+import org.eclipse.debug.core.ILaunch;
+import org.eclipse.debug.core.ILaunchConfiguration;
 import org.eclipse.debug.core.ILaunchConfigurationType;
 import org.eclipse.debug.core.ILaunchConfigurationWorkingCopy;
 import org.eclipse.debug.core.ILaunchManager;
@@ -211,6 +213,30 @@ public abstract class LaunchHelper {
 					IJavaLaunchConfigurationConstants.ATTR_JRE_CONTAINER_PATH,
 					path.toPortableString());
 		}
+		DebugUITools.launch(workingCopy, mode);
+	}
+
+	public static void relaunch(ILaunch launch, String mode) {
+		ILaunchConfiguration configuration = launch.getLaunchConfiguration();
+		if (configuration == null) {
+			return;
+		}
+		DebugUITools.launch(configuration,
+				mode != null ? mode : launch.getLaunchMode());
+	}
+
+	public static void relaunch(ILaunch launch, String location,
+			boolean recursive, String mode) throws CoreException {
+		ILaunchConfiguration configuration = launch.getLaunchConfiguration();
+		if (configuration == null) {
+			return;
+		}
+		ILaunchConfigurationWorkingCopy workingCopy = configuration
+				.copy("Rerun " + configuration.getName());
+		workingCopy.setAttribute(AutoTestCore.LAUNCH_CONFIG_ATTR_LOCATION,
+				location);
+		workingCopy.setAttribute(AutoTestCore.LAUNCH_CONFIG_ATTR_RECURSIVE,
+				recursive);
 		DebugUITools.launch(workingCopy, mode);
 	}
 }

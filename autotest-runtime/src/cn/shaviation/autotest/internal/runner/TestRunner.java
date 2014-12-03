@@ -44,27 +44,23 @@ import cn.shaviation.autotest.util.Strings;
 
 public class TestRunner {
 
-	private String project;
 	private List<String> resources = new ArrayList<String>();
 	private String charset;
 	private boolean recursive = false;
 	private String logPath;
-	private int port = 0;
 	private PathPatternResolver resolver;
 	private Map<Class<?>, Object> testObjects = new HashMap<Class<?>, Object>();
+	private boolean stop = false;
+	private RemoteTestConnector connector;
 
 	public TestRunner(String[] args) {
 		for (int i = 0; i < args.length; i++) {
-			if ("-j".equals(args[i])) {
-				project = Strings.decodeUrl(args[++i]);
-			} else if ("-r".equals(args[i])) {
+			if ("-r".equals(args[i])) {
 				recursive = true;
 			} else if ("-c".equals(args[i])) {
 				charset = args[++i];
 			} else if ("-l".equals(args[i])) {
 				logPath = Strings.decodeUrl(args[++i]);
-			} else if ("-p".equals(args[i])) {
-				port = Integer.parseInt(args[++i]);
 			} else if (args[i].startsWith("-")) {
 				throw new IllegalArgumentException(
 						"Unknown commond line switch: " + args[i]);
@@ -77,12 +73,11 @@ public class TestRunner {
 	}
 
 	public TestRunner(List<String> resources, String charset,
-			boolean recursive, String logPath, int port, ClassLoader classLoader) {
+			boolean recursive, String logPath, ClassLoader classLoader) {
 		this.resources = resources;
 		this.charset = charset;
 		this.recursive = recursive;
 		this.logPath = logPath;
-		this.port = port;
 		this.resolver = classLoader != null ? new ClassPathMatchingPatternResolver(
 				classLoader) : new ClassPathMatchingPatternResolver();
 		validateArgs();
@@ -137,38 +132,60 @@ public class TestRunner {
 		return url;
 	}
 
+	private void fireStartEvent(TestNodeImpl testNode, TestNodeImpl parent) {
+		if (connector != null) {
+			try {
+				connector.sendStart(testNode.getId(), testNode.getName(),
+						testNode.getType(), parent != null ? parent.getId()
+								: null);
+			} catch (Throwable t) {
+				t.printStackTrace();
+			}
+		}
+	}
+
+	private void fireCompleteEvent(TestNodeImpl testNode) {
+		if (connector != null) {
+			try {
+				connector.sendComplete(testNode.getId(), testNode.getRunTime(),
+						testNode.getStatus(), testNode.getDescription(),
+						testNode.getSnapshot());
+			} catch (Throwable t) {
+				t.printStackTrace();
+			}
+		}
+	}
+
 	public void run() throws IOException {
 		TestContextImpl context = new TestContextImpl();
 		TestExecutionImpl execution = context.getTestExecution();
 		context.setTestNode(execution);
-		saveArgs(execution);
 		execution.start();
+		fireStartEvent(execution, null);
 		try {
 			execution.addAll(resolveResources(), Type.SCRIPT);
 			for (TestNodeImpl child : execution.getChildren()) {
 				context.setTestNode(child);
 				child.start();
+				fireStartEvent(child, execution);
 				System.out.println("Run test script: " + child.getName());
 				runTestScript("", child.getName(), context);
 			}
 			execution.complete();
+			fireCompleteEvent(execution);
 		} catch (Throwable t) {
 			execution.error(t);
+			fireCompleteEvent(execution);
 		} finally {
 			context.setTestNode(execution);
 		}
 		execution.printOut();
+		if (connector != null) {
+			connector.close();
+		}
 		if (!Strings.isBlank(logPath)) {
 			saveLog(execution);
 		}
-	}
-
-	private void saveArgs(TestExecutionImpl execution) {
-		execution.put(TestExecution.ARG_PROJECT, project);
-		execution
-				.put(TestExecution.ARG_LOCATION, Strings.merge(resources, ","));
-		execution.put(TestExecution.ARG_RECURSIVE, String.valueOf(recursive));
-		execution.put(TestExecution.ARG_LOG_PATH, logPath);
 	}
 
 	private void saveLog(TestExecution testExecution) throws IOException {
@@ -251,7 +268,9 @@ public class TestRunner {
 										break;
 									}
 								} else {
+									fireStartEvent(child, testNode);
 									child.block();
+									fireCompleteEvent(child);
 									break;
 								}
 							}
@@ -262,6 +281,7 @@ public class TestRunner {
 					}
 					context.setTestNode(child);
 					child.start();
+					fireStartEvent(child, testNode);
 					try {
 						System.out.println("Go "
 								+ child.getName().toLowerCase() + "... "
@@ -289,13 +309,16 @@ public class TestRunner {
 						}
 					} catch (Throwable t) {
 						child.error(t);
+						fireCompleteEvent(child);
 					}
 				}
 			}
 			testNode.complete();
+			fireCompleteEvent(testNode);
 			System.out.println("<<< Completed");
 		} catch (Throwable t) {
 			testNode.error(t);
+			fireCompleteEvent(testNode);
 		} finally {
 			context.setTestNode(testNode);
 			context.setTestScript(backTestScript);
@@ -356,6 +379,7 @@ public class TestRunner {
 			for (TestNodeImpl child : testNode.getChildren()) {
 				context.setTestNode(child);
 				child.start();
+				fireStartEvent(child, testNode);
 				Integer i = map.get(child.getName());
 				loopTestMethod(child.getName(), testClass, testMethod,
 						i != null ? testDataDef.getDataList().get(i) : null,
@@ -363,6 +387,7 @@ public class TestRunner {
 			}
 			context.setTestNode(testNode);
 			testNode.complete();
+			fireCompleteEvent(testNode);
 		} else if (map.size() == 1) {
 			String loop = map.keySet().iterator().next();
 			Integer i = map.get(loop);
@@ -370,6 +395,7 @@ public class TestRunner {
 					.getDataList().get(i) : null, context);
 		} else {
 			testNode.error("Loop times shall larger than 0");
+			fireCompleteEvent(testNode);
 		}
 	}
 
@@ -386,10 +412,12 @@ public class TestRunner {
 				System.out.println(" - Failure");
 			} else {
 				testNode.error("Unexpected case");
+				fireCompleteEvent(testNode);
 			}
 		} catch (Throwable t) {
 			System.out.println(" - Error");
 			testNode.error(t);
+			fireCompleteEvent(testNode);
 		}
 	}
 
@@ -429,6 +457,7 @@ public class TestRunner {
 		} else {
 			testNode.fail(model.getDescription(), model.getSnapshot());
 		}
+		fireCompleteEvent(testNode);
 	}
 
 	private void runSubScript(String prefix, TestStep testStep,
@@ -458,16 +487,27 @@ public class TestRunner {
 			for (TestNodeImpl child : testNode.getChildren()) {
 				context.setTestNode(child);
 				child.start();
+				fireStartEvent(child, testNode);
 				System.out.println(child.getName());
 				runTestScript(testScript, context);
 			}
 			context.setTestNode(testNode);
 			testNode.complete();
+			fireCompleteEvent(testNode);
 		} else if (testStep.getLoopTimes() == 1) {
 			System.out.println("Loop 1");
 			runTestScript(testScript, context);
 		} else {
 			testNode.error("Loop times shall larger than 0");
+			fireCompleteEvent(testNode);
 		}
+	}
+
+	public void stop() {
+		stop = true;
+	}
+
+	public void setConnector(RemoteTestConnector connector) {
+		this.connector = connector;
 	}
 }

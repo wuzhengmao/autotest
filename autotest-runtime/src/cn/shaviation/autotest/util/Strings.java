@@ -31,11 +31,12 @@ public abstract class Strings {
 	public static String merge(Collection<?> objs, String delimiter) {
 		StringBuilder sb = new StringBuilder();
 		if (objs != null) {
+			int i = 0;
 			for (Object obj : objs) {
+				if (i++ > 0) {
+					sb.append(delimiter);
+				}
 				if (obj != null) {
-					if (sb.length() > 0) {
-						sb.append(delimiter);
-					}
 					sb.append(obj.toString());
 				}
 			}

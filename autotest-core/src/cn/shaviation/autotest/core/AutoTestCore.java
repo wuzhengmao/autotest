@@ -6,9 +6,13 @@ import org.eclipse.core.runtime.Platform;
 import org.eclipse.core.runtime.PlatformObject;
 import org.eclipse.core.runtime.Plugin;
 import org.eclipse.core.runtime.QualifiedName;
+import org.eclipse.debug.core.DebugPlugin;
+import org.eclipse.debug.core.ILaunchManager;
 import org.osgi.framework.BundleContext;
 
 import cn.shavation.autotest.AutoTest;
+import cn.shaviation.autotest.core.internal.launching.AutoTestLaunchListener;
+import cn.shaviation.autotest.core.internal.launching.TestSessionImpl;
 
 public class AutoTestCore extends Plugin {
 
@@ -30,19 +34,32 @@ public class AutoTestCore extends Plugin {
 	public static final String LAUNCH_CONFIG_ATTR_LOCATION = "cn.shaviation.autotest.launching.ATTR_LOCATION";
 	public static final String LAUNCH_CONFIG_ATTR_RECURSIVE = "cn.shaviation.autotest.launching.ATTR_RECURSIVE";
 	public static final String LAUNCH_CONFIG_ATTR_LOG_PATH = "cn.shaviation.autotest.launching.ATTR_LOG_PATH";
+	public static final String LAUNCH_CONFIG_ATTR_PORT = "cn.shaviation.autotest.launching.PORT";
 
 	private static AutoTestCore plugin;
+
+	private AutoTestLaunchListener listener = new AutoTestLaunchListener();
+	private TestSessionImpl session;
 
 	@Override
 	public void start(BundleContext context) throws Exception {
 		super.start(context);
 		plugin = this;
+		ILaunchManager launchManager = DebugPlugin.getDefault()
+				.getLaunchManager();
+		launchManager.addLaunchListener(listener);
 	}
 
 	@Override
 	public void stop(BundleContext context) throws Exception {
-		plugin = null;
-		super.stop(context);
+		try {
+			ILaunchManager launchManager = DebugPlugin.getDefault()
+					.getLaunchManager();
+			launchManager.removeLaunchListener(listener);
+		} finally {
+			plugin = null;
+			super.stop(context);
+		}
 	}
 
 	public static AutoTestCore getDefault() {
@@ -73,5 +90,13 @@ public class AutoTestCore extends Plugin {
 			}
 		}
 		return null;
+	}
+
+	public static TestSessionImpl getTestSession() {
+		return plugin != null ? plugin.session : null;
+	}
+
+	public static void setTestSession(TestSessionImpl session) {
+		plugin.session = session;
 	}
 }
