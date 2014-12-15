@@ -1,5 +1,8 @@
 package cn.shaviation.autotest.core;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import org.eclipse.core.runtime.Assert;
 import org.eclipse.core.runtime.IAdaptable;
 import org.eclipse.core.runtime.Platform;
@@ -12,7 +15,6 @@ import org.osgi.framework.BundleContext;
 
 import cn.shavation.autotest.AutoTest;
 import cn.shaviation.autotest.core.internal.launching.AutoTestLaunchListener;
-import cn.shaviation.autotest.core.internal.launching.TestSessionImpl;
 
 public class AutoTestCore extends Plugin {
 
@@ -39,7 +41,8 @@ public class AutoTestCore extends Plugin {
 	private static AutoTestCore plugin;
 
 	private AutoTestLaunchListener listener = new AutoTestLaunchListener();
-	private TestSessionImpl session;
+	private List<ITestLaunchListener> listeners = new ArrayList<ITestLaunchListener>();
+	private TestRunSession session;
 
 	@Override
 	public void start(BundleContext context) throws Exception {
@@ -92,11 +95,28 @@ public class AutoTestCore extends Plugin {
 		return null;
 	}
 
-	public static TestSessionImpl getTestSession() {
+	public static void addTestLaunchListener(ITestLaunchListener listener) {
+		if (plugin != null) {
+			if (!plugin.listeners.contains(listener)) {
+				plugin.listeners.add(listener);
+			}
+		}
+	}
+
+	public static void removeTestLaunchListener(ITestLaunchListener listener) {
+		if (plugin != null) {
+			plugin.listeners.remove(listener);
+		}
+	}
+
+	public static TestRunSession getTestSession() {
 		return plugin != null ? plugin.session : null;
 	}
 
-	public static void setTestSession(TestSessionImpl session) {
+	public static void setTestRunSession(TestRunSession session) {
 		plugin.session = session;
+		for (ITestLaunchListener listener : plugin.listeners) {
+			listener.onLaunch(session);
+		}
 	}
 }

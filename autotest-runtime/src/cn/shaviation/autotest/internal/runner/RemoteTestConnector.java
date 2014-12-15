@@ -90,9 +90,9 @@ public class RemoteTestConnector {
 		}
 	}
 
-	public void sendStart(long id, String name, Type type, Long parentId) {
+	public void sendNodeAdd(long id, String name, Type type, Long parentId) {
 		List<Object> list = new ArrayList<Object>(5);
-		list.add("S");
+		list.add("A");
 		list.add(id);
 		list.add(name);
 		list.add(type);
@@ -101,11 +101,12 @@ public class RemoteTestConnector {
 		writer.println(message);
 	}
 
-	public void sendComplete(long id, Long runTime, Status status,
-			String description, String snapshot) {
+	public void sendNodeUpdate(long id, String name, Long runTime,
+			Status status, String description, String snapshot) {
 		List<Object> list = new ArrayList<Object>(6);
-		list.add("C");
+		list.add("U");
 		list.add(id);
+		list.add(name);
 		list.add(runTime);
 		list.add(status.name());
 		list.add(description);

@@ -11,6 +11,8 @@ import java.util.concurrent.atomic.AtomicLong;
 import cn.shavation.autotest.runner.TestNode;
 import cn.shaviation.autotest.util.Strings;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 public class TestNodeImpl implements TestNode {
 
 	private static final AtomicLong SEQ = new AtomicLong();
@@ -23,10 +25,15 @@ public class TestNodeImpl implements TestNode {
 	private Long runTime;
 	private String description;
 	private String snapshot;
+	private TestNodeImpl parent;
 	private List<TestNodeImpl> children;
 
 	public TestNodeImpl() {
 		id = SEQ.incrementAndGet();
+	}
+
+	public TestNodeImpl(Long id) {
+		this.id = id;
 	}
 
 	@Override
@@ -59,6 +66,12 @@ public class TestNodeImpl implements TestNode {
 		return snapshot;
 	}
 
+	@JsonIgnore
+	@Override
+	public TestNode getParent() {
+		return parent;
+	}
+
 	@SuppressWarnings("unchecked")
 	@Override
 	public List<TestNodeImpl> getChildren() {
@@ -85,6 +98,7 @@ public class TestNodeImpl implements TestNode {
 		return count;
 	}
 
+	@JsonIgnore
 	public long getId() {
 		return id;
 	}
@@ -97,6 +111,40 @@ public class TestNodeImpl implements TestNode {
 		this.type = type;
 	}
 
+	public void setStatus(Status status) {
+		this.status = status;
+	}
+
+	public void setRunTime(Long runTime) {
+		this.runTime = runTime;
+	}
+
+	public void setDescription(String description) {
+		this.description = description;
+	}
+
+	public void setSnapshot(String snapshot) {
+		this.snapshot = snapshot;
+	}
+
+	public void setChildren(List<TestNodeImpl> children) {
+		this.children = children != null ? new ArrayList<TestNodeImpl>(children)
+				: null;
+		if (this.children != null) {
+			for (TestNodeImpl child : this.children) {
+				child.parent = this;
+			}
+		}
+	}
+
+	public void appendChild(TestNodeImpl child) {
+		if (this.children == null) {
+			this.children = new ArrayList<TestNodeImpl>();
+		}
+		this.children.add(child);
+		child.parent = this;
+	}
+
 	public TestNodeImpl add(String name, Type type) {
 		if (children == null) {
 			children = new ArrayList<TestNodeImpl>();
@@ -105,6 +153,7 @@ public class TestNodeImpl implements TestNode {
 		node.setName(name);
 		node.setType(type);
 		children.add(node);
+		node.parent = this;
 		return node;
 	}
 
@@ -150,28 +199,31 @@ public class TestNodeImpl implements TestNode {
 	}
 
 	public void complete() {
-		runTime = System.currentTimeMillis() - startTime;
+		if (startTime != null) {
+			runTime = System.currentTimeMillis() - startTime;
+		}
 		int pass = 0;
 		int failure = 0;
 		int error = 0;
 		int blocked = 0;
+		int unfinished = 0;
 		for (TestNodeImpl node : children) {
-			switch (node.getStatus()) {
-			case PASS:
+			Status ns = node.getStatus();
+			if (ns == null || ns == Status.RUNNING || ns == Status.STOPPED) {
+				unfinished++;
+			} else if (ns == Status.PASS) {
 				pass++;
-				break;
-			case FAILURE:
+			} else if (ns == Status.FAILURE) {
 				failure++;
-				break;
-			case ERROR:
+			} else if (ns == Status.ERROR) {
 				error++;
-				break;
-			case BLOCKED:
+			} else if (ns == Status.BLOCKED) {
 				blocked++;
-				break;
 			}
 		}
-		if (failure == 0 && error == 0 && blocked == 0) {
+		if (unfinished > 0) {
+			status = Status.STOPPED;
+		} else if (failure == 0 && error == 0 && blocked == 0) {
 			status = Status.PASS;
 		} else if (error > 0) {
 			status = Status.ERROR;

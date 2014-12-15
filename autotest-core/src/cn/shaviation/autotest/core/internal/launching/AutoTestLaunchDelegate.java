@@ -20,12 +20,14 @@ import org.eclipse.debug.core.ILaunch;
 import org.eclipse.debug.core.ILaunchConfiguration;
 import org.eclipse.debug.core.RefreshUtil;
 import org.eclipse.debug.core.model.IProcess;
+import org.eclipse.jdt.launching.IJavaLaunchConfigurationConstants;
 import org.eclipse.jdt.launching.IVMRunner;
 import org.eclipse.jdt.launching.JavaLaunchDelegate;
 import org.eclipse.jdt.launching.VMRunnerConfiguration;
 
 import cn.shavation.autotest.AutoTest;
 import cn.shaviation.autotest.core.AutoTestCore;
+import cn.shaviation.autotest.core.TestRunSession;
 import cn.shaviation.autotest.util.Logs;
 import cn.shaviation.autotest.util.Strings;
 
@@ -36,6 +38,12 @@ public class AutoTestLaunchDelegate extends JavaLaunchDelegate {
 	@Override
 	public void launch(ILaunchConfiguration configuration, String mode,
 			ILaunch launch, IProgressMonitor monitor) throws CoreException {
+		TestRunSession session = AutoTestCore.getTestSession();
+		if (session != null && !session.isDone()) {
+			throw new CoreException(new Status(IStatus.ERROR,
+					AutoTestCore.PLUGIN_ID,
+					"Cannot run multi-instance of automatic testing"));
+		}
 		port = evaluatePort();
 		launch.setAttribute(AutoTestCore.LAUNCH_CONFIG_ATTR_PORT,
 				String.valueOf(port));
@@ -52,6 +60,14 @@ public class AutoTestLaunchDelegate extends JavaLaunchDelegate {
 	public String getProgramArguments(ILaunchConfiguration configuration)
 			throws CoreException {
 		StringBuilder sb = new StringBuilder();
+		String projectName = configuration.getAttribute(
+				IJavaLaunchConfigurationConstants.ATTR_PROJECT_NAME, "");
+		if (Strings.isBlank(projectName)) {
+			throw new CoreException(new Status(IStatus.ERROR,
+					AutoTestCore.PLUGIN_ID, "Project not specified"));
+		}
+		sb.append("-j ").append(Strings.encodeUrl(projectName.trim()))
+				.append(" ");
 		if (configuration.getAttribute(
 				AutoTestCore.LAUNCH_CONFIG_ATTR_RECURSIVE, true)) {
 			sb.append("-r ");

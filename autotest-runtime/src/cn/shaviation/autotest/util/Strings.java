@@ -54,7 +54,10 @@ public abstract class Strings {
 			return Collections.emptyList();
 		}
 		List<T> list = new ArrayList<T>();
-		for (String str : text.split("\\" + delimiter)) {
+		int i = 0, j;
+		while ((j = text.indexOf(delimiter, i)) >= 0) {
+			String str = text.substring(i, j);
+			i = j + delimiter.length();
 			T value = null;
 			try {
 				value = Objects.toObject(str, type);
@@ -64,6 +67,17 @@ public abstract class Strings {
 				if (!ignoreDuplicate || !list.contains(value)) {
 					list.add(value);
 				}
+			}
+		}
+		String str = text.substring(i);
+		T value = null;
+		try {
+			value = Objects.toObject(str, type);
+		} catch (Exception e) {
+		}
+		if (!ignoreNull || value != null) {
+			if (!ignoreDuplicate || !list.contains(value)) {
+				list.add(value);
 			}
 		}
 		return list;

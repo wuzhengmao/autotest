@@ -9,7 +9,9 @@ import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.launching.IJavaLaunchConfigurationConstants;
 
+import cn.shavation.autotest.runner.TestSessionHelper;
 import cn.shaviation.autotest.core.AutoTestCore;
+import cn.shaviation.autotest.core.TestRunSession;
 
 public class AutoTestLaunchListener implements ILaunchListener {
 
@@ -50,8 +52,9 @@ public class AutoTestLaunchListener implements ILaunchListener {
 		if (port <= 0) {
 			return;
 		}
-		TestSessionImpl session = new TestSessionImpl(launch, javaProject, port);
-		AutoTestCore.setTestSession(session);
+		TestRunSession session = new TestRunSession(launch, javaProject,
+				TestSessionHelper.create(port));
+		AutoTestCore.setTestRunSession(session);
 	}
 
 	@Override

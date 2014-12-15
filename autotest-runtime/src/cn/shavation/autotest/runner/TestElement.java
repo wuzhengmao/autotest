@@ -21,4 +21,6 @@ public interface TestElement {
 	String getSnapshot();
 
 	Long getRunTime();
+
+	TestNode getParent();
 }

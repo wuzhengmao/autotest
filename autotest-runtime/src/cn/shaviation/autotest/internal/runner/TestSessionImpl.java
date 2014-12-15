@@ -1,4 +1,4 @@
-package cn.shaviation.autotest.core.internal.launching;
+package cn.shaviation.autotest.internal.runner;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -9,19 +9,15 @@ import java.io.UnsupportedEncodingException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.eclipse.debug.core.ILaunch;
-import org.eclipse.jdt.core.IJavaProject;
-
+import cn.shavation.autotest.runner.ITestSessionListener;
 import cn.shavation.autotest.runner.TestElement.Status;
 import cn.shavation.autotest.runner.TestElement.Type;
 import cn.shavation.autotest.runner.TestExecution;
-import cn.shaviation.autotest.core.ITestSessionListener;
-import cn.shaviation.autotest.core.TestSession;
+import cn.shavation.autotest.runner.TestSession;
 import cn.shaviation.autotest.util.Logs;
 import cn.shaviation.autotest.util.Strings;
 
@@ -33,29 +29,15 @@ public class TestSessionImpl implements TestSession {
 	private static final int COMPLETED = 2;
 	private static final int STOPPED = -1;
 
-	private ILaunch launch;
-	private IJavaProject project;
 	private ServerConnection connection;
 	private TestExecution testExecution;
 	private Map<Long, TestNodeImpl> testNodes;
 	private int state = WAITING;
 	private ITestSessionListener listener;
 
-	public TestSessionImpl(ILaunch launch, IJavaProject project, int port) {
-		this.launch = launch;
-		this.project = project;
+	public TestSessionImpl(int port) {
 		connection = new ServerConnection(port);
 		connection.start();
-	}
-
-	@Override
-	public ILaunch getLaunch() {
-		return launch;
-	}
-
-	@Override
-	public IJavaProject getProject() {
-		return project;
 	}
 
 	@Override
@@ -80,59 +62,70 @@ public class TestSessionImpl implements TestSession {
 
 	private void receiveMessage(String message) {
 		List<String> args = Strings.split(message, DELIMITER);
-		if ("S".equals(args.get(0))) {
+		if ("A".equals(args.get(0))) {
 			long id = Long.parseLong(args.get(1));
 			String name = args.get(2);
 			Type type = Type.valueOf(args.get(3));
-			Long parentId = args.get(4) != null ? Long.parseLong(args.get(4))
-					: null;
-			TestNodeImpl testNode = new TestNodeImpl();
+			Long parentId = !Strings.isEmpty(args.get(4)) ? Long.parseLong(args
+					.get(4)) : null;
+			TestNodeImpl testNode = type == Type.ROOT ? new TestExecutionImpl()
+					: new TestNodeImpl();
 			testNode.setName(name);
 			testNode.setType(type);
 			if (type == Type.ROOT) {
-				testExecution = testNode;
+				testExecution = (TestExecution) testNode;
 				testNodes = new HashMap<Long, TestNodeImpl>();
 				state = RUNNING;
 				if (listener != null) {
-					listener.onStart();
+					listener.onStart(testExecution);
 				}
 			}
 			testNodes.put(id, testNode);
 			if (parentId != null) {
 				TestNodeImpl parent = testNodes.get(parentId);
-				if (parent.getChildren() == null) {
-					parent.setChildren(new ArrayList<TestNodeImpl>());
-				}
-				parent.getChildren().add(testNode);
+				parent.appendChild(testNode);
 			}
-		} else if ("C".equals(args.get(0))) {
+			if (listener != null) {
+				listener.onNodeAdd(testNode);
+			}
+		} else if ("U".equals(args.get(0))) {
 			long id = Long.parseLong(args.get(1));
-			Long runTime = args.get(2) != null ? Long.parseLong(args.get(2))
-					: null;
-			Status status = Status.valueOf(args.get(3));
-			String description = args.get(4);
-			String snapshot = args.get(5);
+			String name = args.get(2);
+			Long runTime = !Strings.isEmpty(args.get(3)) ? Long.parseLong(args
+					.get(3)) : null;
+			Status status = Status.valueOf(args.get(4));
+			String description = args.get(5);
+			String snapshot = args.get(6);
 			TestNodeImpl testNode = testNodes.get(id);
+			testNode.setName(name);
 			testNode.setRunTime(runTime);
 			testNode.setStatus(status);
 			testNode.setDescription(description);
 			testNode.setSnapshot(snapshot);
+			if (listener != null) {
+				listener.onNodeUpdate(testNode);
+			}
 			if (testNode.getType() == Type.ROOT) {
 				testNodes.clear();
 				testNodes = null;
 				connection.shutdown();
 				state = COMPLETED;
 				if (listener != null) {
-					listener.onComplete();
+					listener.onComplete(testExecution);
 				}
 			}
 		}
 	}
 
 	private void notifyTerminated() {
-		testNodes.clear();
-		testNodes = null;
-		state = STOPPED;
+		if (!isDone()) {
+			testNodes.clear();
+			testNodes = null;
+			state = STOPPED;
+			if (listener != null) {
+				listener.onTerminate(testExecution);
+			}
+		}
 	}
 
 	private class ServerConnection extends Thread {

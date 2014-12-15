@@ -11,7 +11,6 @@ import org.eclipse.swt.graphics.Image;
 
 import cn.shavation.autotest.runner.TestElement;
 import cn.shavation.autotest.runner.TestElement.Type;
-import cn.shaviation.autotest.ui.internal.views.TestExecutionTreeContentProvider.TreeNode;
 import cn.shaviation.autotest.util.Strings;
 
 public class TestExecutionTreeLabelProvider extends LabelProvider implements
@@ -38,7 +37,7 @@ public class TestExecutionTreeLabelProvider extends LabelProvider implements
 
 	@Override
 	public StyledString getStyledText(Object element) {
-		TestElement testElement = ((TreeNode) element).getElement();
+		TestElement testElement = (TestElement) element;
 		String label = testElement.getName();
 		if (label == null) {
 			return new StyledString(element.toString());
@@ -78,7 +77,7 @@ public class TestExecutionTreeLabelProvider extends LabelProvider implements
 
 	@Override
 	public String getText(Object element) {
-		TestElement testElement = ((TreeNode) element).getElement();
+		TestElement testElement = (TestElement) element;
 		String label = testElement.getName();
 		if (label == null) {
 			return element.toString();
@@ -104,9 +103,12 @@ public class TestExecutionTreeLabelProvider extends LabelProvider implements
 
 	@Override
 	public Image getImage(Object element) {
-		TestElement testElement = ((TreeNode) element).getElement();
+		TestElement testElement = (TestElement) element;
 		switch (testElement.getType()) {
 		case LOOP:
+			if (testElement.getStatus() == null) {
+				return testExecutionView.loopIcon;
+			}
 			switch (testElement.getStatus()) {
 			case PASS:
 				return testExecutionView.loopPassIcon;
@@ -118,10 +120,15 @@ public class TestExecutionTreeLabelProvider extends LabelProvider implements
 				return testExecutionView.loopBlockedIcon;
 			case RUNNING:
 				return testExecutionView.loopRunningIcon;
+			case STOPPED:
+				return testExecutionView.loopStoppedIcon;
 			default:
 				return testExecutionView.loopIcon;
 			}
 		case METHOD:
+			if (testElement.getStatus() == null) {
+				return testExecutionView.methodIcon;
+			}
 			switch (testElement.getStatus()) {
 			case PASS:
 				return testExecutionView.methodPassIcon;
@@ -133,10 +140,15 @@ public class TestExecutionTreeLabelProvider extends LabelProvider implements
 				return testExecutionView.methodBlockedIcon;
 			case RUNNING:
 				return testExecutionView.methodRunningIcon;
+			case STOPPED:
+				return testExecutionView.methodStoppedIcon;
 			default:
 				return testExecutionView.methodIcon;
 			}
 		default:
+			if (testElement.getStatus() == null) {
+				return testExecutionView.scriptIcon;
+			}
 			switch (testElement.getStatus()) {
 			case PASS:
 				return testExecutionView.scriptPassIcon;
@@ -148,6 +160,8 @@ public class TestExecutionTreeLabelProvider extends LabelProvider implements
 				return testExecutionView.scriptBlockedIcon;
 			case RUNNING:
 				return testExecutionView.scriptRunningIcon;
+			case STOPPED:
+				return testExecutionView.scriptStoppedIcon;
 			default:
 				return testExecutionView.scriptIcon;
 			}

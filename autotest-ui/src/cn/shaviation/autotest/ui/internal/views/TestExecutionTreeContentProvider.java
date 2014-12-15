@@ -6,59 +6,20 @@ import org.eclipse.jface.viewers.ITreeContentProvider;
 import org.eclipse.jface.viewers.Viewer;
 
 import cn.shavation.autotest.runner.TestElement;
-import cn.shavation.autotest.runner.TestExecution;
 import cn.shavation.autotest.runner.TestNode;
 
 public class TestExecutionTreeContentProvider implements ITreeContentProvider {
 
-	private final TreeNode[] NO_CHILDREN = new TreeNode[0];
-
-	public static final class TreeNode {
-
-		private TreeNode parent;
-		private TestElement element;
-
-		public TreeNode(TestExecution execution) {
-			this.element = execution;
-		}
-
-		public TreeNode(TreeNode parent, TestElement element) {
-			this.parent = parent;
-			this.element = element;
-		}
-
-		@Override
-		public int hashCode() {
-			return element.hashCode();
-		}
-
-		@Override
-		public boolean equals(Object obj) {
-			return obj instanceof TreeNode
-					&& element.equals(((TreeNode) obj).element);
-		}
-
-		public TreeNode getParent() {
-			return parent;
-		}
-
-		public TestElement getElement() {
-			return element;
-		}
-	}
+	private final TestElement[] NO_CHILDREN = new TestElement[0];
 
 	@Override
 	public Object[] getChildren(Object element) {
-		TreeNode node = (TreeNode) element;
-		if (node.getElement() instanceof TestNode) {
-			List<? extends TestElement> children = ((TestNode) node
-					.getElement()).getChildren();
+		TestElement node = (TestElement) element;
+		if (node instanceof TestNode) {
+			List<? extends TestElement> children = ((TestNode) node)
+					.getChildren();
 			if (children != null && !children.isEmpty()) {
-				TreeNode[] subnodes = new TreeNode[children.size()];
-				for (int i = 0; i < children.size(); i++) {
-					subnodes[i] = new TreeNode(node, children.get(i));
-				}
-				return subnodes;
+				return children.toArray();
 			}
 		}
 		return NO_CHILDREN;
@@ -71,15 +32,15 @@ public class TestExecutionTreeContentProvider implements ITreeContentProvider {
 
 	@Override
 	public Object getParent(Object element) {
-		return ((TreeNode) element).getParent();
+		return ((TestElement) element).getParent();
 	}
 
 	@Override
 	public boolean hasChildren(Object element) {
-		TreeNode node = (TreeNode) element;
-		if (node.getElement() instanceof TestNode) {
-			List<? extends TestElement> children = ((TestNode) node
-					.getElement()).getChildren();
+		TestElement node = (TestElement) element;
+		if (node instanceof TestNode) {
+			List<? extends TestElement> children = ((TestNode) node)
+					.getChildren();
 			return children != null && !children.isEmpty();
 		}
 		return false;

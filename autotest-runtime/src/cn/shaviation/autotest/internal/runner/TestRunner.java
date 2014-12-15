@@ -44,6 +44,7 @@ import cn.shaviation.autotest.util.Strings;
 
 public class TestRunner {
 
+	private String project;
 	private List<String> resources = new ArrayList<String>();
 	private String charset;
 	private boolean recursive = false;
@@ -55,12 +56,16 @@ public class TestRunner {
 
 	public TestRunner(String[] args) {
 		for (int i = 0; i < args.length; i++) {
-			if ("-r".equals(args[i])) {
+			if ("-j".equals(args[i])) {
+				project = Strings.decodeUrl(args[++i]);
+			} else if ("-r".equals(args[i])) {
 				recursive = true;
 			} else if ("-c".equals(args[i])) {
 				charset = args[++i];
 			} else if ("-l".equals(args[i])) {
 				logPath = Strings.decodeUrl(args[++i]);
+			} else if ("-p".equals(args[i])) {
+				++i;
 			} else if (args[i].startsWith("-")) {
 				throw new IllegalArgumentException(
 						"Unknown commond line switch: " + args[i]);
@@ -132,10 +137,10 @@ public class TestRunner {
 		return url;
 	}
 
-	private void fireStartEvent(TestNodeImpl testNode, TestNodeImpl parent) {
+	private void fireNodeAdd(TestNodeImpl testNode, TestNodeImpl parent) {
 		if (connector != null) {
 			try {
-				connector.sendStart(testNode.getId(), testNode.getName(),
+				connector.sendNodeAdd(testNode.getId(), testNode.getName(),
 						testNode.getType(), parent != null ? parent.getId()
 								: null);
 			} catch (Throwable t) {
@@ -144,12 +149,12 @@ public class TestRunner {
 		}
 	}
 
-	private void fireCompleteEvent(TestNodeImpl testNode) {
+	private void fireNodeUpdate(TestNodeImpl testNode) {
 		if (connector != null) {
 			try {
-				connector.sendComplete(testNode.getId(), testNode.getRunTime(),
-						testNode.getStatus(), testNode.getDescription(),
-						testNode.getSnapshot());
+				connector.sendNodeUpdate(testNode.getId(), testNode.getName(),
+						testNode.getRunTime(), testNode.getStatus(),
+						testNode.getDescription(), testNode.getSnapshot());
 			} catch (Throwable t) {
 				t.printStackTrace();
 			}
@@ -160,22 +165,28 @@ public class TestRunner {
 		TestContextImpl context = new TestContextImpl();
 		TestExecutionImpl execution = context.getTestExecution();
 		context.setTestNode(execution);
+		saveArgs(execution);
 		execution.start();
-		fireStartEvent(execution, null);
+		fireNodeAdd(execution, null);
 		try {
-			execution.addAll(resolveResources(), Type.SCRIPT);
+			for (String resource : resolveResources()) {
+				fireNodeAdd(execution.add(resource, Type.SCRIPT), execution);
+			}
 			for (TestNodeImpl child : execution.getChildren()) {
+				if (stop) {
+					break;
+				}
 				context.setTestNode(child);
 				child.start();
-				fireStartEvent(child, execution);
+				fireNodeUpdate(child);
 				System.out.println("Run test script: " + child.getName());
 				runTestScript("", child.getName(), context);
 			}
 			execution.complete();
-			fireCompleteEvent(execution);
+			fireNodeUpdate(execution);
 		} catch (Throwable t) {
 			execution.error(t);
-			fireCompleteEvent(execution);
+			fireNodeUpdate(execution);
 		} finally {
 			context.setTestNode(execution);
 		}
@@ -186,6 +197,14 @@ public class TestRunner {
 		if (!Strings.isBlank(logPath)) {
 			saveLog(execution);
 		}
+	}
+
+	private void saveArgs(TestExecutionImpl execution) {
+		execution.put(TestExecution.ARG_PROJECT, project);
+		execution
+				.put(TestExecution.ARG_LOCATION, Strings.merge(resources, ","));
+		execution.put(TestExecution.ARG_RECURSIVE, String.valueOf(recursive));
+		execution.put(TestExecution.ARG_LOG_PATH, logPath);
 	}
 
 	private void saveLog(TestExecution testExecution) throws IOException {
@@ -219,7 +238,9 @@ public class TestRunner {
 		if (!Strings.isEmpty(prefix)) {
 			nodeName = prefix + ": " + nodeName;
 		}
-		context.getTestNode().setName(nodeName);
+		TestNodeImpl testNode = context.getTestNode();
+		testNode.setName(nodeName);
+		fireNodeUpdate(testNode);
 		runTestScript(testScript, context);
 	}
 
@@ -245,7 +266,7 @@ public class TestRunner {
 							type = Type.SCRIPT;
 							break;
 						}
-						testNode.add(nodeName, type);
+						fireNodeAdd(testNode.add(nodeName, type), testNode);
 						map.put(nodeName, index - 1);
 						return true;
 					}
@@ -253,6 +274,9 @@ public class TestRunner {
 				for (int i = 0; i < testNode.getChildren().size(); i++) {
 					TestNodeImpl child = testNode.getChildren().get(i);
 					context.setTestStepIndex(map.get(child.getName()));
+					if (stop) {
+						break;
+					}
 					TestStep testStep = context.getTestStep();
 					if (testStep.getDependentSteps() != null
 							&& !testStep.getDependentSteps().isEmpty()) {
@@ -268,9 +292,8 @@ public class TestRunner {
 										break;
 									}
 								} else {
-									fireStartEvent(child, testNode);
 									child.block();
-									fireCompleteEvent(child);
+									fireNodeUpdate(child);
 									break;
 								}
 							}
@@ -281,7 +304,7 @@ public class TestRunner {
 					}
 					context.setTestNode(child);
 					child.start();
-					fireStartEvent(child, testNode);
+					fireNodeUpdate(child);
 					try {
 						System.out.println("Go "
 								+ child.getName().toLowerCase() + "... "
@@ -305,20 +328,21 @@ public class TestRunner {
 						default:
 							child.error("Unknow test step type: "
 									+ testStep.getInvokeType());
+							fireNodeUpdate(child);
 							break;
 						}
 					} catch (Throwable t) {
 						child.error(t);
-						fireCompleteEvent(child);
+						fireNodeUpdate(child);
 					}
 				}
 			}
 			testNode.complete();
-			fireCompleteEvent(testNode);
+			fireNodeUpdate(testNode);
 			System.out.println("<<< Completed");
 		} catch (Throwable t) {
 			testNode.error(t);
-			fireCompleteEvent(testNode);
+			fireNodeUpdate(testNode);
 		} finally {
 			context.setTestNode(testNode);
 			context.setTestScript(backTestScript);
@@ -348,6 +372,7 @@ public class TestRunner {
 			nodeName = prefix + ": " + nodeName;
 		}
 		testNode.setName(nodeName);
+		fireNodeUpdate(testNode);
 		TestDataDef testDataDef = null;
 		if (!Strings.isBlank(testStep.getTestDataFile())) {
 			String resource = testStep.getTestDataFile().trim();
@@ -375,11 +400,16 @@ public class TestRunner {
 			}
 		}
 		if (map.size() > 1) {
-			testNode.addAll(map.keySet(), Type.LOOP);
+			for (String name : map.keySet()) {
+				fireNodeAdd(testNode.add(name, Type.LOOP), testNode);
+			}
 			for (TestNodeImpl child : testNode.getChildren()) {
+				if (stop) {
+					break;
+				}
 				context.setTestNode(child);
 				child.start();
-				fireStartEvent(child, testNode);
+				fireNodeUpdate(child);
 				Integer i = map.get(child.getName());
 				loopTestMethod(child.getName(), testClass, testMethod,
 						i != null ? testDataDef.getDataList().get(i) : null,
@@ -387,15 +417,18 @@ public class TestRunner {
 			}
 			context.setTestNode(testNode);
 			testNode.complete();
-			fireCompleteEvent(testNode);
+			fireNodeUpdate(testNode);
 		} else if (map.size() == 1) {
-			String loop = map.keySet().iterator().next();
-			Integer i = map.get(loop);
-			loopTestMethod(loop, testClass, testMethod, i != null ? testDataDef
-					.getDataList().get(i) : null, context);
+			if (!stop) {
+				String loop = map.keySet().iterator().next();
+				Integer i = map.get(loop);
+				loopTestMethod(loop, testClass, testMethod,
+						i != null ? testDataDef.getDataList().get(i) : null,
+						context);
+			}
 		} else {
 			testNode.error("Loop times shall larger than 0");
-			fireCompleteEvent(testNode);
+			fireNodeUpdate(testNode);
 		}
 	}
 
@@ -412,12 +445,12 @@ public class TestRunner {
 				System.out.println(" - Failure");
 			} else {
 				testNode.error("Unexpected case");
-				fireCompleteEvent(testNode);
+				fireNodeUpdate(testNode);
 			}
 		} catch (Throwable t) {
 			System.out.println(" - Error");
 			testNode.error(t);
-			fireCompleteEvent(testNode);
+			fireNodeUpdate(testNode);
 		}
 	}
 
@@ -457,7 +490,7 @@ public class TestRunner {
 		} else {
 			testNode.fail(model.getDescription(), model.getSnapshot());
 		}
-		fireCompleteEvent(testNode);
+		fireNodeUpdate(testNode);
 	}
 
 	private void runSubScript(String prefix, TestStep testStep,
@@ -480,26 +513,32 @@ public class TestRunner {
 			nodeName = prefix + ": " + nodeName;
 		}
 		testNode.setName(nodeName);
+		fireNodeUpdate(testNode);
 		if (testStep.getLoopTimes() > 1) {
 			for (int i = 0; i < testStep.getLoopTimes(); i++) {
-				testNode.add("Loop " + (i + 1), Type.LOOP);
+				fireNodeAdd(testNode.add("Loop " + (i + 1), Type.LOOP),
+						testNode);
 			}
 			for (TestNodeImpl child : testNode.getChildren()) {
+				if (stop) {
+					break;
+				}
 				context.setTestNode(child);
 				child.start();
-				fireStartEvent(child, testNode);
 				System.out.println(child.getName());
 				runTestScript(testScript, context);
 			}
 			context.setTestNode(testNode);
 			testNode.complete();
-			fireCompleteEvent(testNode);
+			fireNodeUpdate(testNode);
 		} else if (testStep.getLoopTimes() == 1) {
-			System.out.println("Loop 1");
-			runTestScript(testScript, context);
+			if (!stop) {
+				System.out.println("Loop 1");
+				runTestScript(testScript, context);
+			}
 		} else {
 			testNode.error("Loop times shall larger than 0");
-			fireCompleteEvent(testNode);
+			fireNodeUpdate(testNode);
 		}
 	}
 
