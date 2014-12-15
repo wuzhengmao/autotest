@@ -17,6 +17,7 @@ import cn.shaviation.autotest.util.Strings;
 public class RemoteTestConnector {
 
 	private static final String DELIMITER = "#@#&";
+	private static final String ESCAPE = "#ESC#&";
 
 	private TestRunner runner;
 	private Socket socket;
@@ -97,7 +98,8 @@ public class RemoteTestConnector {
 		list.add(name);
 		list.add(type);
 		list.add(parentId);
-		String message = Strings.merge(list, DELIMITER);
+		String message = Strings.merge(list, DELIMITER).replace("\r\n", "\r")
+				.replace("\r", ESCAPE + "\\r");
 		writer.println(message);
 	}
 
@@ -111,7 +113,8 @@ public class RemoteTestConnector {
 		list.add(status.name());
 		list.add(description);
 		list.add(snapshot);
-		String message = Strings.merge(list, DELIMITER);
+		String message = Strings.merge(list, DELIMITER).replace("\r\n", "\r")
+				.replace("\r", ESCAPE + "\\r");
 		writer.println(message);
 	}
 }

@@ -24,6 +24,7 @@ import cn.shaviation.autotest.util.Strings;
 public class TestSessionImpl implements TestSession {
 
 	private static final String DELIMITER = "#@#&";
+	private static final String ESCAPE = "#ESC#&";
 	private static final int WAITING = 0;
 	private static final int RUNNING = 1;
 	private static final int COMPLETED = 2;
@@ -61,7 +62,8 @@ public class TestSessionImpl implements TestSession {
 	}
 
 	private void receiveMessage(String message) {
-		List<String> args = Strings.split(message, DELIMITER);
+		List<String> args = Strings.split(
+				message.replace(ESCAPE + "\\r", "\r"), DELIMITER);
 		if ("A".equals(args.get(0))) {
 			long id = Long.parseLong(args.get(1));
 			String name = args.get(2);

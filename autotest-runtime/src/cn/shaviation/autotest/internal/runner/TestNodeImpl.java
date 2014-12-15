@@ -198,6 +198,11 @@ public class TestNodeImpl implements TestNode {
 		status = Status.BLOCKED;
 	}
 
+	public void stop() {
+		runTime = System.currentTimeMillis() - startTime;
+		status = Status.STOPPED;
+	}
+
 	public void complete() {
 		if (startTime != null) {
 			runTime = System.currentTimeMillis() - startTime;

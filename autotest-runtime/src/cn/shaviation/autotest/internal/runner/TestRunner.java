@@ -19,6 +19,10 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import cn.shavation.autotest.AutoTest;
 import cn.shavation.autotest.runner.TestElement.Status;
@@ -51,6 +55,7 @@ public class TestRunner {
 	private String logPath;
 	private PathPatternResolver resolver;
 	private Map<Class<?>, Object> testObjects = new HashMap<Class<?>, Object>();
+	private ExecutorService executor = Executors.newSingleThreadExecutor();
 	private boolean stop = false;
 	private RemoteTestConnector connector;
 
@@ -193,6 +198,9 @@ public class TestRunner {
 		execution.printOut();
 		if (connector != null) {
 			connector.close();
+		}
+		if (!executor.isTerminated()) {
+			executor.shutdown();
 		}
 		if (!Strings.isBlank(logPath)) {
 			saveLog(execution);
@@ -432,13 +440,20 @@ public class TestRunner {
 		}
 	}
 
-	private void loopTestMethod(String loop, Class<?> testClass,
-			Method testMethod, TestDataGroup testDataGroup,
-			TestContextImpl context) {
+	private void loopTestMethod(String loop, final Class<?> testClass,
+			final Method testMethod, final TestDataGroup testDataGroup,
+			final TestContextImpl context) {
 		TestNodeImpl testNode = context.getTestNode();
 		System.out.println(loop);
 		try {
-			invokeTestMethod(testClass, testMethod, testDataGroup, context);
+			executor.submit(new Callable<Void>() {
+				@Override
+				public Void call() throws Exception {
+					invokeTestMethod(testClass, testMethod, testDataGroup,
+							context);
+					return null;
+				}
+			}).get();
 			if (testNode.getStatus() == Status.PASS) {
 				System.out.println(" - Pass");
 			} else if (testNode.getStatus() == Status.FAILURE) {
@@ -447,6 +462,14 @@ public class TestRunner {
 				testNode.error("Unexpected case");
 				fireNodeUpdate(testNode);
 			}
+		} catch (ExecutionException e) {
+			System.out.println(" - Error");
+			testNode.error(e.getCause());
+			fireNodeUpdate(testNode);
+		} catch (InterruptedException e) {
+			System.out.println(" - Stopped");
+			testNode.stop();
+			fireNodeUpdate(testNode);
 		} catch (Throwable t) {
 			System.out.println(" - Error");
 			testNode.error(t);
@@ -456,7 +479,7 @@ public class TestRunner {
 
 	private void invokeTestMethod(Class<?> testClass, Method testMethod,
 			TestDataGroup testDataGroup, TestContextImpl context)
-			throws Throwable {
+			throws Exception {
 		Object testObject = null;
 		if (!Modifier.isStatic(testMethod.getModifiers())) {
 			if (testClass.getAnnotation(Singleton.class) != null) {
@@ -544,6 +567,7 @@ public class TestRunner {
 
 	public void stop() {
 		stop = true;
+		executor.shutdownNow();
 	}
 
 	public void setConnector(RemoteTestConnector connector) {
