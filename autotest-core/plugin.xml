@@ -42,6 +42,14 @@
       <persistent value="true" />
       <super type="org.eclipse.core.resources.problemmarker" />
    </extension>
+ 
+   <extension
+      point="org.eclipse.jdt.core.classpathContainerInitializer">
+      <classpathContainerInitializer
+            class="cn.shaviation.autotest.core.internal.buildpath.AutoTestContainerInitializer"
+            id="cn.shaviation.autotest.AUTOTEST_CONTAINER">
+      </classpathContainerInitializer>
+   </extension>
    
    <extension
          point="org.eclipse.debug.core.launchConfigurationTypes">

@@ -72,6 +72,15 @@
             id="cn.shaviation.autotest.ui.wizards.NewTestScriptWizard">
       </wizard>
    </extension>
+     
+   <extension
+         point="org.eclipse.jdt.ui.classpathContainerPage">
+      <classpathContainerPage
+            name="Automatic Testing Library"
+            class="cn.shaviation.autotest.ui.internal.buildpath.AutoTestContainerWizardPage"
+            id="cn.shaviation.autotest.AUTOTEST_CONTAINER">
+      </classpathContainerPage>
+   </extension>
    
    <extension
          point="org.eclipse.debug.ui.launchConfigurationTypeImages">

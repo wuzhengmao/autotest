@@ -21,6 +21,7 @@ public class AutoTestCore extends Plugin {
 	public static final String PLUGIN_ID = "cn.shaviation.autotest.core"; //$NON-NLS-1$
 	public static final String NATURE_ID = "cn.shaviation.autotest.core.nature"; //$NON-NLS-1$
 	public static final String BUILDER_ID = "cn.shaviation.autotest.core.builder"; //$NON-NLS-1$
+	public static final String CONTAINER_ID = "cn.shaviation.autotest.AUTOTEST_CONTAINER"; //$NON-NLS-1$
 	public static final String LAUNCH_CONFIG_TYPE = "cn.shaviation.autotest.launching.AutoTestLaunchConfigType"; //$NON-NLS-1$
 	public static final String TEST_DATA_FILE_EXTENSION = "tdd"; //$NON-NLS-1$
 	public static final String TEST_SCRIPT_FILE_EXTENSION = AutoTest.TEST_SCRIPT_FILE_EXTENSION;

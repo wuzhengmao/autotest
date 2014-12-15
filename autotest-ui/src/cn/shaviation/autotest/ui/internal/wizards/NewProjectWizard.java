@@ -1,17 +1,12 @@
 package cn.shaviation.autotest.ui.internal.wizards;
 
-import java.io.File;
-import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
-import java.util.ArrayList;
-import java.util.List;
 
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResource;
 import org.eclipse.core.resources.IWorkspaceRunnable;
 import org.eclipse.core.resources.ResourcesPlugin;
 import org.eclipse.core.runtime.CoreException;
-import org.eclipse.core.runtime.FileLocator;
 import org.eclipse.core.runtime.IConfigurationElement;
 import org.eclipse.core.runtime.IExecutableExtension;
 import org.eclipse.core.runtime.IPath;
@@ -21,7 +16,6 @@ import org.eclipse.core.runtime.Path;
 import org.eclipse.core.runtime.SubProgressMonitor;
 import org.eclipse.core.runtime.jobs.ISchedulingRule;
 import org.eclipse.core.runtime.jobs.Job;
-import org.eclipse.jdt.core.IAccessRule;
 import org.eclipse.jdt.core.IClasspathEntry;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.JavaCore;
@@ -41,13 +35,11 @@ import org.eclipse.ui.PlatformUI;
 import org.eclipse.ui.wizards.newresource.BasicNewProjectResourceWizard;
 import org.eclipse.ui.wizards.newresource.BasicNewResourceWizard;
 
-import cn.shavation.autotest.AutoTest;
 import cn.shaviation.autotest.core.AutoTestCore;
 import cn.shaviation.autotest.core.util.Projects;
 import cn.shaviation.autotest.ui.AutoTestUI;
 import cn.shaviation.autotest.ui.internal.util.UIUtils;
 import cn.shaviation.autotest.ui.internal.util.WorkbenchRunnableAdapter;
-import cn.shaviation.autotest.util.Logs;
 
 public class NewProjectWizard extends Wizard implements INewWizard,
 		IExecutableExtension {
@@ -79,19 +71,15 @@ public class NewProjectWizard extends Wizard implements INewWizard,
 
 			@Override
 			public IClasspathEntry[] getDefaultClasspathEntries() {
-				IClasspathEntry[] classpathEntries1 = super
+				IClasspathEntry[] classpathEntries = super
 						.getDefaultClasspathEntries();
-				IClasspathEntry[] classpathEntries2 = createDependentClasspathEntries();
-				IClasspathEntry[] newClasspathEntries = new IClasspathEntry[classpathEntries1.length
-						+ classpathEntries2.length];
-				if (classpathEntries1.length > 0) {
-					System.arraycopy(classpathEntries1, 0, newClasspathEntries,
-							0, classpathEntries1.length);
+				IClasspathEntry[] newClasspathEntries = new IClasspathEntry[classpathEntries.length + 1];
+				if (classpathEntries.length > 0) {
+					System.arraycopy(classpathEntries, 0, newClasspathEntries,
+							0, classpathEntries.length);
 				}
-				if (classpathEntries2.length > 0) {
-					System.arraycopy(classpathEntries2, 0, newClasspathEntries,
-							classpathEntries1.length, classpathEntries2.length);
-				}
+				newClasspathEntries[newClasspathEntries.length - 1] = JavaCore
+						.newContainerEntry(new Path(AutoTestCore.CONTAINER_ID));
 				return newClasspathEntries;
 			}
 
@@ -156,77 +144,6 @@ public class NewProjectWizard extends Wizard implements INewWizard,
 		} finally {
 			monitor.done();
 		}
-	}
-
-	private IClasspathEntry[] createDependentClasspathEntries() {
-		List<IClasspathEntry> classpathEntries = new ArrayList<IClasspathEntry>();
-		File path;
-		try {
-			path = FileLocator.getBundleFile(AutoTest.Plugin.getDefault()
-					.getBundle());
-		} catch (IOException e) {
-			Logs.e(e);
-			return new IClasspathEntry[0];
-		}
-		if (path.isDirectory()) {
-			try {
-				File bin = new File(path, "bin");
-				classpathEntries.add(createClasspathEntry(bin.exists() ? bin
-						: path, true));
-			} catch (IOException e) {
-				Logs.e(e);
-			}
-			File libs = new File(path, "lib");
-			if (libs.exists() && libs.isDirectory()) {
-				for (File lib : libs.listFiles()) {
-					String libName = lib.getName().toLowerCase();
-					if (libName.endsWith(".jar")
-							&& libName.startsWith("jackson-")) {
-						try {
-							classpathEntries.add(createClasspathEntry(lib,
-									false));
-						} catch (IOException e) {
-							Logs.e(e);
-						}
-					}
-				}
-			}
-		} else {
-			try {
-				classpathEntries.add(createClasspathEntry(path, true));
-			} catch (IOException e) {
-				Logs.e(e);
-			}
-		}
-		return classpathEntries.toArray(new IClasspathEntry[classpathEntries
-				.size()]);
-	}
-
-	private IClasspathEntry createClasspathEntry(File path, boolean primary)
-			throws IOException {
-		String lib = path.getCanonicalPath();
-		for (String name : JavaCore.getClasspathVariableNames()) {
-			IPath vp = JavaCore.getClasspathVariable(name);
-			if (vp != null && !vp.isEmpty()) {
-				String var = vp.toFile().getCanonicalPath();
-				if (lib.startsWith(var)) {
-					lib = lib.substring(var.length());
-					if (!lib.startsWith("/") && !lib.startsWith("\\")) {
-						lib = "/" + lib;
-					}
-					return JavaCore.newVariableEntry(new Path(name + lib),
-							null, null, primary ? createAccessRules() : null,
-							null, false);
-				}
-			}
-		}
-		return JavaCore.newLibraryEntry(new Path(lib), null, null,
-				primary ? createAccessRules() : null, null, false);
-	}
-
-	private IAccessRule[] createAccessRules() {
-		return new IAccessRule[] { JavaCore.newAccessRule(new Path(
-				"**/internal/**/*"), IAccessRule.K_NON_ACCESSIBLE) };
 	}
 
 	protected void selectAndReveal(IResource newResource) {
