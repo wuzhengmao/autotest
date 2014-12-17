@@ -17,6 +17,7 @@ public class RerunTestAction extends Action {
 	private String location;
 	private boolean recursive;
 	private String logPath;
+	private String picPath;
 	private String mode;
 
 	public RerunTestAction(String text, Shell shell, ILaunch launch,
@@ -30,13 +31,15 @@ public class RerunTestAction extends Action {
 	}
 
 	public RerunTestAction(String text, Shell shell, IJavaProject javaProject,
-			String location, boolean recursive, String logPath, String mode) {
+			String location, boolean recursive, String logPath, String picPath,
+			String mode) {
 		super(text);
 		this.shell = shell;
 		this.javaProject = javaProject;
 		this.location = location;
 		this.recursive = recursive;
 		this.logPath = logPath;
+		this.picPath = picPath;
 		this.mode = mode;
 	}
 
@@ -47,7 +50,7 @@ public class RerunTestAction extends Action {
 				LaunchHelper.relaunch(launch, location, recursive, mode);
 			} else {
 				LaunchHelper.launch(javaProject.getProject(), location,
-						recursive, logPath, mode);
+						recursive, logPath, picPath, mode);
 			}
 		} catch (CoreException e) {
 			UIUtils.showError(shell, "Launch Failed", e.getMessage(), e);

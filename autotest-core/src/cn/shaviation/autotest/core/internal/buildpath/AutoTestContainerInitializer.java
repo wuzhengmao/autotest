@@ -65,8 +65,13 @@ public class AutoTestContainerInitializer extends ClasspathContainerInitializer 
 		if (path.isDirectory()) {
 			try {
 				File bin = new File(path, "bin");
-				classpathEntries.add(createClasspathEntry(bin.exists() ? bin
-						: path, true));
+				if (bin.exists()) {
+					classpathEntries.add(createClasspathEntry(bin, new File(
+							path, "src"), true));
+				} else {
+					classpathEntries
+							.add(createClasspathEntry(path, null, true));
+				}
 			} catch (IOException e) {
 				Logs.e(e);
 			}
@@ -78,7 +83,7 @@ public class AutoTestContainerInitializer extends ClasspathContainerInitializer 
 							&& libName.startsWith("jackson-")) {
 						try {
 							classpathEntries.add(createClasspathEntry(lib,
-									false));
+									null, false));
 						} catch (IOException e) {
 							Logs.e(e);
 						}
@@ -87,7 +92,7 @@ public class AutoTestContainerInitializer extends ClasspathContainerInitializer 
 			}
 		} else {
 			try {
-				classpathEntries.add(createClasspathEntry(path, true));
+				classpathEntries.add(createClasspathEntry(path, null, true));
 			} catch (IOException e) {
 				Logs.e(e);
 			}
@@ -96,9 +101,7 @@ public class AutoTestContainerInitializer extends ClasspathContainerInitializer 
 				.size()]);
 	}
 
-	private static IClasspathEntry createClasspathEntry(File path,
-			boolean primary) throws IOException {
-		String lib = path.getCanonicalPath();
+	private static String withVariable(String lib) throws IOException {
 		for (String name : JavaCore.getClasspathVariableNames()) {
 			IPath vp = JavaCore.getClasspathVariable(name);
 			if (vp != null && !vp.isEmpty()) {
@@ -108,13 +111,27 @@ public class AutoTestContainerInitializer extends ClasspathContainerInitializer 
 					if (!lib.startsWith("/") && !lib.startsWith("\\")) {
 						lib = "/" + lib;
 					}
-					return JavaCore.newVariableEntry(new Path(name + lib),
-							null, null, primary ? createAccessRules() : null,
-							null, false);
+					return name + lib;
 				}
 			}
 		}
-		return JavaCore.newLibraryEntry(new Path(lib), null, null,
+		return null;
+	}
+
+	private static IClasspathEntry createClasspathEntry(File path,
+			File srcPath, boolean primary) throws IOException {
+		String p = path.getCanonicalPath();
+		String sp = srcPath != null ? srcPath.getCanonicalPath() : null;
+		String vp = withVariable(p);
+		String vsp = sp != null ? withVariable(sp) : null;
+		if (vp != null || vsp != null) {
+			return JavaCore.newVariableEntry(new Path(vp != null ? vp : p),
+					sp != null ? new Path(vsp != null ? vsp : sp) : null,
+					sp != null ? new Path("") : null,
+					primary ? createAccessRules() : null, null, false);
+		}
+		return JavaCore.newLibraryEntry(new Path(p), sp != null ? new Path(sp)
+				: null, sp != null ? new Path("") : null,
 				primary ? createAccessRules() : null, null, false);
 	}
 

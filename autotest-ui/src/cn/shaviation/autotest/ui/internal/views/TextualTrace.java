@@ -11,9 +11,11 @@ public class TextualTrace {
 	public static final int LINE_TYPE_STACKFRAME = 2;
 
 	private final String trace;
+	private final boolean error;
 
-	public TextualTrace(String trace) {
+	public TextualTrace(String trace, boolean error) {
 		this.trace = trace;
+		this.error = error;
 	}
 
 	public void display(FailureTableDisplay display, int maxLabelLength) {
@@ -25,9 +27,9 @@ public class TextualTrace {
 				return;
 			}
 			displayWrappedLine(display, maxLabelLength, line,
-					LINE_TYPE_EXCEPTION);
+					error ? LINE_TYPE_EXCEPTION : LINE_TYPE_NORMAL);
 			while ((line = readLine(bufferedReader)) != null) {
-				int type = isAStackFrame(line) ? LINE_TYPE_STACKFRAME
+				int type = error && isAStackFrame(line) ? LINE_TYPE_STACKFRAME
 						: LINE_TYPE_NORMAL;
 				displayWrappedLine(display, maxLabelLength, line, type);
 			}

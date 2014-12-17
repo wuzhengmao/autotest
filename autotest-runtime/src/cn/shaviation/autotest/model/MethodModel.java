@@ -1,12 +1,13 @@
 package cn.shaviation.autotest.model;
 
+import java.io.File;
 import java.util.Set;
 
 import cn.shavation.autotest.runner.TestContext;
 
 public interface MethodModel {
 
-	TestContext getTextContext();
+	TestContext getTestContext();
 
 	Set<String> inputKeySet();
 
@@ -24,9 +25,11 @@ public interface MethodModel {
 
 	void success(String description);
 
+	void success(String description, boolean takeSnapshot);
+
 	void fail(String description);
 
-	void fail(String description, String snapshot);
+	void fail(String description, boolean takeSnapshot);
 
 	boolean isSuccess();
 
@@ -34,5 +37,5 @@ public interface MethodModel {
 
 	void appendDescription(String description);
 
-	String getSnapshot();
+	File getSnapshot();
 }

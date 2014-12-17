@@ -55,6 +55,8 @@ public class AutoTestMainTab extends AbstractLaunchConfigurationTab {
 	private Text logPathText;
 	private Button logPathButton;
 	private Button saveLogCheckButton;
+	private Text picPathText;
+	private Button picPathButton;
 	private WidgetListener widgetListener = new WidgetListener();
 
 	private class WidgetListener implements ModifyListener, SelectionListener {
@@ -73,6 +75,8 @@ public class AutoTestMainTab extends AbstractLaunchConfigurationTab {
 				handleResourceButtonSelected();
 			} else if (source == logPathButton) {
 				handleLogPathButtonSelected();
+			} else if (source == picPathButton) {
+				handlePicPathButtonSelected();
 			} else {
 				if (source == saveLogCheckButton) {
 					updateLogPathStatus();
@@ -96,6 +100,7 @@ public class AutoTestMainTab extends AbstractLaunchConfigurationTab {
 		createVerticalSpacer(comp, 1);
 		createTestResourceEditor(comp);
 		createLogPathEditor(comp);
+		createPicPathEditor(comp);
 		setControl(comp);
 	}
 
@@ -210,6 +215,32 @@ public class AutoTestMainTab extends AbstractLaunchConfigurationTab {
 		}
 	}
 
+	private void createPicPathEditor(Composite parent) {
+		Group group = UIUtils.createGroup(parent, "&Snapshot:", 2, 1,
+				GridData.FILL_HORIZONTAL);
+		picPathText = UIUtils.createSingleText(group, 1);
+		picPathText.addModifyListener(widgetListener);
+		ControlAccessibleListener.addListener(picPathText, group.getText());
+		picPathButton = createPushButton(group, "Bro&wser...", null);
+		picPathButton.addSelectionListener(widgetListener);
+	}
+
+	private void handlePicPathButtonSelected() {
+		String currentContainerString = picPathText.getText();
+		IContainer currentContainer = getContainer(currentContainerString);
+		ContainerSelectionDialog dialog = new ContainerSelectionDialog(
+				getShell(), currentContainer, true, "Folder Selection");
+		dialog.showClosedProjects(false);
+		dialog.open();
+		Object[] results = dialog.getResult();
+		if ((results != null) && (results.length > 0)
+				&& ((results[0] instanceof IPath))) {
+			IPath path = (IPath) results[0];
+			String containerName = path.toString();
+			picPathText.setText(containerName);
+		}
+	}
+
 	private IContainer getContainer(String path) {
 		Path containerPath = new Path(path);
 		return (IContainer) getWorkspaceRoot().findMember(containerPath);
@@ -282,6 +313,20 @@ public class AutoTestMainTab extends AbstractLaunchConfigurationTab {
 				}
 			}
 		}
+		String path = picPathText.getText().trim();
+		if (!Strings.isEmpty(path)) {
+			IContainer container = getContainer(path);
+			if (container == null
+					|| container instanceof IProject
+					|| container.equals(ResourcesPlugin.getWorkspace()
+							.getRoot())) {
+				setErrorMessage("Invalid snapshot location");
+				return false;
+			} else if (!container.getProject().isOpen()) {
+				setErrorMessage("Cannot save snapshot in a closed project.");
+				return false;
+			}
+		}
 		return true;
 	}
 
@@ -297,6 +342,8 @@ public class AutoTestMainTab extends AbstractLaunchConfigurationTab {
 		config.setAttribute(AutoTestCore.LAUNCH_CONFIG_ATTR_LOG_PATH,
 				saveLogCheckButton.getSelection() ? logPathText.getText()
 						.trim() : "");
+		config.setAttribute(AutoTestCore.LAUNCH_CONFIG_ATTR_PIC_PATH,
+				picPathText.getText().trim());
 	}
 
 	@Override
@@ -305,6 +352,7 @@ public class AutoTestMainTab extends AbstractLaunchConfigurationTab {
 		updateTestResourceFromConfig(config);
 		updateRecursiveFromConfig(config);
 		updateLogPathFromConfig(config);
+		updatePicPathFromConfig(config);
 	}
 
 	private void updateProjectFromConfig(ILaunchConfiguration config) {
@@ -364,6 +412,17 @@ public class AutoTestMainTab extends AbstractLaunchConfigurationTab {
 		}
 	}
 
+	private void updatePicPathFromConfig(ILaunchConfiguration config) {
+		String location = "";
+		try {
+			location = config.getAttribute(
+					AutoTestCore.LAUNCH_CONFIG_ATTR_PIC_PATH, "");
+		} catch (CoreException e) {
+			setErrorMessage(e.getStatus().getMessage());
+		}
+		picPathText.setText(location);
+	}
+
 	@Override
 	public void setDefaults(ILaunchConfigurationWorkingCopy config) {
 		Object resource = LaunchHelper.getContext();
@@ -371,11 +430,13 @@ public class AutoTestMainTab extends AbstractLaunchConfigurationTab {
 			initializeJavaProject(resource, config);
 			initializeTestResource(resource, config);
 			initializeLogPath(resource, config);
+			initializePicPath(resource, config);
 		} else {
 			config.setAttribute(
 					IJavaLaunchConfigurationConstants.ATTR_PROJECT_NAME, "");
 			config.setAttribute(AutoTestCore.LAUNCH_CONFIG_ATTR_LOCATION, "");
 			config.setAttribute(AutoTestCore.LAUNCH_CONFIG_ATTR_LOG_PATH, "");
+			config.setAttribute(AutoTestCore.LAUNCH_CONFIG_ATTR_PIC_PATH, "");
 		}
 		config.setAttribute(AutoTestCore.LAUNCH_CONFIG_ATTR_RECURSIVE, true);
 	}
@@ -407,5 +468,17 @@ public class AutoTestMainTab extends AbstractLaunchConfigurationTab {
 					.toString();
 		}
 		config.setAttribute(AutoTestCore.LAUNCH_CONFIG_ATTR_LOG_PATH, path);
+	}
+
+	private void initializePicPath(Object resource,
+			ILaunchConfigurationWorkingCopy config) {
+		IJavaProject javaProject = LaunchHelper.getJavaProject(resource);
+		String path = null;
+		if (javaProject != null && javaProject.exists()) {
+			path = javaProject.getProject()
+					.getFolder(AutoTestCore.DEFAULT_PIC_FOLDER).getFullPath()
+					.toString();
+		}
+		config.setAttribute(AutoTestCore.LAUNCH_CONFIG_ATTR_PIC_PATH, path);
 	}
 }

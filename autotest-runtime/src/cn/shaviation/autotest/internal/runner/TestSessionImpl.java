@@ -63,7 +63,7 @@ public class TestSessionImpl implements TestSession {
 
 	private void receiveMessage(String message) {
 		List<String> args = Strings.split(
-				message.replace(ESCAPE + "\\r", "\r"), DELIMITER);
+				message.replace(ESCAPE + "\\n", "\n"), DELIMITER);
 		if ("A".equals(args.get(0))) {
 			long id = Long.parseLong(args.get(1));
 			String name = args.get(2);
@@ -108,8 +108,10 @@ public class TestSessionImpl implements TestSession {
 				listener.onNodeUpdate(testNode);
 			}
 			if (testNode.getType() == Type.ROOT) {
-				testNodes.clear();
-				testNodes = null;
+				if (testNodes != null) {
+					testNodes.clear();
+					testNodes = null;
+				}
 				connection.shutdown();
 				state = COMPLETED;
 				if (listener != null) {
@@ -121,8 +123,10 @@ public class TestSessionImpl implements TestSession {
 
 	private void notifyTerminated() {
 		if (!isDone()) {
-			testNodes.clear();
-			testNodes = null;
+			if (testNodes != null) {
+				testNodes.clear();
+				testNodes = null;
+			}
 			state = STOPPED;
 			if (listener != null) {
 				listener.onTerminate(testExecution);

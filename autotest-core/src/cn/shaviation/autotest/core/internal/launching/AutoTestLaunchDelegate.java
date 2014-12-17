@@ -44,7 +44,7 @@ public class AutoTestLaunchDelegate extends JavaLaunchDelegate {
 					AutoTestCore.PLUGIN_ID,
 					"Cannot run multi-instance of automatic testing"));
 		}
-		port = evaluatePort();
+		port = 12432;
 		launch.setAttribute(AutoTestCore.LAUNCH_CONFIG_ATTR_PORT,
 				String.valueOf(port));
 		super.launch(configuration, mode, launch, monitor);
@@ -72,14 +72,20 @@ public class AutoTestLaunchDelegate extends JavaLaunchDelegate {
 				AutoTestCore.LAUNCH_CONFIG_ATTR_RECURSIVE, true)) {
 			sb.append("-r ");
 		}
-		IFolder folder = getLogFolder(configuration);
-		if (folder != null) {
+		IFolder logFolder = getLogFolder(configuration);
+		if (logFolder != null) {
 			sb.append("-l ")
-					.append(Strings.encodeUrl(folder.getRawLocation()
+					.append(Strings.encodeUrl(logFolder.getRawLocation()
 							.toOSString())).append(" ");
 		}
 		sb.append("-c ").append(getProject(configuration).getDefaultCharset())
 				.append(" ");
+		IFolder picFolder = getPicFolder(configuration);
+		if (picFolder != null) {
+			sb.append("-s ")
+					.append(Strings.encodeUrl(picFolder.getRawLocation()
+							.toOSString())).append(" ");
+		}
 		sb.append("-p ").append(port).append(" ");
 		String location = configuration.getAttribute(
 				AutoTestCore.LAUNCH_CONFIG_ATTR_LOCATION, "");
@@ -96,8 +102,9 @@ public class AutoTestLaunchDelegate extends JavaLaunchDelegate {
 	@Override
 	public IVMRunner getVMRunner(final ILaunchConfiguration configuration,
 			String mode) throws CoreException {
-		final IFolder folder = getLogFolder(configuration);
-		if (folder != null) {
+		final IFolder logFolder = getLogFolder(configuration);
+		final IFolder picFolder = getPicFolder(configuration);
+		if (logFolder != null || picFolder != null) {
 			final IVMRunner runner = super.getVMRunner(configuration, mode);
 			return new IVMRunner() {
 				@Override
@@ -107,8 +114,17 @@ public class AutoTestLaunchDelegate extends JavaLaunchDelegate {
 					runner.run(runnerConfiguration, launch, monitor);
 					IProcess[] processes = launch.getProcesses();
 					if (processes != null && processes.length > 0) {
+						IContainer[] containers;
+						if (logFolder == null) {
+							containers = new IContainer[] { picFolder };
+						} else if (picFolder == null) {
+							containers = new IContainer[] { logFolder };
+						} else {
+							containers = new IContainer[] { logFolder,
+									picFolder };
+						}
 						BackgroundResourceRefresher refresher = new BackgroundResourceRefresher(
-								folder, launch);
+								containers, launch);
 						refresher.init();
 					}
 				}
@@ -150,31 +166,62 @@ public class AutoTestLaunchDelegate extends JavaLaunchDelegate {
 		return null;
 	}
 
+	private IFolder getPicFolder(ILaunchConfiguration configuration)
+			throws CoreException {
+		String picPath = configuration.getAttribute(
+				AutoTestCore.LAUNCH_CONFIG_ATTR_PIC_PATH, "");
+		if (!Strings.isBlank(picPath)) {
+			IProject project = getProject(configuration);
+			IFolder folder;
+			if (!picPath.startsWith("file:")) {
+				folder = (IFolder) project.getWorkspace().getRoot()
+						.getFolder(new Path(picPath.trim()));
+			} else {
+				folder = (IFolder) project
+						.getWorkspace()
+						.getRoot()
+						.getFolder(
+								new Path(picPath.substring(5).trim())
+										.makeRelativeTo(project.getWorkspace()
+												.getRoot().getRawLocation()));
+			}
+			if (!folder.exists()) {
+				folder.create(true, false, null);
+			}
+			return folder;
+		}
+		return null;
+	}
+
 	private int evaluatePort() throws CoreException {
 		ServerSocket socket = null;
-		try {
-			socket = new ServerSocket(0);
-			return socket.getLocalPort();
-		} catch (IOException e) {
-		} finally {
-			if (socket != null) {
-				try {
-					socket.close();
-				} catch (IOException e) {
+		for (int port = 1119; port < 1169; port++) {
+			try {
+				socket = new ServerSocket(port);
+				return port;
+			} catch (IOException e) {
+			} finally {
+				if (socket != null) {
+					try {
+						socket.close();
+					} catch (IOException e) {
+					}
 				}
 			}
 		}
 		throw new CoreException(new Status(IStatus.ERROR,
-				AutoTestCore.PLUGIN_ID, "No socket available"));
+				AutoTestCore.PLUGIN_ID,
+				"No socket available between 1119 to 1169"));
 	}
 
 	public static class BackgroundResourceRefresher implements
 			IDebugEventSetListener {
-		private IContainer container;
+		private IContainer[] containers;
 		private IProcess process;
 
-		public BackgroundResourceRefresher(IContainer container, ILaunch launch) {
-			this.container = container;
+		public BackgroundResourceRefresher(IContainer[] containers,
+				ILaunch launch) {
+			this.containers = containers;
 			this.process = launch.getProcesses()[0];
 		}
 
@@ -205,8 +252,7 @@ public class AutoTestLaunchDelegate extends JavaLaunchDelegate {
 			Job job = new Job("Refreshing resources...") {
 				public IStatus run(IProgressMonitor monitor) {
 					try {
-						RefreshUtil.refreshResources(
-								new IResource[] { container },
+						RefreshUtil.refreshResources(containers,
 								IResource.DEPTH_INFINITE, monitor);
 						return Status.OK_STATUS;
 					} catch (CoreException e) {

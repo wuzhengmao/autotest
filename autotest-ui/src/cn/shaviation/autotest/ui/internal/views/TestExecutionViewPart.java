@@ -1,5 +1,6 @@
 package cn.shaviation.autotest.ui.internal.views;
 
+import java.io.File;
 import java.io.InputStreamReader;
 
 import org.eclipse.core.resources.IFile;
@@ -7,6 +8,7 @@ import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.ResourcesPlugin;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.IStatus;
+import org.eclipse.core.runtime.Path;
 import org.eclipse.core.runtime.jobs.ILock;
 import org.eclipse.core.runtime.jobs.Job;
 import org.eclipse.debug.core.ILaunch;
@@ -26,14 +28,19 @@ import org.eclipse.swt.custom.ViewForm;
 import org.eclipse.swt.dnd.Clipboard;
 import org.eclipse.swt.events.ControlAdapter;
 import org.eclipse.swt.events.ControlEvent;
+import org.eclipse.swt.events.SelectionAdapter;
+import org.eclipse.swt.events.SelectionEvent;
 import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.Composite;
+import org.eclipse.swt.widgets.Link;
 import org.eclipse.ui.IActionBars;
 import org.eclipse.ui.IEditorActionBarContributor;
+import org.eclipse.ui.IEditorDescriptor;
 import org.eclipse.ui.IEditorPart;
+import org.eclipse.ui.IEditorRegistry;
 import org.eclipse.ui.IMemento;
 import org.eclipse.ui.IViewPart;
 import org.eclipse.ui.IViewSite;
@@ -41,7 +48,9 @@ import org.eclipse.ui.IWorkbenchPage;
 import org.eclipse.ui.IWorkbenchPart;
 import org.eclipse.ui.IWorkbenchWindow;
 import org.eclipse.ui.PartInitException;
+import org.eclipse.ui.PlatformUI;
 import org.eclipse.ui.actions.ActionFactory;
+import org.eclipse.ui.ide.IDE;
 import org.eclipse.ui.part.EditorActionBarContributor;
 import org.eclipse.ui.part.ViewPart;
 import org.eclipse.ui.progress.IWorkbenchSiteProgressService;
@@ -74,6 +83,7 @@ public class TestExecutionViewPart extends ViewPart implements
 	private TestProgressBar progressBar;
 	private SashForm sashForm;
 	private TestNodeViewer testNodeViewer;
+	private Link snapshot;
 	private FailureTrace failureTrace;
 	private volatile String infoMessage;
 	private Action nextAction;
@@ -351,9 +361,20 @@ public class TestExecutionViewPart extends ViewPart implements
 		top.setContent(testNodeViewer.getControl());
 		ViewForm bottom = new ViewForm(sashForm, SWT.NONE);
 		CLabel label = new CLabel(bottom, SWT.NONE);
-		label.setText("Failure Trace");
+		label.setText("Details Trace");
 		label.setImage(UIUtils.getImage("stackframe.gif"));
 		bottom.setTopLeft(label);
+		snapshot = new Link(bottom, SWT.NONE);
+		snapshot.addSelectionListener(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent event) {
+				if (snapshot.getData() instanceof String) {
+					showSnapshot((String) snapshot.getData());
+				}
+			}
+		});
+		snapshot.setText("");
+		bottom.setTopRight(snapshot);
 		failureTrace = new FailureTrace(bottom, clipboard, this);
 		bottom.setContent(failureTrace.getComposite());
 		sashForm.setWeights(new int[] { 50, 50 });
@@ -552,6 +573,7 @@ public class TestExecutionViewPart extends ViewPart implements
 					registerInfoMessage(selectedElement.getName());
 					doShowInfoMessage();
 					refreshCounters();
+					refreshSnapshot();
 					failureTrace.showFailure(selectedElement);
 				}
 			}
@@ -771,6 +793,7 @@ public class TestExecutionViewPart extends ViewPart implements
 		}
 		doShowInfoMessage();
 		refreshCounters();
+		refreshSnapshot();
 		boolean hasErrorsOrFailures = hasErrorsOrFailures();
 		nextAction.setEnabled(hasErrorsOrFailures);
 		prevAction.setEnabled(hasErrorsOrFailures);
@@ -863,6 +886,49 @@ public class TestExecutionViewPart extends ViewPart implements
 			}
 		}
 		progressBar.reset(hasErrorsOrFailures, stopped, ticksDone, totalCount);
+	}
+
+	private void refreshSnapshot() {
+		if (testExecution != null && selectedElement != null
+				&& !Strings.isBlank(selectedElement.getSnapshot())) {
+			String path = selectedElement.getSnapshot().trim();
+			String file = new Path(path).lastSegment();
+			snapshot.setText("<a>" + file + "</a>");
+			snapshot.setData(path);
+		} else {
+			snapshot.setText("");
+			snapshot.setData(null);
+		}
+		snapshot.getParent().layout();
+	}
+
+	private void showSnapshot(String file) {
+		IEditorRegistry editorReg = PlatformUI.getWorkbench()
+				.getEditorRegistry();
+		IEditorDescriptor editorDesc = editorReg.getDefaultEditor(file);
+		if (editorDesc == null
+				&& editorReg.isSystemInPlaceEditorAvailable(file)) {
+			editorDesc = editorReg
+					.findEditor(IEditorRegistry.SYSTEM_INPLACE_EDITOR_ID);
+		}
+		if (editorDesc == null
+				&& editorReg.isSystemExternalEditorAvailable(file)) {
+			editorDesc = editorReg
+					.findEditor(IEditorRegistry.SYSTEM_EXTERNAL_EDITOR_ID);
+		}
+		if (editorDesc == null) {
+			UIUtils.showError(getSite().getShell(), "Snapshot",
+					"No editor found to open snapshot file.");
+			return;
+		}
+		try {
+			IDE.openEditor(getSite().getPage(),
+					new File((String) snapshot.getData()).toURI(),
+					editorDesc.getId(), true);
+		} catch (PartInitException e) {
+			UIUtils.showError(getSite().getShell(), "Snapshot",
+					"Error occured on opening snapshot file.", e);
+		}
 	}
 
 	private boolean hasErrorsOrFailures() {

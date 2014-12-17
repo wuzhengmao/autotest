@@ -12,11 +12,17 @@ import cn.shaviation.autotest.model.TestStep;
 
 public class TestContextImpl implements TestContext {
 
+	private TestRunner testRunner;
 	private TestExecutionImpl testExecution = new TestExecutionImpl();
 	private TestScript testScript;
 	private int testStepIndex;
 	private TestNodeImpl testNode;
-	private Map<String, String> map = new HashMap<String, String>();
+	private Map<String, String> params = new HashMap<String, String>();
+	private Map<String, Object> attrs = new HashMap<String, Object>();
+
+	public TestContextImpl(TestRunner testRunner) {
+		this.testRunner = testRunner;
+	}
 
 	@Override
 	public TestExecutionImpl getTestExecution() {
@@ -40,28 +46,42 @@ public class TestContextImpl implements TestContext {
 
 	@Override
 	public Set<String> keySet() {
-		return Collections.unmodifiableSet(map.keySet());
+		return Collections.unmodifiableSet(params.keySet());
 	}
 
 	@Override
 	public String get(String key) {
-		return map.get(key);
+		return params.get(key);
 	}
 
 	@Override
-	public void put(String key, String value) {
-		map.put(key, value);
+	public Set<String> attrNames() {
+		return Collections.unmodifiableSet(attrs.keySet());
 	}
 
 	@Override
-	public void remove(String key) {
-		map.remove(key);
+	public Object getAttr(String key) {
+		return attrs.get(key);
+	}
+
+	@Override
+	public Object setAttr(String key, Object value) {
+		return attrs.put(key, value);
+	}
+
+	@Override
+	public Object removeAttr(String key) {
+		return attrs.remove(key);
 	}
 
 	@Override
 	public MethodModel createMethodModel(Map<String, String> inputData,
 			Map<String, String> outputData) {
 		return new MethodModelImpl(this, inputData, outputData);
+	}
+
+	public TestRunner getTestRunner() {
+		return testRunner;
 	}
 
 	public void setTestScript(TestScript testScript) {
@@ -78,5 +98,13 @@ public class TestContextImpl implements TestContext {
 
 	public void setTestNode(TestNodeImpl testNode) {
 		this.testNode = testNode;
+	}
+
+	public void put(String key, String value) {
+		params.put(key, value);
+	}
+
+	public void remove(String key) {
+		params.remove(key);
 	}
 }

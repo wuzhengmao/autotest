@@ -182,11 +182,13 @@ public abstract class LaunchHelper {
 			boolean recursive, String mode) throws CoreException {
 		launch(project, location, recursive,
 				project.getFolder(AutoTestCore.DEFAULT_LOG_FOLDER)
+						.getFullPath().toString(),
+				project.getFolder(AutoTestCore.DEFAULT_PIC_FOLDER)
 						.getFullPath().toString(), mode);
 	}
 
 	public static void launch(IProject project, String location,
-			boolean recursive, String logPath, String mode)
+			boolean recursive, String logPath, String picPath, String mode)
 			throws CoreException {
 		ILaunchManager launchManager = DebugPlugin.getDefault()
 				.getLaunchManager();
@@ -206,6 +208,10 @@ public abstract class LaunchHelper {
 		if (!Strings.isBlank(logPath)) {
 			workingCopy.setAttribute(AutoTestCore.LAUNCH_CONFIG_ATTR_LOG_PATH,
 					logPath);
+		}
+		if (!Strings.isBlank(picPath)) {
+			workingCopy.setAttribute(AutoTestCore.LAUNCH_CONFIG_ATTR_PIC_PATH,
+					picPath);
 		}
 		IPath path = JavaUtils.getJREContainerPath(project);
 		if (path != null) {

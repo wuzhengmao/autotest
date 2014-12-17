@@ -1,5 +1,8 @@
 package cn.shaviation.autotest.core.internal.launching;
 
+import java.util.HashSet;
+import java.util.Set;
+
 import org.eclipse.core.resources.ResourcesPlugin;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.debug.core.ILaunch;
@@ -15,13 +18,23 @@ import cn.shaviation.autotest.core.TestRunSession;
 
 public class AutoTestLaunchListener implements ILaunchListener {
 
+	private Set<ILaunch> trackedLaunches = new HashSet<ILaunch>(4);
+
 	@Override
 	public void launchAdded(ILaunch launch) {
+		trackedLaunches.add(launch);
+	}
 
+	@Override
+	public void launchRemoved(ILaunch launch) {
+		trackedLaunches.remove(launch);
 	}
 
 	@Override
 	public void launchChanged(ILaunch launch) {
+		if (!trackedLaunches.contains(launch)) {
+			return;
+		}
 		ILaunchConfiguration config = launch.getLaunchConfiguration();
 		if (config == null) {
 			return;
@@ -52,13 +65,9 @@ public class AutoTestLaunchListener implements ILaunchListener {
 		if (port <= 0) {
 			return;
 		}
+		trackedLaunches.remove(launch);
 		TestRunSession session = new TestRunSession(launch, javaProject,
 				TestSessionHelper.create(port));
 		AutoTestCore.setTestRunSession(session);
-	}
-
-	@Override
-	public void launchRemoved(ILaunch launch) {
-
 	}
 }

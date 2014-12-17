@@ -1,5 +1,6 @@
 package cn.shaviation.autotest.internal.runner;
 
+import java.io.File;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
@@ -15,7 +16,7 @@ public class MethodModelImpl implements MethodModel {
 	private Map<String, String> outputData;
 	private boolean success = true;
 	private String description;
-	private String snapshot;
+	private File snapshot;
 
 	public MethodModelImpl(TestContextImpl testContext,
 			Map<String, String> inputData, Map<String, String> outputData) {
@@ -25,7 +26,7 @@ public class MethodModelImpl implements MethodModel {
 	}
 
 	@Override
-	public TestContext getTextContext() {
+	public TestContext getTestContext() {
 		return testContext;
 	}
 
@@ -71,16 +72,25 @@ public class MethodModelImpl implements MethodModel {
 	}
 
 	@Override
+	public void success(String description, boolean takeSnapshot) {
+		success(description);
+		if (takeSnapshot) {
+			snapshot = testContext.getTestRunner().takeSnapshot(testContext);
+		}
+	}
+
+	@Override
 	public void fail(String description) {
 		success = false;
 		this.description = description;
 	}
 
 	@Override
-	public void fail(String description, String snapshot) {
-		success = false;
-		this.description = description;
-		this.snapshot = snapshot;
+	public void fail(String description, boolean takeSnapshot) {
+		fail(description);
+		if (takeSnapshot) {
+			snapshot = testContext.getTestRunner().takeSnapshot(testContext);
+		}
 	}
 
 	@Override
@@ -103,7 +113,7 @@ public class MethodModelImpl implements MethodModel {
 	}
 
 	@Override
-	public String getSnapshot() {
+	public File getSnapshot() {
 		return snapshot;
 	}
 }

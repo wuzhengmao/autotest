@@ -98,8 +98,8 @@ public class RemoteTestConnector {
 		list.add(name);
 		list.add(type);
 		list.add(parentId);
-		String message = Strings.merge(list, DELIMITER).replace("\r\n", "\r")
-				.replace("\r", ESCAPE + "\\r");
+		String message = Strings.merge(list, DELIMITER).replace("\r\n", "\n")
+				.replace("\n", ESCAPE + "\\n");
 		writer.println(message);
 	}
 
@@ -113,8 +113,8 @@ public class RemoteTestConnector {
 		list.add(status.name());
 		list.add(description);
 		list.add(snapshot);
-		String message = Strings.merge(list, DELIMITER).replace("\r\n", "\r")
-				.replace("\r", ESCAPE + "\\r");
+		String message = Strings.merge(list, DELIMITER).replace("\r\n", "\n")
+				.replace("\n", ESCAPE + "\\n");
 		writer.println(message);
 	}
 }

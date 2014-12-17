@@ -1,5 +1,6 @@
 package cn.shaviation.autotest.internal.runner;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
@@ -25,6 +26,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import cn.shavation.autotest.AutoTest;
+import cn.shavation.autotest.runner.ISnapshotService;
 import cn.shavation.autotest.runner.TestElement.Status;
 import cn.shavation.autotest.runner.TestElement.Type;
 import cn.shavation.autotest.runner.TestExecution;
@@ -44,20 +46,57 @@ import cn.shaviation.autotest.model.TestScriptHelper;
 import cn.shaviation.autotest.model.TestStep;
 import cn.shaviation.autotest.model.TestStepIterator;
 import cn.shaviation.autotest.model.TestStepIterator.ITestStepVisitor;
+import cn.shaviation.autotest.util.IOUtils;
 import cn.shaviation.autotest.util.Strings;
 
 public class TestRunner {
+
+	private static final Map<Class<?>, Object> services = new HashMap<Class<?>, Object>();
 
 	private String project;
 	private List<String> resources = new ArrayList<String>();
 	private String charset;
 	private boolean recursive = false;
 	private String logPath;
+	private String picPath;
 	private PathPatternResolver resolver;
 	private Map<Class<?>, Object> testObjects = new HashMap<Class<?>, Object>();
 	private ExecutorService executor = Executors.newSingleThreadExecutor();
 	private boolean stop = false;
 	private RemoteTestConnector connector;
+
+	@SuppressWarnings("unchecked")
+	private static <T> T getService(Class<T> interfaceClass) {
+		if (!services.containsKey(interfaceClass)) {
+			synchronized (interfaceClass) {
+				if (!services.containsKey(interfaceClass)) {
+					Object service = null;
+					String resource = "META-INF/services/"
+							+ interfaceClass.getCanonicalName();
+					ClassLoader cl = interfaceClass.getClassLoader();
+					URL url = cl.getResource(resource);
+					if (url != null) {
+						try {
+							String implClass = new BufferedReader(
+									new InputStreamReader(url.openStream()))
+									.readLine();
+							if (!Strings.isBlank(implClass)) {
+								service = Class.forName(implClass.trim(), true,
+										cl).newInstance();
+							}
+						} catch (Exception e) {
+							e.printStackTrace();
+						}
+					}
+					services.put(interfaceClass, service);
+					if (service == null) {
+						System.err.println("Cannot find service: " + resource);
+					}
+				}
+			}
+		}
+		return (T) services.get(interfaceClass);
+	}
 
 	public TestRunner(String[] args) {
 		for (int i = 0; i < args.length; i++) {
@@ -69,6 +108,8 @@ public class TestRunner {
 				charset = args[++i];
 			} else if ("-l".equals(args[i])) {
 				logPath = Strings.decodeUrl(args[++i]);
+			} else if ("-s".equals(args[i])) {
+				picPath = Strings.decodeUrl(args[++i]);
 			} else if ("-p".equals(args[i])) {
 				++i;
 			} else if (args[i].startsWith("-")) {
@@ -83,11 +124,13 @@ public class TestRunner {
 	}
 
 	public TestRunner(List<String> resources, String charset,
-			boolean recursive, String logPath, ClassLoader classLoader) {
+			boolean recursive, String logPath, String picPath,
+			ClassLoader classLoader) {
 		this.resources = resources;
 		this.charset = charset;
 		this.recursive = recursive;
 		this.logPath = logPath;
+		this.picPath = picPath;
 		this.resolver = classLoader != null ? new ClassPathMatchingPatternResolver(
 				classLoader) : new ClassPathMatchingPatternResolver();
 		validateArgs();
@@ -167,7 +210,7 @@ public class TestRunner {
 	}
 
 	public void run() throws IOException {
-		TestContextImpl context = new TestContextImpl();
+		TestContextImpl context = new TestContextImpl(this);
 		TestExecutionImpl execution = context.getTestExecution();
 		context.setTestNode(execution);
 		saveArgs(execution);
@@ -213,22 +256,24 @@ public class TestRunner {
 				.put(TestExecution.ARG_LOCATION, Strings.merge(resources, ","));
 		execution.put(TestExecution.ARG_RECURSIVE, String.valueOf(recursive));
 		execution.put(TestExecution.ARG_LOG_PATH, logPath);
+		execution.put(TestExecution.ARG_PIC_PATH, picPath);
 	}
 
 	private void saveLog(TestExecution testExecution) throws IOException {
 		Date now = new Date();
 		File path = new File(logPath.trim(), Strings.formatYMD(now));
 		if (!path.exists()) {
-			path.mkdirs();
+			if (!path.mkdirs()) {
+				System.err.println("Make dirs failed: " + path.getPath());
+				return;
+			}
 		}
-		if (path.exists()) {
-			File file = new File(path, Strings.formatHMS(now) + "."
-					+ AutoTest.TEST_RESULT_FILE_EXTENSION);
-			FileOutputStream fos = new FileOutputStream(file);
-			OutputStreamWriter writer = charset != null ? new OutputStreamWriter(
-					fos, charset) : new OutputStreamWriter(fos);
-			TestExecutionHelper.serialize(writer, testExecution);
-		}
+		File file = new File(path, Strings.formatHMS(now) + "."
+				+ AutoTest.TEST_RESULT_FILE_EXTENSION);
+		FileOutputStream fos = new FileOutputStream(file);
+		OutputStreamWriter writer = charset != null ? new OutputStreamWriter(
+				fos, charset) : new OutputStreamWriter(fos);
+		TestExecutionHelper.serialize(writer, testExecution);
 	}
 
 	private void runTestScript(String prefix, String resource,
@@ -562,6 +607,36 @@ public class TestRunner {
 		} else {
 			testNode.error("Loop times shall larger than 0");
 			fireNodeUpdate(testNode);
+		}
+	}
+
+	public File takeSnapshot(TestContextImpl context) {
+		if (Strings.isBlank(picPath)) {
+			System.err.println("Snapshot path not specified");
+			return null;
+		}
+		ISnapshotService service = getService(ISnapshotService.class);
+		if (service == null) {
+			return null;
+		}
+		File path = new File(picPath.trim());
+		if (!path.exists()) {
+			if (!path.mkdirs()) {
+				System.err.println("Make dirs failed: " + path.getPath());
+				return null;
+			}
+		}
+		String suffix = service.type();
+		if (suffix != null) {
+			suffix = "." + suffix;
+		}
+		try {
+			File file = File.createTempFile("TSS", suffix, path);
+			IOUtils.saveFile(service.take(context), file);
+			return file;
+		} catch (Exception e) {
+			e.printStackTrace();
+			return null;
 		}
 	}
 

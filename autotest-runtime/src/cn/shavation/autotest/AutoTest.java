@@ -53,11 +53,11 @@ public class AutoTest {
 	}
 
 	public static void run(List<String> resources, boolean recursive,
-			String logPath, String charset, ClassLoader classLoader)
-			throws Exception {
+			String logPath, String charset, String picPath,
+			ClassLoader classLoader) throws Exception {
 		TestRunner runner = new TestRunner(
 				Collections.unmodifiableList(resources), charset, recursive,
-				logPath, classLoader);
+				logPath, picPath, classLoader);
 		runner.run();
 	}
 }

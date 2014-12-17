@@ -1,5 +1,6 @@
 package cn.shaviation.autotest.internal.runner;
 
+import java.io.File;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.ArrayList;
@@ -168,18 +169,18 @@ public class TestNodeImpl implements TestNode {
 		startTime = System.currentTimeMillis();
 	}
 
-	public void success(String description, String snapshot) {
+	public void success(String description, File snapshot) {
 		runTime = System.currentTimeMillis() - startTime;
 		status = Status.PASS;
 		this.description = description;
-		this.snapshot = snapshot;
+		this.snapshot = snapshot != null ? snapshot.getAbsolutePath() : null;
 	}
 
-	public void fail(String description, String snapshot) {
+	public void fail(String description, File snapshot) {
 		runTime = System.currentTimeMillis() - startTime;
 		status = Status.FAILURE;
 		this.description = description;
-		this.snapshot = snapshot;
+		this.snapshot = snapshot != null ? snapshot.getAbsolutePath() : null;
 	}
 
 	public void error(String description) {

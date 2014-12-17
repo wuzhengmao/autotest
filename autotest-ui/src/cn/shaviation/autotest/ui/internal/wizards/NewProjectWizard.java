@@ -127,11 +127,14 @@ public class NewProjectWizard extends Wizard implements INewWizard,
 			throws InterruptedException, CoreException {
 		try {
 			monitor.beginTask("Creating...", 5);
-			this.fSecondPage.performFinish(new SubProgressMonitor(monitor, 3));
+			this.fSecondPage.performFinish(new SubProgressMonitor(monitor, 4));
 			IJavaProject javaProject = getCreatedProject();
 			IProject project = javaProject.getProject();
 			monitor.subTask("Create logs folder");
 			project.getFolder(AutoTestCore.DEFAULT_LOG_FOLDER).create(true,
+					false, new SubProgressMonitor(monitor, 1));
+			monitor.subTask("Create snapshot folder");
+			project.getFolder(AutoTestCore.DEFAULT_PIC_FOLDER).create(true,
 					false, new SubProgressMonitor(monitor, 1));
 			monitor.subTask("Configure project");
 			project.setDefaultCharset("UTF-8", monitor);

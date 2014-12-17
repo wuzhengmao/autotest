@@ -8,6 +8,7 @@ public interface TestExecution extends TestNode {
 	String ARG_LOCATION = "location";
 	String ARG_RECURSIVE = "recursive";
 	String ARG_LOG_PATH = "logPath";
+	String ARG_PIC_PATH = "picPath";
 
 	Map<String, String> getArgs();
 }

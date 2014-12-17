@@ -21,9 +21,13 @@ public interface TestContext {
 
 	String get(String key);
 
-	void put(String key, String value);
+	Set<String> attrNames();
 
-	void remove(String key);
+	Object getAttr(String key);
+
+	Object setAttr(String key, Object value);
+
+	Object removeAttr(String key);
 
 	MethodModel createMethodModel(Map<String, String> inputData,
 			Map<String, String> outputData);

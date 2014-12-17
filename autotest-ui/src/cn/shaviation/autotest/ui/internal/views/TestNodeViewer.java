@@ -204,14 +204,19 @@ public class TestNodeViewer {
 					if (!Strings.isBlank(logPath)) {
 						logPath = "file:" + logPath;
 					}
+					String picPath = testExecution.getArgs().get(
+							TestExecution.ARG_PIC_PATH);
+					if (!Strings.isBlank(picPath)) {
+						logPath = "file:" + picPath;
+					}
 					manager.add(new RerunTestAction("&Run", testExecutionView
 							.getViewSite().getShell(), testExecutionView
 							.getLaunchedProject(), testScript, false, logPath,
-							"run"));
+							picPath, "run"));
 					manager.add(new RerunTestAction("&Debug", testExecutionView
 							.getViewSite().getShell(), testExecutionView
 							.getLaunchedProject(), testScript, false, logPath,
-							"debug"));
+							picPath, "debug"));
 					manager.add(new Separator());
 				}
 				manager.add(new ExpandAllAction());

@@ -28,6 +28,7 @@ public class AutoTestCore extends Plugin {
 	public static final String TEST_RESULT_FILE_EXTENSION = AutoTest.TEST_RESULT_FILE_EXTENSION;
 	public static final String DEFAULT_RESOURCE_FOLDER = "resources"; //$NON-NLS-1$
 	public static final String DEFAULT_LOG_FOLDER = "logs"; //$NON-NLS-1$
+	public static final String DEFAULT_PIC_FOLDER = "pics"; //$NON-NLS-1$
 
 	public static final QualifiedName TEST_DATA_NAME_KEY = new QualifiedName(
 			PLUGIN_ID, "testDataName");
@@ -37,6 +38,7 @@ public class AutoTestCore extends Plugin {
 	public static final String LAUNCH_CONFIG_ATTR_LOCATION = "cn.shaviation.autotest.launching.ATTR_LOCATION";
 	public static final String LAUNCH_CONFIG_ATTR_RECURSIVE = "cn.shaviation.autotest.launching.ATTR_RECURSIVE";
 	public static final String LAUNCH_CONFIG_ATTR_LOG_PATH = "cn.shaviation.autotest.launching.ATTR_LOG_PATH";
+	public static final String LAUNCH_CONFIG_ATTR_PIC_PATH = "cn.shaviation.autotest.launching.ATTR_PIC_PATH";
 	public static final String LAUNCH_CONFIG_ATTR_PORT = "cn.shaviation.autotest.launching.PORT";
 
 	private static AutoTestCore plugin;

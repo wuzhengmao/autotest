@@ -7,6 +7,7 @@ import org.eclipse.jface.action.IMenuManager;
 import org.eclipse.jface.action.MenuManager;
 import org.eclipse.jface.util.IOpenEventListener;
 import org.eclipse.jface.util.OpenStrategy;
+import org.eclipse.swt.SWT;
 import org.eclipse.swt.dnd.Clipboard;
 import org.eclipse.swt.events.SelectionEvent;
 import org.eclipse.swt.widgets.Composite;
@@ -29,6 +30,7 @@ public class FailureTrace implements IMenuListener {
 	private Table table;
 	private TestExecutionViewPart testExecutionView;
 	private String inputTrace;
+	private boolean inputError;
 	private final Clipboard clipboard;
 	private TestElement failure;
 	private final FailureTableDisplay failureTableDisplay;
@@ -36,7 +38,7 @@ public class FailureTrace implements IMenuListener {
 	public FailureTrace(Composite parent, Clipboard clipboard,
 			TestExecutionViewPart testExecutionView) {
 		Assert.isNotNull(clipboard);
-		this.table = new Table(parent, 772);
+		this.table = new Table(parent, SWT.SINGLE | SWT.H_SCROLL | SWT.V_SCROLL);
 		this.testExecutionView = testExecutionView;
 		this.clipboard = clipboard;
 		OpenStrategy handler = new OpenStrategy(table);
@@ -113,25 +115,27 @@ public class FailureTrace implements IMenuListener {
 	}
 
 	public void refresh() {
-		updateTable(inputTrace);
+		updateTable(inputTrace, inputError);
 	}
 
 	public void showFailure(TestElement failure) {
 		this.failure = failure;
 		String trace = "";
+		boolean error = false;
 		if (failure != null
-				&& (failure.getStatus() == Status.ERROR || failure.getStatus() == Status.FAILURE)
 				&& (!(failure instanceof TestNode) || ((TestNode) failure)
 						.total() == 0)) {
 			trace = failure.getDescription();
+			error = failure.getStatus() == Status.ERROR;
 		}
-		if (this.inputTrace != trace) {
+		if (this.inputTrace != trace || this.inputError != error) {
 			this.inputTrace = trace;
-			updateTable(trace);
+			this.inputError = error;
+			updateTable(trace, error);
 		}
 	}
 
-	private void updateTable(String trace) {
+	private void updateTable(String trace, boolean error) {
 		if (Strings.isBlank(trace)) {
 			clear();
 			return;
@@ -139,7 +143,8 @@ public class FailureTrace implements IMenuListener {
 		trace = trace.trim();
 		table.setRedraw(false);
 		table.removeAll();
-		new TextualTrace(trace).display(failureTableDisplay, MAX_LABEL_LENGTH);
+		new TextualTrace(trace, error).display(failureTableDisplay,
+				MAX_LABEL_LENGTH);
 		table.setRedraw(true);
 	}
 
