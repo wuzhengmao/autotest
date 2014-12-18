@@ -162,6 +162,14 @@ public abstract class JavaUtils {
 			IAccessRule[] rules) throws IOException {
 		String p = path.getCanonicalPath();
 		String sp = srcPath != null ? srcPath.getCanonicalPath() : null;
+		return JavaCore.newLibraryEntry(new Path(p), sp != null ? new Path(sp)
+				: null, sp != null ? new Path("") : null, rules, null, false);
+	}
+
+	public static IClasspathEntry createClasspathEntryWithVariable(File path,
+			File srcPath, IAccessRule[] rules) throws IOException {
+		String p = path.getCanonicalPath();
+		String sp = srcPath != null ? srcPath.getCanonicalPath() : null;
 		String vp = withVariable(p);
 		String vsp = sp != null ? withVariable(sp) : null;
 		if (vp != null || vsp != null) {

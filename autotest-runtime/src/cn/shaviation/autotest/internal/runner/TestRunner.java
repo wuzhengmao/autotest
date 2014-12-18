@@ -328,7 +328,7 @@ public class TestRunner {
 						for (int j = i - 1; j >= 0; j--) {
 							TestNodeImpl check = testNode.getChildren().get(j);
 							int k = check.getName().indexOf(':');
-							String pf = i >= 0 ? check.getName()
+							String pf = k >= 0 ? check.getName()
 									.substring(0, k) : check.getName();
 							if (set.remove(map.get(pf) + 1)) {
 								if (check.getStatus() == Status.PASS) {
