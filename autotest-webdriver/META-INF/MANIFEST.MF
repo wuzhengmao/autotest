@@ -1,0 +1,12 @@
+Manifest-Version: 1.0
+Bundle-ManifestVersion: 2
+Bundle-Name: Automatic Testing Runtime for WebDriver
+Bundle-SymbolicName: cn.shaviation.autotest.webdriver;singleton:=true
+Bundle-Version: 1.0.0.qualifier
+Bundle-Activator: cn.shaviation.autotest.webdriver.WebDriverRuntime
+Require-Bundle: org.eclipse.core.runtime,
+ org.eclipse.jdt.core,
+ cn.shaviation.autotest.runtime;bundle-version="1.0.0"
+Bundle-ActivationPolicy: lazy
+Bundle-RequiredExecutionEnvironment: JavaSE-1.6
+Export-Package: cn.shaviation.autotest.webdriver

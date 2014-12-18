@@ -9,8 +9,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 
-import cn.shavation.autotest.runner.Logger;
 import cn.shavation.autotest.runner.TestNode;
+import cn.shavation.autotest.runner.spi.Logger;
+import cn.shavation.autotest.runner.spi.LoggerFactory;
 import cn.shaviation.autotest.util.Strings;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;

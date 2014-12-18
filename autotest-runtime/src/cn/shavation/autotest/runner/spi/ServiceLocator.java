@@ -1,4 +1,4 @@
-package cn.shaviation.autotest.internal.runner;
+package cn.shavation.autotest.runner.spi;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -6,7 +6,6 @@ import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
 
-import cn.shavation.autotest.runner.Logger;
 import cn.shaviation.autotest.util.Strings;
 
 public abstract class ServiceLocator {

@@ -25,11 +25,13 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import cn.shavation.autotest.AutoTest;
-import cn.shavation.autotest.runner.IBootstrapService;
-import cn.shavation.autotest.runner.ISnapshotService;
-import cn.shavation.autotest.runner.Logger;
 import cn.shavation.autotest.runner.TestElement.Status;
 import cn.shavation.autotest.runner.TestElement.Type;
+import cn.shavation.autotest.runner.spi.IBootstrapService;
+import cn.shavation.autotest.runner.spi.ISnapshotService;
+import cn.shavation.autotest.runner.spi.Logger;
+import cn.shavation.autotest.runner.spi.LoggerFactory;
+import cn.shavation.autotest.runner.spi.ServiceLocator;
 import cn.shavation.autotest.runner.TestExecution;
 import cn.shavation.autotest.runner.TestExecutionHelper;
 import cn.shaviation.autotest.annotation.Singleton;
@@ -325,8 +327,9 @@ public class TestRunner {
 								testStep.getDependentSteps());
 						for (int j = i - 1; j >= 0; j--) {
 							TestNodeImpl check = testNode.getChildren().get(j);
-							String pf = check.getName().substring(0,
-									check.getName().indexOf(':'));
+							int k = check.getName().indexOf(':');
+							String pf = i >= 0 ? check.getName()
+									.substring(0, k) : check.getName();
 							if (set.remove(map.get(pf) + 1)) {
 								if (check.getStatus() == Status.PASS) {
 									if (set.isEmpty()) {

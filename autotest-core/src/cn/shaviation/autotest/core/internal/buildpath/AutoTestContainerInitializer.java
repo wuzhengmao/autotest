@@ -3,14 +3,13 @@ package cn.shaviation.autotest.core.internal.buildpath;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.FileLocator;
 import org.eclipse.core.runtime.IPath;
-import org.eclipse.core.runtime.Path;
 import org.eclipse.jdt.core.ClasspathContainerInitializer;
-import org.eclipse.jdt.core.IAccessRule;
 import org.eclipse.jdt.core.IClasspathContainer;
 import org.eclipse.jdt.core.IClasspathEntry;
 import org.eclipse.jdt.core.IJavaProject;
@@ -18,16 +17,21 @@ import org.eclipse.jdt.core.JavaCore;
 
 import cn.shavation.autotest.AutoTest;
 import cn.shaviation.autotest.core.AutoTestCore;
+import cn.shaviation.autotest.core.util.JavaUtils;
 import cn.shaviation.autotest.util.Logs;
+import cn.shaviation.autotest.util.Strings;
+import cn.shaviation.autotest.webdriver.WebDriverRuntime;
 
 public class AutoTestContainerInitializer extends ClasspathContainerInitializer {
+
+	private static final String INTERNAL_PATTERN = "**/internal/**/*";
 
 	@Override
 	public void initialize(IPath containerPath, IJavaProject project)
 			throws CoreException {
 		if (isValidContainerPath(containerPath)) {
 			AutoTestContainer container = new AutoTestContainer(containerPath,
-					createLibraryClasspathEntries());
+					createLibraryClasspathEntries(containerPath));
 			JavaCore.setClasspathContainer(containerPath,
 					new IJavaProject[] { project },
 					new IClasspathContainer[] { container }, null);
@@ -42,17 +46,32 @@ public class AutoTestContainerInitializer extends ClasspathContainerInitializer 
 	@Override
 	public String getDescription(IPath containerPath, IJavaProject project) {
 		if (isValidContainerPath(containerPath)) {
-			return "Automatic Testing Library";
+			return getLibraryName(containerPath);
 		}
 		return "Unresolved container";
 	}
 
 	private static boolean isValidContainerPath(IPath path) {
-		return path != null && path.segmentCount() == 1
+		return path != null && path.segmentCount() >= 1
 				&& AutoTestCore.CONTAINER_ID.equals(path.segment(0));
 	}
 
-	private static IClasspathEntry[] createLibraryClasspathEntries() {
+	private static String getLibraryName(IPath path) {
+		String name = "Automatic Testing Library";
+		if (path.segmentCount() > 1) {
+			String ext = AutoTestCore.getRuntimeExtensions().get(
+					path.segment(1));
+			if (!Strings.isEmpty(ext)) {
+				name += " with " + ext;
+			} else {
+				name += " miss " + ext;
+			}
+		}
+		return name;
+	}
+
+	private static IClasspathEntry[] createLibraryClasspathEntries(
+			IPath containerPath) {
 		List<IClasspathEntry> classpathEntries = new ArrayList<IClasspathEntry>();
 		File path;
 		try {
@@ -66,11 +85,13 @@ public class AutoTestContainerInitializer extends ClasspathContainerInitializer 
 			try {
 				File bin = new File(path, "bin");
 				if (bin.exists()) {
-					classpathEntries.add(createClasspathEntry(bin, new File(
-							path, "src"), true));
+					classpathEntries.add(JavaUtils.createClasspathEntry(bin,
+							new File(path, "src"),
+							JavaUtils.createForbiddenRules(INTERNAL_PATTERN)));
 				} else {
-					classpathEntries
-							.add(createClasspathEntry(path, null, true));
+					classpathEntries.add(JavaUtils.createClasspathEntry(path,
+							null,
+							JavaUtils.createForbiddenRules(INTERNAL_PATTERN)));
 				}
 			} catch (IOException e) {
 				Logs.e(e);
@@ -82,8 +103,8 @@ public class AutoTestContainerInitializer extends ClasspathContainerInitializer 
 					if (libName.endsWith(".jar")
 							&& libName.startsWith("jackson-")) {
 						try {
-							classpathEntries.add(createClasspathEntry(lib,
-									null, false));
+							classpathEntries.add(JavaUtils
+									.createClasspathEntry(lib, null, null));
 						} catch (IOException e) {
 							Logs.e(e);
 						}
@@ -92,52 +113,81 @@ public class AutoTestContainerInitializer extends ClasspathContainerInitializer 
 			}
 		} else {
 			try {
-				classpathEntries.add(createClasspathEntry(path, null, true));
-			} catch (IOException e) {
+				classpathEntries.add(JavaUtils.createClasspathEntry(path, null,
+						JavaUtils.createForbiddenRules(INTERNAL_PATTERN)));
+			} catch (Exception e) {
 				Logs.e(e);
+			}
+		}
+		if (containerPath.segmentCount() > 1) {
+			String ext = containerPath.segment(1);
+			if (WebDriverRuntime.EXTENSION_ID.equals(ext)) {
+				try {
+					classpathEntries.addAll(createWebDriverClasspathEntries());
+				} catch (Exception e) {
+					Logs.e(e);
+				}
 			}
 		}
 		return classpathEntries.toArray(new IClasspathEntry[classpathEntries
 				.size()]);
 	}
 
-	private static String withVariable(String lib) throws IOException {
-		for (String name : JavaCore.getClasspathVariableNames()) {
-			IPath vp = JavaCore.getClasspathVariable(name);
-			if (vp != null && !vp.isEmpty()) {
-				String var = vp.toFile().getCanonicalPath();
-				if (lib.startsWith(var)) {
-					lib = lib.substring(var.length());
-					if (!lib.startsWith("/") && !lib.startsWith("\\")) {
-						lib = "/" + lib;
+	private static List<IClasspathEntry> createWebDriverClasspathEntries() {
+		List<IClasspathEntry> classpathEntries = new ArrayList<IClasspathEntry>();
+		File path;
+		try {
+			path = FileLocator.getBundleFile(WebDriverRuntime.getDefault()
+					.getBundle());
+		} catch (IOException e) {
+			Logs.e(e);
+			return Collections.emptyList();
+		}
+		if (path.isDirectory()) {
+			try {
+				File bin = new File(path, "bin");
+				if (bin.exists()) {
+					classpathEntries.add(JavaUtils.createClasspathEntry(bin,
+							new File(path, "src"),
+							JavaUtils.createForbiddenRules(INTERNAL_PATTERN)));
+				} else {
+					classpathEntries.add(JavaUtils.createClasspathEntry(path,
+							null,
+							JavaUtils.createForbiddenRules(INTERNAL_PATTERN)));
+				}
+			} catch (IOException e) {
+				Logs.e(e);
+			}
+			File libs = new File(path, "lib");
+			if (libs.exists() && libs.isDirectory()) {
+				for (File lib : libs.listFiles()) {
+					String libName = lib.getName().toLowerCase();
+					if (libName.endsWith(".jar")
+							&& !libName.endsWith("-srcs.jar")) {
+						String srcName = lib.getName().replace(".jar",
+								"-srcs.jar");
+						File srcLib = new File(lib.getParentFile(), srcName);
+						if (!srcLib.exists()) {
+							srcLib = null;
+						}
+						try {
+							classpathEntries.add(JavaUtils
+									.createClasspathEntry(lib, srcLib, null));
+						} catch (IOException e) {
+							Logs.e(e);
+						}
 					}
-					return name + lib;
 				}
 			}
+		} else {
+			try {
+				classpathEntries.add(JavaUtils.createClasspathEntry(path, null,
+						JavaUtils.createForbiddenRules(INTERNAL_PATTERN)));
+			} catch (Exception e) {
+				Logs.e(e);
+			}
 		}
-		return null;
-	}
-
-	private static IClasspathEntry createClasspathEntry(File path,
-			File srcPath, boolean primary) throws IOException {
-		String p = path.getCanonicalPath();
-		String sp = srcPath != null ? srcPath.getCanonicalPath() : null;
-		String vp = withVariable(p);
-		String vsp = sp != null ? withVariable(sp) : null;
-		if (vp != null || vsp != null) {
-			return JavaCore.newVariableEntry(new Path(vp != null ? vp : p),
-					sp != null ? new Path(vsp != null ? vsp : sp) : null,
-					sp != null ? new Path("") : null,
-					primary ? createAccessRules() : null, null, false);
-		}
-		return JavaCore.newLibraryEntry(new Path(p), sp != null ? new Path(sp)
-				: null, sp != null ? new Path("") : null,
-				primary ? createAccessRules() : null, null, false);
-	}
-
-	private static IAccessRule[] createAccessRules() {
-		return new IAccessRule[] { JavaCore.newAccessRule(new Path(
-				"**/internal/**/*"), IAccessRule.K_NON_ACCESSIBLE) };
+		return classpathEntries;
 	}
 
 	public static class AutoTestContainer implements IClasspathContainer {
@@ -157,7 +207,7 @@ public class AutoTestContainerInitializer extends ClasspathContainerInitializer 
 
 		@Override
 		public String getDescription() {
-			return "Automatic Testing Library";
+			return getLibraryName(path);
 		}
 
 		@Override

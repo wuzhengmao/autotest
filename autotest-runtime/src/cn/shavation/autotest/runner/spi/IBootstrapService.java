@@ -1,4 +1,6 @@
-package cn.shavation.autotest.runner;
+package cn.shavation.autotest.runner.spi;
+
+import cn.shavation.autotest.runner.TestContext;
 
 public interface IBootstrapService {
 

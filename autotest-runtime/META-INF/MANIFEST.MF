@@ -6,6 +6,7 @@ Bundle-Version: 1.0.0.qualifier
 Bundle-RequiredExecutionEnvironment: JavaSE-1.6
 Export-Package: cn.shavation.autotest,
  cn.shavation.autotest.runner,
+ cn.shavation.autotest.runner.spi,
  cn.shaviation.autotest.annotation,
  cn.shaviation.autotest.model,
  cn.shaviation.autotest.util,

@@ -1,9 +1,14 @@
 package cn.shaviation.autotest.core.util;
 
+import java.io.File;
+import java.io.IOException;
+
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.IProgressMonitor;
+import org.eclipse.core.runtime.Path;
+import org.eclipse.jdt.core.IAccessRule;
 import org.eclipse.jdt.core.IClasspathEntry;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.IPackageFragmentRoot;
@@ -151,5 +156,42 @@ public abstract class JavaUtils {
 		} catch (JavaModelException e) {
 		}
 		return null;
+	}
+
+	public static IClasspathEntry createClasspathEntry(File path, File srcPath,
+			IAccessRule[] rules) throws IOException {
+		String p = path.getCanonicalPath();
+		String sp = srcPath != null ? srcPath.getCanonicalPath() : null;
+		String vp = withVariable(p);
+		String vsp = sp != null ? withVariable(sp) : null;
+		if (vp != null || vsp != null) {
+			return JavaCore.newVariableEntry(new Path(vp != null ? vp : p),
+					sp != null ? new Path(vsp != null ? vsp : sp) : null,
+					sp != null ? new Path("") : null, rules, null, false);
+		}
+		return JavaCore.newLibraryEntry(new Path(p), sp != null ? new Path(sp)
+				: null, sp != null ? new Path("") : null, rules, null, false);
+	}
+
+	private static String withVariable(String lib) throws IOException {
+		for (String name : JavaCore.getClasspathVariableNames()) {
+			IPath vp = JavaCore.getClasspathVariable(name);
+			if (vp != null && !vp.isEmpty()) {
+				String var = vp.toFile().getCanonicalPath();
+				if (lib.startsWith(var)) {
+					lib = lib.substring(var.length());
+					if (!lib.startsWith("/") && !lib.startsWith("\\")) {
+						lib = "/" + lib;
+					}
+					return name + lib;
+				}
+			}
+		}
+		return null;
+	}
+
+	public static IAccessRule[] createForbiddenRules(String pattern) {
+		return new IAccessRule[] { JavaCore.newAccessRule(new Path(pattern),
+				IAccessRule.K_NON_ACCESSIBLE) };
 	}
 }

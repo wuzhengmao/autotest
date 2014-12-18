@@ -1,7 +1,4 @@
-package cn.shaviation.autotest.internal.runner;
-
-import cn.shavation.autotest.runner.ILoggerProvider;
-import cn.shavation.autotest.runner.Logger;
+package cn.shavation.autotest.runner.spi;
 
 public abstract class LoggerFactory {
 

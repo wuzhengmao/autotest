@@ -1,7 +1,10 @@
 package cn.shaviation.autotest.core;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.eclipse.core.runtime.Assert;
 import org.eclipse.core.runtime.IAdaptable;
@@ -15,6 +18,7 @@ import org.osgi.framework.BundleContext;
 
 import cn.shavation.autotest.AutoTest;
 import cn.shaviation.autotest.core.internal.launching.AutoTestLaunchListener;
+import cn.shaviation.autotest.webdriver.WebDriverRuntime;
 
 public class AutoTestCore extends Plugin {
 
@@ -22,6 +26,8 @@ public class AutoTestCore extends Plugin {
 	public static final String NATURE_ID = "cn.shaviation.autotest.core.nature"; //$NON-NLS-1$
 	public static final String BUILDER_ID = "cn.shaviation.autotest.core.builder"; //$NON-NLS-1$
 	public static final String CONTAINER_ID = "cn.shaviation.autotest.AUTOTEST_CONTAINER"; //$NON-NLS-1$
+	public static final String EXTENSION_ID = ""; //$NON-NLS-1$
+	public static final String EXTENSION_NAME = "Core"; //$NON-NLS-1$
 	public static final String LAUNCH_CONFIG_TYPE = "cn.shaviation.autotest.launching.AutoTestLaunchConfigType"; //$NON-NLS-1$
 	public static final String TEST_DATA_FILE_EXTENSION = "tdd"; //$NON-NLS-1$
 	public static final String TEST_SCRIPT_FILE_EXTENSION = AutoTest.TEST_SCRIPT_FILE_EXTENSION;
@@ -46,6 +52,14 @@ public class AutoTestCore extends Plugin {
 	private AutoTestLaunchListener listener = new AutoTestLaunchListener();
 	private List<ITestLaunchListener> listeners = new ArrayList<ITestLaunchListener>();
 	private TestRunSession session;
+	private Map<String, String> extensions = new LinkedHashMap<String, String>();
+
+	public AutoTestCore() {
+		super();
+		extensions.put(EXTENSION_ID, EXTENSION_NAME);
+		extensions.put(WebDriverRuntime.EXTENSION_ID,
+				WebDriverRuntime.EXTENSION_NAME);
+	}
 
 	@Override
 	public void start(BundleContext context) throws Exception {
@@ -64,6 +78,9 @@ public class AutoTestCore extends Plugin {
 			launchManager.removeLaunchListener(listener);
 		} finally {
 			plugin = null;
+			listener = null;
+			listeners.clear();
+			session = null;
 			super.stop(context);
 		}
 	}
@@ -120,6 +137,14 @@ public class AutoTestCore extends Plugin {
 		plugin.session = session;
 		for (ITestLaunchListener listener : plugin.listeners) {
 			listener.onLaunch(session);
+		}
+	}
+
+	public static Map<String, String> getRuntimeExtensions() {
+		if (plugin != null) {
+			return Collections.unmodifiableMap(plugin.extensions);
+		} else {
+			return Collections.emptyMap();
 		}
 	}
 }

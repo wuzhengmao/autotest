@@ -10,7 +10,8 @@ Require-Bundle: org.eclipse.core.runtime,
  org.eclipse.debug.core,
  org.eclipse.jdt.core,
  org.eclipse.jdt.launching,
- cn.shaviation.autotest.runtime;bundle-version="1.0.0"
+ cn.shaviation.autotest.runtime;bundle-version="1.0.0",
+ cn.shaviation.autotest.webdriver;bundle-version="1.0.0"
 Bundle-ActivationPolicy: lazy
 Bundle-RequiredExecutionEnvironment: JavaSE-1.6
 Export-Package: cn.shaviation.autotest.core,
