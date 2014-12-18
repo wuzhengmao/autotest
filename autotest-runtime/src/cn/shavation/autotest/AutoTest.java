@@ -70,11 +70,11 @@ public class AutoTest {
 	}
 
 	public static void run(List<String> resources, boolean recursive,
-			String logPath, String charset, String picPath, boolean verbose,
+			String logPath, String charset, String picPath,
 			ClassLoader classLoader) throws Exception {
 		TestRunner runner = new TestRunner(
 				Collections.unmodifiableList(resources), charset, recursive,
-				logPath, picPath, verbose, classLoader);
+				logPath, picPath, classLoader);
 		runner.run();
 	}
 }

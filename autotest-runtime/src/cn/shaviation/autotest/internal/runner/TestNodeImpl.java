@@ -9,6 +9,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 
+import cn.shavation.autotest.runner.Logger;
 import cn.shavation.autotest.runner.TestNode;
 import cn.shaviation.autotest.util.Strings;
 
@@ -16,6 +17,8 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 
 public class TestNodeImpl implements TestNode {
 
+	private static final Logger logger = LoggerFactory
+			.getLogger(TestNodeImpl.class);
 	private static final AtomicLong SEQ = new AtomicLong();
 
 	private long id;
@@ -240,25 +243,25 @@ public class TestNodeImpl implements TestNode {
 				+ error + " Blocked:" + blocked;
 	}
 
-	public void printOut() {
-		printOut("", "");
+	public void printLog() {
+		printLog("", "");
 	}
 
-	private void printOut(String padding1, String padding2) {
-		System.out.println(padding1 + "["
+	private void printLog(String padding1, String padding2) {
+		logger.debug(padding1 + "["
 				+ (status != null ? status.name().charAt(0) : ' ') + "] "
 				+ name + " - Cost " + runTime + "ms");
 		if (children != null && !children.isEmpty()) {
 			for (TestNodeImpl child : children) {
-				child.printOut(padding2 + " |--", padding2 + " |  ");
+				child.printLog(padding2 + " |--", padding2 + " |  ");
 			}
 		}
 		if (!Strings.isEmpty(description)) {
 			String message = insertPadding(description, padding2);
 			if (status != Status.ERROR) {
-				System.out.println(message);
+				logger.debug(message);
 			} else {
-				System.err.println(message);
+				logger.error(message);
 			}
 		}
 	}

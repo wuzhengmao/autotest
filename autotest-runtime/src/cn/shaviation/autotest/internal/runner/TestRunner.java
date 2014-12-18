@@ -1,6 +1,5 @@
 package cn.shaviation.autotest.internal.runner;
 
-import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
@@ -28,6 +27,7 @@ import java.util.concurrent.Executors;
 import cn.shavation.autotest.AutoTest;
 import cn.shavation.autotest.runner.IBootstrapService;
 import cn.shavation.autotest.runner.ISnapshotService;
+import cn.shavation.autotest.runner.Logger;
 import cn.shavation.autotest.runner.TestElement.Status;
 import cn.shavation.autotest.runner.TestElement.Type;
 import cn.shavation.autotest.runner.TestExecution;
@@ -52,7 +52,8 @@ import cn.shaviation.autotest.util.Strings;
 
 public class TestRunner {
 
-	private static final Map<Class<?>, Object> services = new HashMap<Class<?>, Object>();
+	private static final Logger logger = LoggerFactory
+			.getLogger(TestRunner.class);
 
 	private String project;
 	private List<String> resources = new ArrayList<String>();
@@ -60,45 +61,11 @@ public class TestRunner {
 	private boolean recursive = false;
 	private String logPath;
 	private String picPath;
-	private boolean verbose = false;
 	private PathPatternResolver resolver;
 	private Map<Class<?>, Object> testObjects = new HashMap<Class<?>, Object>();
 	private ExecutorService executor = Executors.newSingleThreadExecutor();
 	private boolean stop = false;
 	private RemoteTestConnector connector;
-
-	@SuppressWarnings("unchecked")
-	private static <T> T getService(Class<T> interfaceClass) {
-		if (!services.containsKey(interfaceClass)) {
-			synchronized (interfaceClass) {
-				if (!services.containsKey(interfaceClass)) {
-					Object service = null;
-					String resource = "META-INF/services/"
-							+ interfaceClass.getCanonicalName();
-					ClassLoader cl = interfaceClass.getClassLoader();
-					URL url = cl.getResource(resource);
-					if (url != null) {
-						try {
-							String implClass = new BufferedReader(
-									new InputStreamReader(url.openStream()))
-									.readLine();
-							if (!Strings.isBlank(implClass)) {
-								service = Class.forName(implClass.trim(), true,
-										cl).newInstance();
-							}
-						} catch (Exception e) {
-							e.printStackTrace();
-						}
-					}
-					services.put(interfaceClass, service);
-					if (service == null) {
-						log("Cannot find service: " + resource, null);
-					}
-				}
-			}
-		}
-		return (T) services.get(interfaceClass);
-	}
 
 	public TestRunner(String[] args) {
 		for (int i = 0; i < args.length; i++) {
@@ -112,8 +79,6 @@ public class TestRunner {
 				logPath = Strings.decodeUrl(args[++i]);
 			} else if ("-s".equals(args[i])) {
 				picPath = Strings.decodeUrl(args[++i]);
-			} else if ("-v".equals(args[i])) {
-				verbose = true;
 			} else if ("-p".equals(args[i])) {
 				++i;
 			} else if (args[i].startsWith("-")) {
@@ -128,14 +93,13 @@ public class TestRunner {
 	}
 
 	public TestRunner(List<String> resources, String charset,
-			boolean recursive, String logPath, String picPath, boolean verbose,
+			boolean recursive, String logPath, String picPath,
 			ClassLoader classLoader) {
 		this.resources = resources;
 		this.charset = charset;
 		this.recursive = recursive;
 		this.logPath = logPath;
 		this.picPath = picPath;
-		this.verbose = verbose;
 		this.resolver = classLoader != null ? new ClassPathMatchingPatternResolver(
 				classLoader) : new ClassPathMatchingPatternResolver();
 		validateArgs();
@@ -218,7 +182,8 @@ public class TestRunner {
 		TestContextImpl context = new TestContextImpl(this);
 		TestContextHolder.set(context);
 		try {
-			IBootstrapService bootstrap = getService(IBootstrapService.class);
+			IBootstrapService bootstrap = ServiceLocator
+					.getService(IBootstrapService.class);
 			if (bootstrap != null) {
 				bootstrap.prepare(context);
 			}
@@ -251,7 +216,7 @@ public class TestRunner {
 				context.setTestNode(child);
 				child.start();
 				fireNodeUpdate(child);
-				log("Run test script: " + child.getName());
+				logger.debug("Run test script: " + child.getName());
 				runTestScript("", child.getName(), context);
 			}
 			execution.complete();
@@ -262,7 +227,6 @@ public class TestRunner {
 		} finally {
 			context.setTestNode(execution);
 		}
-		execution.printOut();
 		if (connector != null) {
 			connector.close();
 		}
@@ -288,7 +252,7 @@ public class TestRunner {
 		File path = new File(logPath.trim(), Strings.formatYMD(now));
 		if (!path.exists()) {
 			if (!path.mkdirs()) {
-				log("Make dirs failed: " + path.getPath(), null);
+				logger.error("Make dirs failed: " + path.getPath());
 				return;
 			}
 		}
@@ -311,7 +275,7 @@ public class TestRunner {
 		} else {
 			nodeName = nodeName.trim() + "(" + resource + ")";
 		}
-		log("Starting \"" + nodeName + "\" >>>");
+		logger.debug("Starting \"" + nodeName + "\" >>>");
 		if (!Strings.isEmpty(prefix)) {
 			nodeName = prefix + ": " + nodeName;
 		}
@@ -383,7 +347,8 @@ public class TestRunner {
 					child.start();
 					fireNodeUpdate(child);
 					try {
-						log("Go " + child.getName().toLowerCase() + "... "
+						logger.debug("Go " + child.getName().toLowerCase()
+								+ "... "
 								+ (testNode.total() - testNode.count(null))
 								+ "/" + testNode.total());
 						if (testStep.getParameters() != null) {
@@ -408,6 +373,7 @@ public class TestRunner {
 							break;
 						}
 					} catch (Throwable t) {
+						logger.error(null, t);
 						child.error(t);
 						fireNodeUpdate(child);
 					}
@@ -415,9 +381,9 @@ public class TestRunner {
 			}
 			testNode.complete();
 			fireNodeUpdate(testNode);
-			log("<<< Completed");
+			logger.debug("<<< Completed");
 		} catch (Throwable t) {
-			log(null, t);
+			logger.error(null, t);
 			testNode.error(t);
 			fireNodeUpdate(testNode);
 		} finally {
@@ -463,7 +429,7 @@ public class TestRunner {
 					+ (!Strings.isBlank(testDataDef.getName()) ? testDataDef
 							.getName() : resource) + "\"";
 		}
-		log(msg);
+		logger.debug(msg);
 		Map<String, Integer> map = new LinkedHashMap<String, Integer>();
 		for (int i = 0; i < testStep.getLoopTimes(); i++) {
 			if (testDataDef != null && testDataDef.getDataList() != null
@@ -513,7 +479,7 @@ public class TestRunner {
 			final Method testMethod, final TestDataGroup testDataGroup,
 			final TestContextImpl context) {
 		TestNodeImpl testNode = context.getTestNode();
-		log(loop);
+		logger.debug(loop);
 		try {
 			executor.submit(new Callable<Void>() {
 				@Override
@@ -529,25 +495,25 @@ public class TestRunner {
 				}
 			}).get();
 			if (testNode.getStatus() == Status.PASS) {
-				log(" - Pass");
+				logger.debug(" - Pass");
 			} else if (testNode.getStatus() == Status.FAILURE) {
-				log(" - Failure");
+				logger.debug(" - Failure");
 			} else {
 				testNode.error("Unexpected case");
 				fireNodeUpdate(testNode);
 			}
 		} catch (ExecutionException e) {
-			log(" - Error");
-			log(null, e.getCause());
+			logger.debug(" - Error");
+			logger.error(null, e.getCause());
 			testNode.error(e.getCause());
 			fireNodeUpdate(testNode);
 		} catch (InterruptedException e) {
-			log(" - Stopped");
+			logger.debug(" - Stopped");
 			testNode.stop();
 			fireNodeUpdate(testNode);
 		} catch (Throwable t) {
-			log(" - Error");
-			log(null, t);
+			logger.debug(" - Error");
+			logger.error(null, t);
 			testNode.error(t);
 			fireNodeUpdate(testNode);
 		}
@@ -607,7 +573,7 @@ public class TestRunner {
 		}
 		String msg = "Execute sub script \"" + nodeName + "\" "
 				+ testStep.getLoopTimes() + " times";
-		log(msg);
+		logger.debug(msg);
 		if (!Strings.isEmpty(prefix)) {
 			nodeName = prefix + ": " + nodeName;
 		}
@@ -624,7 +590,7 @@ public class TestRunner {
 				}
 				context.setTestNode(child);
 				child.start();
-				log(child.getName());
+				logger.debug(child.getName());
 				runTestScript(testScript, context);
 			}
 			context.setTestNode(testNode);
@@ -632,7 +598,7 @@ public class TestRunner {
 			fireNodeUpdate(testNode);
 		} else if (testStep.getLoopTimes() == 1) {
 			if (!stop) {
-				log("Loop 1");
+				logger.debug("Loop 1");
 				runTestScript(testScript, context);
 			}
 		} else {
@@ -641,34 +607,20 @@ public class TestRunner {
 		}
 	}
 
-	private void log(String message) {
-		if (verbose) {
-			System.out.println(message);
-		}
-	}
-
-	private static void log(String message, Throwable t) {
-		if (message != null) {
-			System.err.println(message);
-		}
-		if (t != null) {
-			t.printStackTrace(System.err);
-		}
-	}
-
 	public File takeSnapshot(TestContextImpl context) {
 		if (Strings.isBlank(picPath)) {
-			log("Snapshot path not specified", null);
+			logger.warn("Snapshot path not specified");
 			return null;
 		}
-		ISnapshotService service = getService(ISnapshotService.class);
+		ISnapshotService service = ServiceLocator
+				.getService(ISnapshotService.class);
 		if (service == null) {
 			return null;
 		}
 		File path = new File(picPath.trim());
 		if (!path.exists()) {
 			if (!path.mkdirs()) {
-				log("Make dirs failed: " + path.getPath(), null);
+				logger.error("Make dirs failed: " + path.getPath());
 				return null;
 			}
 		}
