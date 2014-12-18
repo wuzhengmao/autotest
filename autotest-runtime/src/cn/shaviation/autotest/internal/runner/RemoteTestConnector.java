@@ -58,8 +58,29 @@ public class RemoteTestConnector {
 					}
 				} catch (IOException e) {
 				}
+				thread = null;
+				try {
+					if (reader != null) {
+						reader.close();
+						reader = null;
+					}
+				} catch (IOException e) {
+				}
+				if (writer != null) {
+					writer.flush();
+					writer.close();
+					writer = null;
+				}
+				try {
+					if (socket != null) {
+						socket.close();
+						socket = null;
+					}
+				} catch (IOException e) {
+				}
 			}
 		};
+		thread.setDaemon(true);
 		thread.start();
 	}
 

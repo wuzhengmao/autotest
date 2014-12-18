@@ -16,6 +16,7 @@ import java.util.Set;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
+import cn.shavation.autotest.AutoTest;
 import cn.shaviation.autotest.internal.pathmatch.PathMatcher;
 import cn.shaviation.autotest.internal.pathmatch.PathPatternResolver;
 import cn.shaviation.autotest.util.Strings;
@@ -40,23 +41,8 @@ public class ClassPathMatchingPatternResolver implements PathPatternResolver {
 	private ClassLoader classLoader;
 	private PathMatcher pathMatcher = new AntPathMatcher();
 
-	private static ClassLoader getDefaultClassLoader() {
-		ClassLoader cl = null;
-		try {
-			cl = Thread.currentThread().getContextClassLoader();
-		} catch (Throwable ex) {
-			// Cannot access thread context ClassLoader - falling back to system
-			// class loader...
-		}
-		if (cl == null) {
-			// No thread context class loader -> use class loader of this class.
-			cl = ClassPathMatchingPatternResolver.class.getClassLoader();
-		}
-		return cl;
-	}
-
 	public ClassPathMatchingPatternResolver() {
-		this.classLoader = getDefaultClassLoader();
+		this.classLoader = AutoTest.getDefaultClassLoader();
 	}
 
 	public ClassPathMatchingPatternResolver(ClassLoader classLoader) {

@@ -35,6 +35,23 @@ public class AutoTest {
 		}
 	}
 
+	public static ClassLoader getDefaultClassLoader() {
+		return getDefaultClassLoader(null);
+	}
+
+	public static ClassLoader getDefaultClassLoader(ClassLoader classloader) {
+		ClassLoader cl;
+		try {
+			cl = Thread.currentThread().getContextClassLoader();
+		} catch (Throwable ex) {
+			cl = classloader;
+		}
+		if (cl == null) {
+			cl = AutoTest.class.getClassLoader();
+		}
+		return cl;
+	}
+
 	public static void main(String[] args) throws Exception {
 		int port = 0;
 		for (int i = 0; i < args.length; i++) {
@@ -53,11 +70,11 @@ public class AutoTest {
 	}
 
 	public static void run(List<String> resources, boolean recursive,
-			String logPath, String charset, String picPath,
+			String logPath, String charset, String picPath, boolean verbose,
 			ClassLoader classLoader) throws Exception {
 		TestRunner runner = new TestRunner(
 				Collections.unmodifiableList(resources), charset, recursive,
-				logPath, picPath, classLoader);
+				logPath, picPath, verbose, classLoader);
 		runner.run();
 	}
 }

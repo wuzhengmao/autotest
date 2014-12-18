@@ -465,8 +465,12 @@ public class TestScriptFormPage extends DocumentFormPage<TestScript> {
 			if (dependence != null && !dependence.isEmpty()) {
 				boolean changed = false;
 				for (int k = dependence.size() - 1; k >= 0; k--) {
-					if (dependence.get(k) == i) {
+					int j = dependence.get(k);
+					if (j == i) {
 						dependence.remove(k);
+						changed = true;
+					} else if (j > i) {
+						dependence.set(k, j - 1);
 						changed = true;
 					}
 				}

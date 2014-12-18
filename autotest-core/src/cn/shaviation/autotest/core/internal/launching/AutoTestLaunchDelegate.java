@@ -44,7 +44,7 @@ public class AutoTestLaunchDelegate extends JavaLaunchDelegate {
 					AutoTestCore.PLUGIN_ID,
 					"Cannot run multi-instance of automatic testing"));
 		}
-		port = 12432;
+		port = evaluatePort();
 		launch.setAttribute(AutoTestCore.LAUNCH_CONFIG_ATTR_PORT,
 				String.valueOf(port));
 		super.launch(configuration, mode, launch, monitor);
@@ -195,17 +195,15 @@ public class AutoTestLaunchDelegate extends JavaLaunchDelegate {
 
 	private int evaluatePort() throws CoreException {
 		ServerSocket socket = null;
-		for (int port = 1119; port < 1169; port++) {
-			try {
-				socket = new ServerSocket(port);
-				return port;
-			} catch (IOException e) {
-			} finally {
-				if (socket != null) {
-					try {
-						socket.close();
-					} catch (IOException e) {
-					}
+		try {
+			socket = new ServerSocket(0);
+			return socket.getLocalPort();
+		} catch (IOException e) {
+		} finally {
+			if (socket != null) {
+				try {
+					socket.close();
+				} catch (IOException e) {
 				}
 			}
 		}
