@@ -5,8 +5,8 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
 
-import cn.shavation.autotest.runner.TestContext;
 import cn.shaviation.autotest.model.MethodModel;
+import cn.shaviation.autotest.runner.TestContext;
 import cn.shaviation.autotest.util.Strings;
 
 public class MethodModelImpl implements MethodModel {

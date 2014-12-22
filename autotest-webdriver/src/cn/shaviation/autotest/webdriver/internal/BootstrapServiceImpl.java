@@ -8,8 +8,8 @@ import org.openqa.selenium.firefox.FirefoxDriver;
 import org.openqa.selenium.htmlunit.HtmlUnitDriver;
 import org.openqa.selenium.ie.InternetExplorerDriver;
 
-import cn.shavation.autotest.runner.TestContext;
-import cn.shavation.autotest.runner.spi.IBootstrapService;
+import cn.shaviation.autotest.runner.TestContext;
+import cn.shaviation.autotest.runner.spi.IBootstrapService;
 import cn.shaviation.autotest.util.Strings;
 import cn.shaviation.autotest.webdriver.Configuration;
 

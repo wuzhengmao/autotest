@@ -5,8 +5,8 @@ import java.util.Map;
 
 import org.openqa.selenium.WebDriver;
 
-import cn.shavation.autotest.runner.TestContext;
-import cn.shavation.autotest.runner.TestContexts;
+import cn.shaviation.autotest.runner.TestContext;
+import cn.shaviation.autotest.runner.TestContexts;
 
 import com.thoughtworks.selenium.Selenium;
 

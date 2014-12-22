@@ -25,7 +25,7 @@ import org.eclipse.jdt.launching.IVMRunner;
 import org.eclipse.jdt.launching.JavaLaunchDelegate;
 import org.eclipse.jdt.launching.VMRunnerConfiguration;
 
-import cn.shavation.autotest.AutoTest;
+import cn.shaviation.autotest.AutoTest;
 import cn.shaviation.autotest.core.AutoTestCore;
 import cn.shaviation.autotest.core.TestRunSession;
 import cn.shaviation.autotest.util.Logs;

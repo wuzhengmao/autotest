@@ -15,7 +15,7 @@ import org.eclipse.jdt.core.IClasspathEntry;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.JavaCore;
 
-import cn.shavation.autotest.AutoTest;
+import cn.shaviation.autotest.AutoTest;
 import cn.shaviation.autotest.core.AutoTestCore;
 import cn.shaviation.autotest.core.util.JavaUtils;
 import cn.shaviation.autotest.util.Logs;

@@ -28,12 +28,12 @@ import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Menu;
 
-import cn.shavation.autotest.runner.TestElement;
-import cn.shavation.autotest.runner.TestElement.Status;
-import cn.shavation.autotest.runner.TestElement.Type;
-import cn.shavation.autotest.runner.TestExecution;
-import cn.shavation.autotest.runner.TestNode;
 import cn.shaviation.autotest.core.TestRunSession;
+import cn.shaviation.autotest.runner.TestElement;
+import cn.shaviation.autotest.runner.TestExecution;
+import cn.shaviation.autotest.runner.TestNode;
+import cn.shaviation.autotest.runner.TestElement.Status;
+import cn.shaviation.autotest.runner.TestElement.Type;
 import cn.shaviation.autotest.ui.internal.actions.OpenTestMethodAction;
 import cn.shaviation.autotest.ui.internal.actions.OpenTestScriptAction;
 import cn.shaviation.autotest.ui.internal.actions.RerunTestAction;

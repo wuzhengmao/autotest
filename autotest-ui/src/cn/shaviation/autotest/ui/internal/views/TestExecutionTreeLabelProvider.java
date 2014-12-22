@@ -9,8 +9,8 @@ import org.eclipse.jface.viewers.StyledCellLabelProvider;
 import org.eclipse.jface.viewers.StyledString;
 import org.eclipse.swt.graphics.Image;
 
-import cn.shavation.autotest.runner.TestElement;
-import cn.shavation.autotest.runner.TestElement.Type;
+import cn.shaviation.autotest.runner.TestElement;
+import cn.shaviation.autotest.runner.TestElement.Type;
 import cn.shaviation.autotest.util.Strings;
 
 public class TestExecutionTreeLabelProvider extends LabelProvider implements

@@ -2,7 +2,7 @@ package cn.shaviation.autotest.webdriver.internal;
 
 import org.openqa.selenium.WebDriver;
 
-import cn.shavation.autotest.runner.TestContext;
+import cn.shaviation.autotest.runner.TestContext;
 import cn.shaviation.autotest.webdriver.Configuration;
 import cn.shaviation.autotest.webdriver.Globals;
 

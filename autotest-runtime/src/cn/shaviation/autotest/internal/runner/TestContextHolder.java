@@ -1,7 +1,7 @@
 package cn.shaviation.autotest.internal.runner;
 
-import cn.shavation.autotest.runner.TestContext;
-import cn.shavation.autotest.runner.TestContexts;
+import cn.shaviation.autotest.runner.TestContext;
+import cn.shaviation.autotest.runner.TestContexts;
 
 public abstract class TestContextHolder extends TestContexts {
 

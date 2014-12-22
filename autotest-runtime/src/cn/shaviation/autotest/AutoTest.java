@@ -1,4 +1,4 @@
-package cn.shavation.autotest;
+package cn.shaviation.autotest;
 
 import java.util.Collections;
 import java.util.List;

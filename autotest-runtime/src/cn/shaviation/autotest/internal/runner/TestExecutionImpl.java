@@ -4,7 +4,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
-import cn.shavation.autotest.runner.TestExecution;
+import cn.shaviation.autotest.runner.TestExecution;
 
 public class TestExecutionImpl extends TestNodeImpl implements TestExecution {
 

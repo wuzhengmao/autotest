@@ -3,9 +3,9 @@ package cn.shaviation.autotest.core;
 import org.eclipse.debug.core.ILaunch;
 import org.eclipse.jdt.core.IJavaProject;
 
-import cn.shavation.autotest.runner.ITestSessionListener;
-import cn.shavation.autotest.runner.TestExecution;
-import cn.shavation.autotest.runner.TestSession;
+import cn.shaviation.autotest.runner.ITestSessionListener;
+import cn.shaviation.autotest.runner.TestExecution;
+import cn.shaviation.autotest.runner.TestSession;
 
 public class TestRunSession implements TestSession {
 

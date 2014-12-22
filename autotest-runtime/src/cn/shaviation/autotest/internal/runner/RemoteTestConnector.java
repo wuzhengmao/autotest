@@ -10,8 +10,8 @@ import java.net.Socket;
 import java.util.ArrayList;
 import java.util.List;
 
-import cn.shavation.autotest.runner.TestElement.Status;
-import cn.shavation.autotest.runner.TestElement.Type;
+import cn.shaviation.autotest.runner.TestElement.Status;
+import cn.shaviation.autotest.runner.TestElement.Type;
 import cn.shaviation.autotest.util.Strings;
 
 public class RemoteTestConnector {

@@ -4,9 +4,9 @@ import java.io.IOException;
 import java.net.URL;
 import java.util.Properties;
 
-import cn.shavation.autotest.AutoTest;
-import cn.shavation.autotest.runner.spi.Logger;
-import cn.shavation.autotest.runner.spi.LoggerFactory;
+import cn.shaviation.autotest.AutoTest;
+import cn.shaviation.autotest.runner.spi.Logger;
+import cn.shaviation.autotest.runner.spi.LoggerFactory;
 import cn.shaviation.autotest.webdriver.Configuration;
 
 public class ConfigurationImpl implements Configuration {

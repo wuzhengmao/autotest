@@ -16,7 +16,7 @@ import org.eclipse.debug.core.DebugPlugin;
 import org.eclipse.debug.core.ILaunchManager;
 import org.osgi.framework.BundleContext;
 
-import cn.shavation.autotest.AutoTest;
+import cn.shaviation.autotest.AutoTest;
 import cn.shaviation.autotest.core.internal.launching.AutoTestLaunchListener;
 import cn.shaviation.autotest.webdriver.WebDriverRuntime;
 

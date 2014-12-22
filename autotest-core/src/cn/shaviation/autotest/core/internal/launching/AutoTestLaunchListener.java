@@ -12,9 +12,9 @@ import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.launching.IJavaLaunchConfigurationConstants;
 
-import cn.shavation.autotest.runner.TestSessionHelper;
 import cn.shaviation.autotest.core.AutoTestCore;
 import cn.shaviation.autotest.core.TestRunSession;
+import cn.shaviation.autotest.runner.TestSessionHelper;
 
 public class AutoTestLaunchListener implements ILaunchListener {
 

@@ -6,8 +6,8 @@ import java.io.InputStream;
 import org.openqa.selenium.OutputType;
 import org.openqa.selenium.TakesScreenshot;
 
-import cn.shavation.autotest.runner.TestContext;
-import cn.shavation.autotest.runner.spi.ISnapshotService;
+import cn.shaviation.autotest.runner.TestContext;
+import cn.shaviation.autotest.runner.spi.ISnapshotService;
 
 public class SnapshotServiceImpl implements ISnapshotService {
 

@@ -16,9 +16,9 @@ import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.Table;
 import org.eclipse.swt.widgets.TableItem;
 
-import cn.shavation.autotest.runner.TestElement;
-import cn.shavation.autotest.runner.TestElement.Status;
-import cn.shavation.autotest.runner.TestNode;
+import cn.shaviation.autotest.runner.TestElement;
+import cn.shaviation.autotest.runner.TestNode;
+import cn.shaviation.autotest.runner.TestElement.Status;
 import cn.shaviation.autotest.ui.internal.actions.OpenEditorAtLineAction;
 import cn.shaviation.autotest.util.Strings;
 

@@ -13,11 +13,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import cn.shavation.autotest.runner.ITestSessionListener;
-import cn.shavation.autotest.runner.TestElement.Status;
-import cn.shavation.autotest.runner.TestElement.Type;
-import cn.shavation.autotest.runner.TestExecution;
-import cn.shavation.autotest.runner.TestSession;
+import cn.shaviation.autotest.runner.ITestSessionListener;
+import cn.shaviation.autotest.runner.TestExecution;
+import cn.shaviation.autotest.runner.TestSession;
+import cn.shaviation.autotest.runner.TestElement.Status;
+import cn.shaviation.autotest.runner.TestElement.Type;
 import cn.shaviation.autotest.util.Logs;
 import cn.shaviation.autotest.util.Strings;
 

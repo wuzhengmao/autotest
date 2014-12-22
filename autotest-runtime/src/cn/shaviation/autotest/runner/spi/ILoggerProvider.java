@@ -1,4 +1,4 @@
-package cn.shavation.autotest.runner.spi;
+package cn.shaviation.autotest.runner.spi;
 
 public interface ILoggerProvider {
 

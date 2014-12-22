@@ -3,7 +3,7 @@ package cn.shaviation.autotest.model;
 import java.io.File;
 import java.util.Set;
 
-import cn.shavation.autotest.runner.TestContext;
+import cn.shaviation.autotest.runner.TestContext;
 
 public interface MethodModel {
 

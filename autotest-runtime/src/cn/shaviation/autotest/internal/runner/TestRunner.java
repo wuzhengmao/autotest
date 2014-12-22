@@ -24,16 +24,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import cn.shavation.autotest.AutoTest;
-import cn.shavation.autotest.runner.TestElement.Status;
-import cn.shavation.autotest.runner.TestElement.Type;
-import cn.shavation.autotest.runner.spi.IBootstrapService;
-import cn.shavation.autotest.runner.spi.ISnapshotService;
-import cn.shavation.autotest.runner.spi.Logger;
-import cn.shavation.autotest.runner.spi.LoggerFactory;
-import cn.shavation.autotest.runner.spi.ServiceLocator;
-import cn.shavation.autotest.runner.TestExecution;
-import cn.shavation.autotest.runner.TestExecutionHelper;
+import cn.shaviation.autotest.AutoTest;
 import cn.shaviation.autotest.annotation.Singleton;
 import cn.shaviation.autotest.annotation.TestMethod;
 import cn.shaviation.autotest.internal.pathmatch.PathPatternResolver;
@@ -49,7 +40,18 @@ import cn.shaviation.autotest.model.TestScriptHelper;
 import cn.shaviation.autotest.model.TestStep;
 import cn.shaviation.autotest.model.TestStepIterator;
 import cn.shaviation.autotest.model.TestStepIterator.ITestStepVisitor;
+import cn.shaviation.autotest.runner.TestExecution;
+import cn.shaviation.autotest.runner.TestExecutionHelper;
+import cn.shaviation.autotest.runner.TestElement.Status;
+import cn.shaviation.autotest.runner.TestElement.Type;
+import cn.shaviation.autotest.runner.spi.ExpressionEvaluator;
+import cn.shaviation.autotest.runner.spi.IBootstrapService;
+import cn.shaviation.autotest.runner.spi.ISnapshotService;
+import cn.shaviation.autotest.runner.spi.Logger;
+import cn.shaviation.autotest.runner.spi.LoggerFactory;
+import cn.shaviation.autotest.runner.spi.ServiceLocator;
 import cn.shaviation.autotest.util.IOUtils;
+import cn.shaviation.autotest.util.Objects;
 import cn.shaviation.autotest.util.Strings;
 
 public class TestRunner {
@@ -357,8 +359,10 @@ public class TestRunner {
 						if (testStep.getParameters() != null) {
 							for (Parameter param : testStep.getParameters()) {
 								if (!Strings.isEmpty(param.getKey())) {
-									context.put(param.getKey(),
-											param.getValue());
+									context.put(
+											param.getKey(),
+											processExpression(context,
+													param.getValue()));
 								}
 							}
 						}
@@ -543,9 +547,11 @@ public class TestRunner {
 			for (TestDataEntry entry : testDataGroup.getEntries()) {
 				if (!Strings.isEmpty(entry.getKey())) {
 					if (entry.getType() == TestDataEntry.Type.Input) {
-						inputData.put(entry.getKey(), entry.getValue());
+						inputData.put(entry.getKey(),
+								processExpression(context, entry.getValue()));
 					} else if (entry.getType() == TestDataEntry.Type.Output) {
-						outputData.put(entry.getKey(), entry.getValue());
+						outputData.put(entry.getKey(),
+								processExpression(context, entry.getValue()));
 					}
 				}
 			}
@@ -559,6 +565,39 @@ public class TestRunner {
 			testNode.fail(model.getDescription(), model.getSnapshot());
 		}
 		fireNodeUpdate(testNode);
+	}
+
+	private String processExpression(TestContextImpl context, String data)
+			throws Exception {
+		StringBuilder sb = new StringBuilder();
+		int k = 0, n = 0;
+		boolean f = false;
+		for (int i = 0; i < data.length(); i++) {
+			char c = data.charAt(i);
+			if (c == '\\') {
+				i++;
+			} else if (!f && c == '!') {
+				if (i + 1 < data.length() && data.charAt(i + 1) == '{') {
+					k = i++;
+					f = true;
+				}
+			} else if (f && c == '}') {
+				sb.append(data.substring(n, k));
+				String expression = data.substring(k + 2, i).trim();
+				sb.append(Objects.toString(ExpressionEvaluator.evaluate(
+						context, expression)));
+				n = i + 1;
+				f = false;
+			}
+		}
+		if (n == 0) {
+			return data;
+		}
+		if (n < data.length()) {
+			sb.append(data.substring(n));
+		}
+		logger.debug("Resolve \"" + data + "\" to \"" + sb.toString() + "\"");
+		return sb.toString();
 	}
 
 	private void runSubScript(String prefix, TestStep testStep,

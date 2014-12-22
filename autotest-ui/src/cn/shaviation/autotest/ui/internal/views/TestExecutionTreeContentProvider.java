@@ -5,8 +5,8 @@ import java.util.List;
 import org.eclipse.jface.viewers.ITreeContentProvider;
 import org.eclipse.jface.viewers.Viewer;
 
-import cn.shavation.autotest.runner.TestElement;
-import cn.shavation.autotest.runner.TestNode;
+import cn.shaviation.autotest.runner.TestElement;
+import cn.shaviation.autotest.runner.TestNode;
 
 public class TestExecutionTreeContentProvider implements ITreeContentProvider {
 

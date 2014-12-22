@@ -1,4 +1,4 @@
-package cn.shavation.autotest.runner;
+package cn.shaviation.autotest.runner;
 
 import cn.shaviation.autotest.internal.runner.TestSessionImpl;
 

@@ -16,7 +16,7 @@ import java.util.Set;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
-import cn.shavation.autotest.AutoTest;
+import cn.shaviation.autotest.AutoTest;
 import cn.shaviation.autotest.internal.pathmatch.PathMatcher;
 import cn.shaviation.autotest.internal.pathmatch.PathPatternResolver;
 import cn.shaviation.autotest.util.Strings;

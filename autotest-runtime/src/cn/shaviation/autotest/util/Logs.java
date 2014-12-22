@@ -3,7 +3,7 @@ package cn.shaviation.autotest.util;
 import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.Status;
 
-import cn.shavation.autotest.AutoTest;
+import cn.shaviation.autotest.AutoTest;
 
 public abstract class Logs {
 
