@@ -40,15 +40,17 @@ import cn.shaviation.autotest.model.TestScriptHelper;
 import cn.shaviation.autotest.model.TestStep;
 import cn.shaviation.autotest.model.TestStepIterator;
 import cn.shaviation.autotest.model.TestStepIterator.ITestStepVisitor;
-import cn.shaviation.autotest.runner.TestExecution;
-import cn.shaviation.autotest.runner.TestExecutionHelper;
 import cn.shaviation.autotest.runner.TestElement.Status;
 import cn.shaviation.autotest.runner.TestElement.Type;
+import cn.shaviation.autotest.runner.TestExecution;
+import cn.shaviation.autotest.runner.TestExecutionHelper;
 import cn.shaviation.autotest.runner.spi.ExpressionEvaluator;
 import cn.shaviation.autotest.runner.spi.IBootstrapService;
+import cn.shaviation.autotest.runner.spi.IResourceInterceptor;
 import cn.shaviation.autotest.runner.spi.ISnapshotService;
 import cn.shaviation.autotest.runner.spi.Logger;
 import cn.shaviation.autotest.runner.spi.LoggerFactory;
+import cn.shaviation.autotest.runner.spi.Payload;
 import cn.shaviation.autotest.runner.spi.ServiceLocator;
 import cn.shaviation.autotest.util.IOUtils;
 import cn.shaviation.autotest.util.Objects;
@@ -429,6 +431,8 @@ public class TestRunner {
 			InputStreamReader reader = new InputStreamReader(getResource(
 					resource).openStream(), charset);
 			testDataDef = TestDataHelper.parse(reader);
+			testDataDef = interceptResource(context, resource,
+					TestDataDef.class, testDataDef);
 			msg += " with "
 					+ (testDataDef.getDataList() != null ? testDataDef
 							.getDataList().size() : 0)
@@ -442,7 +446,8 @@ public class TestRunner {
 			if (testDataDef != null && testDataDef.getDataList() != null
 					&& !testDataDef.getDataList().isEmpty()) {
 				for (int j = 0; j < testDataDef.getDataList().size(); j++) {
-					String loop = "Loop " + (i + 1) + " group " + (j + 1);
+					String loop = "Loop " + (i + 1) + ": "
+							+ testDataDef.getDataList().get(j).getName();
 					map.put(loop, j);
 				}
 			} else {
@@ -565,6 +570,27 @@ public class TestRunner {
 			testNode.fail(model.getDescription(), model.getSnapshot());
 		}
 		fireNodeUpdate(testNode);
+	}
+
+	@SuppressWarnings("unchecked")
+	private <T> T interceptResource(TestContextImpl context, String resource,
+			Class<T> klass, T data) {
+		Payload<T> current = new Payload<T>();
+		current.set(data);
+		for (IResourceInterceptor<?> interceptor : ServiceLocator
+				.getServices(IResourceInterceptor.class)) {
+			if (!klass.equals(interceptor.support())) {
+				continue;
+			}
+			Payload<T> origin = new Payload<T>();
+			origin.set(current.get());
+			boolean stop = ((IResourceInterceptor<T>) interceptor).intercept(
+					context, resource, origin, current);
+			if (stop) {
+				break;
+			}
+		}
+		return current.get();
 	}
 
 	private String processExpression(TestContextImpl context, String data)
